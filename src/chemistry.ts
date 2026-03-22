@@ -278,12 +278,3 @@ export function getBehaviorGuide(current: ChemicalState, locale: Locale = "zh"):
   return `[${title}]\n${guides.join("\n")}`;
 }
 
-/** Get the stimulus vector for a given type (for reference) */
-export function getStimulusVector(type: StimulusType): StimulusVector {
-  return { ...STIMULUS_VECTORS[type] };
-}
-
-/** All available stimulus types */
-export function getAllStimulusTypes(): StimulusType[] {
-  return Object.keys(STIMULUS_VECTORS) as StimulusType[];
-}

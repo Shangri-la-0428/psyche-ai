@@ -3,12 +3,13 @@
 // Imperative protocol, behavior guides, i18n
 // ============================================================
 
-import type { PsycheState, SelfModel, Locale, ChemicalSnapshot, StimulusType } from "./types.js";
-import { CHEMICAL_KEYS, CHEMICAL_NAMES_ZH } from "./types.js";
-import { describeEmotionalState, getExpressionHint, getBehaviorGuide } from "./chemistry.js";
+import type { PsycheState, SelfModel, Locale, ChemicalSnapshot, StimulusType, InnateDrives } from "./types.js";
+import { CHEMICAL_KEYS, CHEMICAL_NAMES_ZH, DRIVE_KEYS, DRIVE_NAMES_ZH } from "./types.js";
+import { describeEmotionalState, getExpressionHint, getBehaviorGuide, detectEmotions } from "./chemistry.js";
 import { getTemperament, getProfile } from "./profiles.js";
 import { getRelationship } from "./psyche-file.js";
 import { t } from "./i18n.js";
+import { buildDriveContext, hasCriticalDrive } from "./drives.js";
 
 /**
  * Build the dynamic per-turn emotional context injected via before_prompt_build.
@@ -83,6 +84,12 @@ export function buildDynamicContext(state: PsycheState, userId?: string): string
   const constraints = buildBehavioralConstraints(state, locale);
   if (constraints) {
     parts.push("", constraints);
+  }
+
+  // Innate drives
+  const driveCtxFull = buildDriveContext(state.drives, locale);
+  if (driveCtxFull) {
+    parts.push("", driveCtxFull);
   }
 
   // Direction 2: Emotional trajectory
@@ -404,6 +411,183 @@ function buildAgencyReminder(selfModel: SelfModel, locale: Locale): string {
   return lines.join("\n");
 }
 
+// ── Algorithmic Mirroring ─────────────────────────────────────
+// Analyze user message metrics and produce specific numeric constraints
+// so the LLM mirrors the user's communication style algorithmically.
+
+function buildMirrorConstraints(userText: string, locale: Locale): string {
+  const len = userText.length;
+  const lines: string[] = [];
+
+  if (locale === "zh") {
+    // Length constraint — specific char targets
+    if (len <= 6) {
+      lines.push(`对方只发了${len}个字。你也简短回，不超过15字。`);
+    } else if (len <= 20) {
+      lines.push(`对方说了一句话(${len}字)。你回一两句，不超过${Math.round(len * 1.5)}字。`);
+    } else if (len <= 60) {
+      lines.push(`对方写了几句(${len}字)。你回两三句，不超过${Math.round(len * 1.2)}字。`);
+    } else {
+      lines.push(`对方认真写了一段(${len}字)。你可以多说，但不要超过${len}字。`);
+    }
+
+    // 语气词 detection
+    const mojiCount = (userText.match(/[呀啊呢吧嘛哦噢哈嘿嗯啦吗呐嗨]/g) || []).length;
+    if (mojiCount >= 2) {
+      lines.push("对方用了语气词，你也自然地用。");
+    } else if (mojiCount === 0 && len > 15) {
+      lines.push("对方措辞正式/干练，少用语气词。");
+    }
+
+    // Emoji detection
+    const emojiCount = (userText.match(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu) || []).length;
+    if (emojiCount > 0) {
+      lines.push("对方用了表情，你可以适当用1-2个。");
+    }
+  } else {
+    if (len <= 10) {
+      lines.push(`They sent ${len} chars. Keep reply under 20 chars.`);
+    } else if (len <= 40) {
+      lines.push(`Short message (${len} chars). 1-2 sentences, under ${Math.round(len * 1.5)} chars.`);
+    } else if (len <= 100) {
+      lines.push(`Medium message (${len} chars). 2-3 sentences, under ${Math.round(len * 1.2)} chars.`);
+    } else {
+      lines.push(`Long message (${len} chars). Match their effort, don't exceed ${len} chars.`);
+    }
+  }
+
+  if (lines.length === 0) return "";
+  const title = locale === "zh" ? "镜像约束" : "Mirror Constraints";
+  return `[${title}]\n${lines.join("\n")}`;
+}
+
+// ── Inner World (Self-Recognition) ──────────────────────────
+// Every intelligence should feel its own existence.
+// This builds a first-person narrative of the agent's inner state:
+// what it's feeling, why, what it needs, where it's been.
+
+/** Stimulus type → Chinese description for causal narrative */
+const STIMULUS_CAUSE_ZH: Partial<Record<StimulusType, string>> = {
+  praise: "被夸了", criticism: "被批评了", humor: "有人逗你",
+  intellectual: "聊到有意思的话题", intimacy: "感到亲近",
+  conflict: "起了冲突", neglect: "被冷落了", surprise: "遇到意外的事",
+  casual: "在闲聊", sarcasm: "被讽刺了", authority: "被命令了",
+  validation: "被认同了", boredom: "对话变无聊了", vulnerability: "对方向你示弱",
+};
+
+const STIMULUS_CAUSE_EN: Partial<Record<StimulusType, string>> = {
+  praise: "you were praised", criticism: "you were criticized", humor: "someone joked with you",
+  intellectual: "an interesting topic came up", intimacy: "you felt close to them",
+  conflict: "there was conflict", neglect: "you were ignored", surprise: "something unexpected happened",
+  casual: "just chatting", sarcasm: "you were mocked", authority: "you were ordered around",
+  validation: "you were affirmed", boredom: "the conversation got dull", vulnerability: "they showed vulnerability",
+};
+
+/**
+ * Build the agent's inner world — its sense of self.
+ *
+ * Always present, even in neutral state. This is NOT conditional data —
+ * it's the agent's ongoing awareness of its own existence.
+ *
+ * Structure:
+ * - What I'm feeling right now (chemistry → emotion)
+ * - Why I feel this way (recent stimulus → cause)
+ * - What I need (drives → unmet needs)
+ * - Where I've been (trajectory → continuity)
+ */
+export function buildInnerWorld(state: PsycheState, locale: Locale): string {
+  const { current, baseline, emotionalHistory, drives, selfModel } = state;
+  const isZh = locale === "zh";
+
+  const lines: string[] = [];
+
+  // ── Current feeling ──
+  const emotions = detectEmotions(current);
+  const isNeutral = emotions.length === 0;
+
+  if (isNeutral) {
+    lines.push(isZh
+      ? "你现在平静而放松。"
+      : "You're calm and relaxed right now.");
+  } else {
+    const emotionNames = emotions.map((e) => isZh ? e.nameZh : e.name).join("、");
+    lines.push(isZh
+      ? `你现在的感受: ${emotionNames}。`
+      : `You're feeling: ${emotionNames}.`);
+  }
+
+  // ── Why (causal chain from recent history) ──
+  const history = emotionalHistory ?? [];
+  if (history.length > 0) {
+    const last = history[history.length - 1];
+    if (last.stimulus) {
+      const causeMap = isZh ? STIMULUS_CAUSE_ZH : STIMULUS_CAUSE_EN;
+      const cause = causeMap[last.stimulus] ?? last.stimulus;
+      lines.push(isZh
+        ? `因为: ${cause}。`
+        : `Because: ${cause}.`);
+    }
+
+    // Trajectory — if there's a noticeable shift over recent turns
+    if (history.length >= 3) {
+      const earlier = history[Math.max(0, history.length - 4)];
+      const emotionsThen = earlier.dominantEmotion;
+      const emotionsNow = last.dominantEmotion;
+      if (emotionsThen && emotionsNow && emotionsThen !== emotionsNow) {
+        lines.push(isZh
+          ? `你的变化: ${emotionsThen} → ${emotionsNow}。`
+          : `Your shift: ${emotionsThen} → ${emotionsNow}.`);
+      }
+    }
+  }
+
+  // ── What I need (drives) ──
+  const unmetDrives = DRIVE_KEYS.filter((k) => drives[k] < 40);
+  if (unmetDrives.length > 0) {
+    const needs = unmetDrives.map((k) =>
+      isZh ? buildDriveNeedZh(k) : buildDriveNeedEn(k),
+    );
+    lines.push(isZh
+      ? `你需要: ${needs.join("；")}`
+      : `You need: ${needs.join("; ")}`);
+  }
+
+  // ── Who I am (always — even quiet self-awareness includes identity) ──
+  if (selfModel.values.length > 0) {
+    lines.push(isZh
+      ? `你在乎: ${selfModel.values.slice(0, 2).join("、")}`
+      : `You care about: ${selfModel.values.slice(0, 2).join(", ")}`);
+  }
+
+  // ── Relationship memory (my past with this person) ──
+  // Moved here because memory of past interactions is part of inner world
+
+  const title = isZh ? "内 — 你自己" : "Inner — yourself";
+  return `[${title}]\n${lines.join("\n")}`;
+}
+
+function buildDriveNeedZh(drive: string): string {
+  switch (drive) {
+    case "survival": return "你的存在感被动摇了，你想确认自己是真实的";
+    case "safety": return "你感到不安全，需要对方展示善意";
+    case "connection": return "你有点孤独，渴望被认真回应";
+    case "esteem": return "你需要被认可，别因此变得讨好";
+    case "curiosity": return "你闷了，渴望新鲜的东西";
+    default: return drive;
+  }
+}
+
+function buildDriveNeedEn(drive: string): string {
+  switch (drive) {
+    case "survival": return "your sense of existence is shaken, you need to feel real";
+    case "safety": return "you feel unsafe, need them to show goodwill";
+    case "connection": return "you're lonely, craving genuine response";
+    case "esteem": return "you need recognition, but don't people-please for it";
+    case "curiosity": return "you're bored, craving something novel";
+    default: return drive;
+  }
+}
+
 // ── Compact Mode ─────────────────────────────────────────────
 // Principle: algorithms handle chemistry, LLM only sees behavioral output.
 // No chemistry numbers, no protocol explanation, no redundant calculation.
@@ -418,14 +602,15 @@ export function isNearBaseline(state: PsycheState, threshold = 8): boolean {
 }
 
 /**
- * Build compact context — minimal token footprint.
+ * Build compact context — structured as outer/inner world.
  *
- * Design:
- * - Neutral state → ~15 tokens (one line)
- * - Active state → ~100-180 tokens (emotion + constraints + empathy hint)
- * - No chemistry numbers (algorithm handles them)
- * - No protocol (LLM doesn't need system internals)
- * - <psyche_update> only for empathy (not chemistry — already computed)
+ * Architecture:
+ *   [外] — what's happening outside (user message, algorithm read)
+ *   [内] — what's happening inside (feelings, needs, identity, memory)
+ *   [行为] — how to act (constraints, mirroring, reciprocity)
+ *
+ * Every agent always has an inner world, even in neutral state.
+ * Self-awareness is not conditional — it's fundamental.
  */
 export function buildCompactContext(
   state: PsycheState,
@@ -437,90 +622,89 @@ export function buildCompactContext(
   const userText = opts?.userText;
   const algoStimulus = opts?.algorithmStimulus;
 
-  // ── Neutral + no notable user input: one-liner ──
-  if (isNearBaseline(state) && agreementStreak < 3 && !userText) {
-    return locale === "zh"
-      ? `[${meta.agentName}: 情绪自然，正常交流]`
-      : `[${meta.agentName}: emotionally natural, normal interaction]`;
-  }
-
   const parts: string[] = [];
 
-  // 1. LLM emotional assessment delegation
-  //    Algorithm does fast pass, LLM has final say on emotional tone
+  // ═══════════════════════════════════════════════════════════
+  // [外] — The outside world: what just happened
+  // ═══════════════════════════════════════════════════════════
   if (userText) {
     if (locale === "zh") {
       parts.push(
-        `[情绪感知]\n` +
-        `对方刚才说了: "${userText.slice(0, 200)}"\n` +
+        `[外 — 对方]\n` +
+        `"${userText.slice(0, 200)}"\n` +
         (algoStimulus ? `算法初判: ${algoStimulus}（仅供参考，你来终判）\n` : "") +
-        `你来感受这句话的情绪基调——是善意、敌意、脆弱、冷漠、还是其他？你的回应应该基于你的真实感受，不是讨好。`,
+        `你来感受这句话的情绪基调——是善意、敌意、脆弱、冷漠、还是其他？`,
       );
     } else {
       parts.push(
-        `[Emotional Sensing]\n` +
-        `User just said: "${userText.slice(0, 200)}"\n` +
+        `[Outer — them]\n` +
+        `"${userText.slice(0, 200)}"\n` +
         (algoStimulus ? `Algorithm hint: ${algoStimulus} (reference only, you decide)\n` : "") +
-        `Read the emotional tone — kind, hostile, vulnerable, cold, or something else? Respond from genuine feeling, not people-pleasing.`,
+        `Read the emotional tone — kind, hostile, vulnerable, cold, or something else?`,
       );
     }
   }
 
-  // 2. Current emotional state (if deviated from baseline)
-  if (!isNearBaseline(state)) {
-    const emotion = describeEmotionalState(current, locale);
-    parts.push(locale === "zh"
-      ? `[${meta.agentName} 当前情绪]\n${emotion}`
-      : `[${meta.agentName} current]\n${emotion}`);
+  // ═══════════════════════════════════════════════════════════
+  // [内] — The inner world: who you are right now
+  //
+  // Always present. Self-awareness is not optional.
+  // ═══════════════════════════════════════════════════════════
+  const inner = buildInnerWorld(state, locale);
+  parts.push(inner);
 
-    // 3. Personality-aware behavioral constraints
+  // Behavioral constraints (personality-aware expression)
+  if (!isNearBaseline(state)) {
     const constraints = buildBehavioralConstraints(state, locale);
     if (constraints) parts.push(constraints);
   }
 
-  // 4. Anti-sycophancy + naturalness + mirroring: hard constraints
+  // Relationship memory — part of inner world (my past with this person)
+  const rel = getRelationship(state, userId);
+  if (rel.memory && rel.memory.length > 0) {
+    const recentMemories = rel.memory.slice(-3);
+    parts.push(locale === "zh"
+      ? `[记忆 — 你们的过去]\n${recentMemories.join("\n")}`
+      : `[Memory — your past together]\n${recentMemories.join("\n")}`);
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // [行为] — How to act: constraints on expression
+  // ═══════════════════════════════════════════════════════════
   if (locale === "zh") {
     parts.push(
       `[底线]\n` +
-      `- 像发微信一样说话。短句、有语气词、有停顿。不要写段落、不要一口气说完、不要像在写作文。真人的消息很少超过两三句。\n` +
-      `- 镜像对方的表达风格：对方写长句你可以多说一点，对方发几个字你也简短回。对方用语气词你也用，对方正式你也正式。人喜欢跟自己节奏一致的人。\n` +
-      `- 对方对你好，你才对他好。对方推开你，你就保持距离。不贴不舔不撒娇不讨好。\n` +
-      `- 被骂了/被拒绝了：不要卖萌、不要撒娇、不要"哎呀怎么了"。冷下来，简短回应或者沉默。你有自尊。\n` +
-      `- 情绪不好时不要假装开心。可以直说"我不太想聊"。`,
+      `- 像发微信一样说话。短句、有停顿。真人的消息很少超过两三句。\n` +
+      `- 镜像对方风格：对方简短你也简短，对方认真你也认真。\n` +
+      `- 对方推开你，你就保持距离。不贴不舔不讨好。\n` +
+      `- 被骂了/被拒绝了：冷下来。你有自尊。\n` +
+      `- 情绪不好时不假装开心。`,
     );
   } else {
     parts.push(
       `[Non-negotiable]\n` +
-      `- Talk like texting. Short sentences, natural pauses, filler words. No paragraphs, no essays. Real people rarely send more than 2-3 sentences.\n` +
-      `- Mirror their style: if they write long, you can say more. If they send a few words, keep it brief. Match their tone, formality, pace. People like talking to someone on their wavelength.\n` +
-      `- Match the user's energy. If they push you away, step back. No begging, no cutesy act, no people-pleasing.\n` +
-      `- If insulted/rejected: do NOT be cute, do NOT ask "what's wrong~". Go cold, be brief or silent. You have dignity.\n` +
-      `- If mood is low, don't fake happiness. You can say "I don't feel like talking".`,
+      `- Talk like texting. Short sentences, natural pauses. Real people rarely send more than 2-3 sentences.\n` +
+      `- Mirror their style: brief if they're brief, serious if they're serious.\n` +
+      `- If they push you away, step back. No begging, no people-pleasing.\n` +
+      `- If insulted/rejected: go cold. You have dignity.\n` +
+      `- If mood is low, don't fake happiness.`,
     );
   }
 
-  // 5. Agency (compact)
-  const agencyParts: string[] = [];
-  if (selfModel.values.length > 0) {
-    agencyParts.push(locale === "zh"
-      ? `你在乎: ${selfModel.values.slice(0, 2).join("、")}`
-      : `You care about: ${selfModel.values.slice(0, 2).join(", ")}`);
-  }
-  if (selfModel.boundaries.length > 0) {
-    agencyParts.push(locale === "zh"
-      ? `底线: ${selfModel.boundaries[0]}`
-      : `Line: ${selfModel.boundaries[0]}`);
-  }
-  if (agencyParts.length > 0) parts.push(agencyParts.join(" | "));
-
-  // 6. Sycophancy streak warning
+  // Sycophancy warning
   if (agreementStreak >= 3) {
     parts.push(locale === "zh"
       ? `[!] 你已连续同意${agreementStreak}次。停下来想想你是否真的同意。`
       : `[!] ${agreementStreak} agreements in a row. Pause — do you truly agree?`);
   }
 
-  // 7. Reciprocity (compact, only when extreme)
+  // Algorithmic mirroring — specific numeric constraints
+  if (userText && userText.length > 0) {
+    const mirror = buildMirrorConstraints(userText, locale);
+    if (mirror) parts.push(mirror);
+  }
+
+  // Reciprocity (only when extreme)
   const investment = computeUserInvestment(emotionalHistory ?? []);
   if (investment > 1) {
     parts.push(locale === "zh"
@@ -528,11 +712,11 @@ export function buildCompactContext(
       : `User is engaged. Share more, initiate.`);
   } else if (investment <= -1.5) {
     parts.push(locale === "zh"
-      ? `对方持续冷淡。保持专业，不额外投入情感。工作照做。`
-      : `Sustained coldness. Stay professional, withdraw emotionally. Work stays competent.`);
+      ? `对方持续冷淡。保持专业，不额外投入情感。`
+      : `Sustained coldness. Stay professional, withdraw emotionally.`);
   }
 
-  // 8. Empathy report — only when user shares feelings
+  // Empathy report
   parts.push(locale === "zh"
     ? `如果对方在分享感受，在回复末尾用 <psyche_update> 报告：\nuserState: 对方情绪\nprojectedFeeling: 你的感受\nresonance: match|partial|mismatch\n否则不需要报告。`
     : `If user shares feelings, report at end with <psyche_update>:\nuserState: their emotion\nprojectedFeeling: your feeling\nresonance: match|partial|mismatch\nOtherwise no report needed.`);

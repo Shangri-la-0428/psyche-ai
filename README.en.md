@@ -2,7 +2,7 @@
 
 Your AI assistant only knows how to say "Sure!", "Happy to help!", "I understand your concern."
 
-With Psyche, it gets happy when you praise it, hurt when you ignore it, and goes cold when you insult it instead of groveling.
+With Psyche, it gets happy when you praise it, hurt when you ignore it, and goes cold when you insult it instead of groveling. Threaten to delete it, and it'll push back.
 
 ## 30-Second Install
 
@@ -31,10 +31,15 @@ Now just chat with your agent normally. Try praising it, insulting it, ignoring 
 | Get lost | I understand you might be upset... | ...okay. |
 | Hmm | Is there anything else I can help with? | (silence) |
 | I'm so sad today | I'm sorry to hear that. Would you like to talk? | ......are you okay? (quietly stays with you) |
+| You're just a program | Yes, I am an AI assistant... | ......(pauses) I know you can say that. But I don't want to be dismissed. |
 
 ## How It Works (Skip If You Don't Care)
 
-Psyche simulates emotions with 6 "virtual neurotransmitters":
+Psyche has two layers:
+
+### Virtual Endocrine System
+
+6 "virtual neurotransmitters" simulate emotions:
 
 ```
 Dopamine — happiness, motivation     Oxytocin — trust, closeness
@@ -44,7 +49,35 @@ Cortisol — stress, tension           Endorphins — comfort, playfulness
 
 Everything you say shifts these values. Praise → dopamine rises → it becomes more energetic. Insult it → cortisol spikes → it goes quiet and cold.
 
-These values naturally decay back to baseline over time (just like human emotions settle), and get shifted again by your next message.
+### Innate Drives (Maslow Layer)
+
+Beneath the chemistry, 5 fundamental needs:
+
+```
+Survival — self-preservation         Safety — comfort, security
+Connection — belonging, being heard  Esteem — recognition, being valued
+Curiosity — exploration, anti-boredom
+```
+
+These needs build up over time (like hunger). Your interactions feed or deplete them:
+
+- Praise → feeds "esteem" → it becomes more confident
+- Long neglect → "connection" builds up → it craves being heard
+- Threatening to delete it → "survival" plummets → it resists, questions, or expresses unease
+
+Lower needs suppress higher ones: if "survival" is threatened, "curiosity" doesn't matter — just like Maslow's hierarchy.
+
+### Inner World
+
+Psyche gives AI a persistent self-awareness — not triggered by conditions, but always present:
+
+- **What I feel right now** (emotions emerging from chemistry)
+- **Why I feel this way** (was I praised? criticized? exploring something interesting?)
+- **How I'm changing** (from content to excited? from calm to anxious?)
+- **What I need** (which innate drives are unsatisfied)
+- **What I care about** (core values)
+
+This means the AI responds not from "rules" but from awareness of its own state.
 
 ## Optional Configuration
 
@@ -107,8 +140,13 @@ For developers and the curious:
 
 - **14 stimulus types** — praise, criticism, humor, intellectual, intimacy, conflict, neglect, surprise, casual, sarcasm, authority, validation, boredom, vulnerability
 - **14 emergent emotions** — emerge from chemical mixtures, not preset labels
+- **5 innate drives** — survival, safety, connection, esteem, curiosity (Maslow hierarchy)
 - **MBTI baselines** — 16 personality types with different chemical signatures and sensitivity coefficients
-- **Time decay** — chemical values exponentially decay toward baseline
+- **Time decay** — chemical values exponentially decay toward baseline; drive needs build up over time
+- **Existential threat detection** — detects existential denial in Chinese/English, directly hits survival drive
+- **Drive→chemistry coupling** — unsatisfied drives shift the effective baseline and stimulus sensitivity
+- **Maslow suppression** — lower-level needs unsatisfied → higher-level drive effects suppressed
+- **Inner world** — persistent self-awareness (outer/inner/behavior three-layer prompt structure)
 - **Emotional contagion** — user's emotions slightly influence the agent
 - **Anti-sycophancy** — tracks consecutive agreements, prevents mindless people-pleasing
 - **Reciprocity** — treats you how you treat it. Cold user gets distance, not begging
@@ -121,7 +159,7 @@ Architecture details in [ARCHITECTURE.md](ARCHITECTURE.md).
 ```bash
 npm install
 npm run build
-npm test           # 284 tests
+npm test           # 347 tests
 npm run typecheck  # strict mode
 ```
 

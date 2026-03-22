@@ -9,16 +9,21 @@
 // ============================================================
 
 import type { PsycheState, StimulusType, Locale, MBTIType } from "./types.js";
-import { DEFAULT_RELATIONSHIP } from "./types.js";
+import { DEFAULT_RELATIONSHIP, DEFAULT_DRIVES } from "./types.js";
 import type { StorageAdapter } from "./storage.js";
-import { applyDecay, applyStimulus, applyContagion } from "./chemistry.js";
+import { applyDecay, applyStimulus, applyContagion, clamp } from "./chemistry.js";
 import { classifyStimulus } from "./classify.js";
 import { buildDynamicContext, buildProtocolContext, buildCompactContext } from "./prompt.js";
 import { getSensitivity, getBaseline, getDefaultSelfModel } from "./profiles.js";
 import { isStimulusType } from "./guards.js";
 import {
   parsePsycheUpdate, mergeUpdates, updateAgreementStreak, pushSnapshot,
+  type Logger,
 } from "./psyche-file.js";
+import {
+  decayDrives, feedDrives, detectExistentialThreat,
+  computeEffectiveBaseline, computeEffectiveSensitivity,
+} from "./drives.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -49,8 +54,7 @@ export interface ProcessOutputResult {
   stateChanged: boolean;
 }
 
-// Silent logger for library use
-const NOOP_LOGGER = { info: () => {}, warn: () => {}, debug: () => {} };
+const NOOP_LOGGER: Logger = { info: () => {}, warn: () => {}, debug: () => {} };
 
 // ── PsycheEngine ─────────────────────────────────────────────
 
@@ -101,13 +105,18 @@ export class PsycheEngine {
   async processInput(text: string, opts?: { userId?: string }): Promise<ProcessInputResult> {
     let state = this.ensureInitialized();
 
-    // Time decay toward baseline
+    // Time decay toward baseline (chemistry + drives)
     const now = new Date();
     const minutesElapsed = (now.getTime() - new Date(state.updatedAt).getTime()) / 60000;
     if (minutesElapsed >= 1) {
+      // Decay drives first — needs build up over time
+      const decayedDrives = decayDrives(state.drives, minutesElapsed);
+      // Compute effective baseline from drives (unsatisfied drives shift baseline)
+      const effectiveBaseline = computeEffectiveBaseline(state.baseline, decayedDrives);
       state = {
         ...state,
-        current: applyDecay(state.current, state.baseline, minutesElapsed),
+        drives: decayedDrives,
+        current: applyDecay(state.current, effectiveBaseline, minutesElapsed),
         updatedAt: now.toISOString(),
       };
     }
@@ -115,15 +124,36 @@ export class PsycheEngine {
     // Classify user stimulus and apply chemistry
     let appliedStimulus: StimulusType | null = null;
     if (text.length > 0) {
+      // Check for existential threats → direct survival drive hit
+      const survivalHit = detectExistentialThreat(text);
+      if (survivalHit < 0) {
+        state = {
+          ...state,
+          drives: {
+            ...state.drives,
+            survival: Math.max(0, state.drives.survival + survivalHit),
+          },
+        };
+      }
+
       const classifications = classifyStimulus(text);
       const primary = classifications[0];
       if (primary && primary.confidence >= 0.5) {
         appliedStimulus = primary.type;
+        // Feed drives from stimulus
+        state = {
+          ...state,
+          drives: feedDrives(state.drives, primary.type),
+        };
+        // Apply stimulus with drive-modified sensitivity
+        const effectiveSensitivity = computeEffectiveSensitivity(
+          getSensitivity(state.mbti), state.drives, primary.type,
+        );
         state = {
           ...state,
           current: applyStimulus(
             state.current, primary.type,
-            getSensitivity(state.mbti),
+            effectiveSensitivity,
             this.cfg.maxChemicalDelta,
             NOOP_LOGGER,
           ),
@@ -131,8 +161,30 @@ export class PsycheEngine {
       }
     }
 
+    // Conversation warmth: sustained interaction → gentle DA/OT rise, CORT drop
+    // Simulates the natural "warm glow" of being in continuous conversation
+    const turnsSoFar = (state.emotionalHistory ?? []).length;
+    if (minutesElapsed < 5 && turnsSoFar > 0) {
+      const warmth = Math.min(3, 1 + turnsSoFar * 0.2);
+      state = {
+        ...state,
+        current: {
+          ...state.current,
+          DA: clamp(state.current.DA + warmth),
+          OT: clamp(state.current.OT + warmth),
+          CORT: clamp(state.current.CORT - 1),
+        },
+      };
+    }
+
     // Push snapshot to emotional history
     state = pushSnapshot(state, appliedStimulus);
+
+    // Increment interaction count
+    state = {
+      ...state,
+      meta: { ...state.meta, totalInteractions: state.meta.totalInteractions + 1 },
+    };
 
     // Persist
     this.state = state;
@@ -247,10 +299,11 @@ export class PsycheEngine {
     const now = new Date().toISOString();
 
     return {
-      version: 2,
+      version: 3,
       mbti,
       baseline,
       current: { ...baseline },
+      drives: { ...DEFAULT_DRIVES },
       updatedAt: now,
       relationships: { _default: { ...DEFAULT_RELATIONSHIP } },
       empathyLog: null,

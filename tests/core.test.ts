@@ -3,13 +3,13 @@ import assert from "node:assert/strict";
 import { PsycheEngine } from "../src/core.js";
 import { MemoryStorageAdapter } from "../src/storage.js";
 import type { PsycheState } from "../src/types.js";
-import { DEFAULT_RELATIONSHIP } from "../src/types.js";
+import { DEFAULT_RELATIONSHIP, DEFAULT_DRIVES } from "../src/types.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
 function makeExistingState(overrides: Partial<PsycheState> = {}): PsycheState {
   return {
-    version: 2,
+    version: 3,
     mbti: "INTJ",
     baseline: { DA: 45, HT: 70, CORT: 40, OT: 30, NE: 60, END: 35 },
     current: { DA: 80, HT: 50, CORT: 60, OT: 30, NE: 60, END: 35 },
@@ -20,6 +20,7 @@ function makeExistingState(overrides: Partial<PsycheState> = {}): PsycheState {
     emotionalHistory: [],
     agreementStreak: 0,
     lastDisagreement: null,
+    drives: { ...DEFAULT_DRIVES },
     meta: { agentName: "Existing", createdAt: new Date().toISOString(), totalInteractions: 10, locale: "en" },
     ...overrides,
   };
@@ -41,7 +42,7 @@ describe("PsycheEngine", () => {
 
   it("initializes with default state when storage is empty", () => {
     const state = engine.getState();
-    assert.equal(state.version, 2);
+    assert.equal(state.version, 3);
     assert.equal(state.mbti, "ENFP");
     assert.equal(state.meta.agentName, "TestBot");
     assert.equal(state.meta.locale, "zh");
@@ -262,32 +263,38 @@ END: 75 (happy)
     await e.initialize();
     const result = await e.processInput("hi");
     assert.equal(result.systemContext, "");
-    assert.ok(result.dynamicContext.includes("Luna") || result.dynamicContext.includes("情绪感知"));
+    // Should have outer/inner structure
+    assert.ok(result.dynamicContext.includes("外") || result.dynamicContext.includes("Outer"));
+    assert.ok(result.dynamicContext.includes("内") || result.dynamicContext.includes("Inner"));
   });
 
-  it("compact mode returns one-liner for empty input neutral state", async () => {
+  it("compact mode always has inner world even for neutral state", async () => {
     const s = new MemoryStorageAdapter();
-    const e = new PsycheEngine({ mbti: "ENFP", name: "Luna", locale: "zh" }, s);
+    // ISTJ has truly neutral baseline (no emotion patterns trigger)
+    const e = new PsycheEngine({ mbti: "ISTJ", name: "Kai", locale: "zh" }, s);
     await e.initialize();
     const result = await e.processInput("");
-    assert.ok(result.dynamicContext.includes("情绪自然"), `Got: ${result.dynamicContext}`);
+    // Inner world is always present — self-awareness is not conditional
+    assert.ok(result.dynamicContext.includes("内 — 你自己"), `Got: ${result.dynamicContext}`);
+    assert.ok(result.dynamicContext.includes("平静"), `Neutral ISTJ should feel calm`);
   });
 
-  it("compact mode returns one-liner in en locale for empty input", async () => {
+  it("compact mode inner world in en locale", async () => {
     const s = new MemoryStorageAdapter();
-    const e = new PsycheEngine({ mbti: "ENFP", name: "Luna", locale: "en" }, s);
+    const e = new PsycheEngine({ mbti: "ISTJ", name: "Kai", locale: "en" }, s);
     await e.initialize();
     const result = await e.processInput("");
-    assert.ok(result.dynamicContext.includes("emotionally natural"), `Got: ${result.dynamicContext}`);
+    assert.ok(result.dynamicContext.includes("Inner — yourself"), `Got: ${result.dynamicContext}`);
+    assert.ok(result.dynamicContext.includes("calm"), `Neutral ISTJ should feel calm`);
   });
 
-  it("compact mode includes user text for LLM assessment", async () => {
+  it("compact mode includes user text in outer section", async () => {
     const s = new MemoryStorageAdapter();
     const e = new PsycheEngine({ mbti: "ENFP", name: "Luna", locale: "zh" }, s);
     await e.initialize();
     const result = await e.processInput("滚");
     assert.ok(result.dynamicContext.includes("滚"), "Should include user text");
-    assert.ok(result.dynamicContext.includes("情绪感知"), "Should have emotional sensing section");
+    assert.ok(result.dynamicContext.includes("外 — 对方"), "Should have outer section");
   });
 
   it("compact mode includes anti-sycophancy constraint", async () => {

@@ -48,7 +48,7 @@ describe("cli init", () => {
     assert.ok(stdout.includes("Psyche initialized"));
     const stateRaw = await readFile(join(dir, "psyche-state.json"), "utf-8");
     const state = JSON.parse(stateRaw);
-    assert.equal(state.version, 2);
+    assert.equal(state.version, 3);
     await rm(dir, { recursive: true });
   });
 

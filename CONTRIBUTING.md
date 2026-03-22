@@ -18,9 +18,10 @@ npm test
 
 ```
 src/core.ts        — PsycheEngine 核心引擎
+src/drives.ts      — 本能层（马斯洛层次、驱力衰减、基线/敏感度修正）
 src/adapters/      — 框架适配器（OpenClaw, Vercel AI, LangChain, HTTP）
 src/storage.ts     — 存储适配器
-src/prompt.ts      — prompt 注入（Compact + Full 模式）
+src/prompt.ts      — prompt 注入（外→内→行为三层架构）
 src/chemistry.ts   — 化学计算
 src/classify.ts    — 刺激分类器
 src/profiles.ts    — MBTI 人格
@@ -50,6 +51,16 @@ src/profiles.ts    — MBTI 人格
 4. 确保条件不和现有模式过度重叠
 5. 在 `tests/chemistry.test.ts` 中添加检测测试
 
+## 修改本能驱力
+
+驱力定义在 `src/drives.ts`。修改前理解三个核心机制：
+
+1. **驱力→基线映射** (`computeEffectiveBaseline`): 每种驱力不满足时如何拉动化学基线
+2. **驱力→敏感度映射** (`computeEffectiveSensitivity`): 每种驱力饥饿时放大哪些刺激
+3. **刺激→驱力映射** (`STIMULUS_DRIVE_EFFECTS`): 每种刺激喂养/消耗哪些驱力
+
+添加新驱力效应时，确保遵循马斯洛抑制逻辑——低层驱力优先。
+
 ## 添加 MBTI 人格变体
 
 人格定义在 `src/profiles.ts`。每个人格包含：
@@ -60,7 +71,7 @@ src/profiles.ts    — MBTI 人格
 
 ## PR 准则
 
-- 所有 PR 必须通过 `npm test`（284+ 测试）和 `npx tsc --noEmit --strict`
+- 所有 PR 必须通过 `npm test`（347+ 测试）和 `npx tsc --noEmit --strict`
 - 新功能必须包含测试
 - 保持零依赖策略：不引入运行时依赖
 - 用户可见的字符串应通过 `src/i18n.ts`
@@ -86,9 +97,10 @@ Requires Node.js >= 22.0.0.
 
 ```
 src/core.ts        — PsycheEngine core
+src/drives.ts      — Innate drives (Maslow hierarchy, decay, baseline/sensitivity modification)
 src/adapters/      — Framework adapters (OpenClaw, Vercel AI, LangChain, HTTP)
 src/storage.ts     — Storage adapters
-src/prompt.ts      — Prompt injection (Compact + Full modes)
+src/prompt.ts      — Prompt injection (outer → inner → behavior architecture)
 src/chemistry.ts   — Chemistry calculations
 src/classify.ts    — Stimulus classifier
 src/profiles.ts    — MBTI personalities
@@ -118,6 +130,16 @@ Each vector has 6 values (DA, HT, CORT, OT, NE, END) ranging from -25 to +25. Th
 4. Ensure the condition doesn't overlap too much with existing patterns
 5. Add detection tests in `tests/chemistry.test.ts`
 
+## Modifying Innate Drives
+
+Drive definitions live in `src/drives.ts`. Understand three core mechanisms before modifying:
+
+1. **Drive → baseline mapping** (`computeEffectiveBaseline`): How each unsatisfied drive shifts the chemical baseline
+2. **Drive → sensitivity mapping** (`computeEffectiveSensitivity`): Which stimuli each hungry drive amplifies
+3. **Stimulus → drive mapping** (`STIMULUS_DRIVE_EFFECTS`): Which drives each stimulus feeds/depletes
+
+When adding new drive effects, ensure you follow Maslow suppression logic — lower-level drives take priority.
+
 ## Adding MBTI Profile Variants
 
 Profiles live in `src/profiles.ts`. Each has:
@@ -128,7 +150,7 @@ Profiles live in `src/profiles.ts`. Each has:
 
 ## PR Guidelines
 
-- All PRs must pass `npm test` (284+ tests) and `npx tsc --noEmit --strict`
+- All PRs must pass `npm test` (347+ tests) and `npx tsc --noEmit --strict`
 - Include tests for new features
 - Keep the zero-dependency policy: no runtime dependencies
 - Strings that users will see should go through `src/i18n.ts`

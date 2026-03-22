@@ -10,7 +10,7 @@ import {
   pushSnapshot,
 } from "../src/psyche-file.js";
 import type { PsycheState } from "../src/types.js";
-import { CHEMICAL_KEYS, DEFAULT_RELATIONSHIP } from "../src/types.js";
+import { CHEMICAL_KEYS, DEFAULT_RELATIONSHIP, DEFAULT_DRIVES } from "../src/types.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -23,7 +23,7 @@ async function freshDir(): Promise<string> {
 
 function makeMinimalState(overrides: Partial<PsycheState> = {}): PsycheState {
   return {
-    version: 2,
+    version: 3,
     mbti: "ENFP",
     baseline: { DA: 75, HT: 55, CORT: 30, OT: 60, NE: 65, END: 70 },
     current: { DA: 75, HT: 55, CORT: 30, OT: 60, NE: 65, END: 70 },
@@ -34,6 +34,7 @@ function makeMinimalState(overrides: Partial<PsycheState> = {}): PsycheState {
     emotionalHistory: [],
     agreementStreak: 0,
     lastDisagreement: null,
+    drives: { ...DEFAULT_DRIVES },
     meta: { agentName: "TestAgent", createdAt: new Date().toISOString(), totalInteractions: 0, locale: "zh" },
     ...overrides,
   };
@@ -45,7 +46,7 @@ describe("loadState", () => {
   it("auto-initializes when no state file exists", async () => {
     const dir = await freshDir();
     const state = await loadState(dir);
-    assert.equal(state.version, 2);
+    assert.equal(state.version, 3);
     assert.equal(state.mbti, "INFJ"); // default
     assert.ok(state.relationships._default);
     assert.equal(state.agreementStreak, 0);
@@ -77,7 +78,7 @@ describe("loadState", () => {
     };
     await writeFile(join(dir, "psyche-state.json"), JSON.stringify(v1), "utf-8");
     const loaded = await loadState(dir);
-    assert.equal(loaded.version, 2);
+    assert.equal(loaded.version, 3);
     assert.equal(loaded.relationships._default.trust, 60);
     assert.equal(loaded.agreementStreak, 0);
     assert.equal(loaded.meta.locale, "zh");
@@ -89,7 +90,7 @@ describe("loadState", () => {
     await writeFile(join(dir, "psyche-state.json"), "not json {{{", "utf-8");
     const state = await loadState(dir);
     // Should auto-initialize instead of crash
-    assert.equal(state.version, 2);
+    assert.equal(state.version, 3);
     await rm(dir, { recursive: true });
   });
 });
@@ -125,7 +126,7 @@ describe("initializeState", () => {
     const state = await initializeState(dir, { mbti: "ESTP", name: "Tester" });
     assert.equal(state.mbti, "ESTP");
     assert.equal(state.meta.agentName, "Tester");
-    assert.equal(state.version, 2);
+    assert.equal(state.version, 3);
     await rm(dir, { recursive: true });
   });
 
@@ -269,10 +270,10 @@ describe("mergeUpdates", () => {
     assert.ok(merged.current.DA <= state.current.DA + 10);
   });
 
-  it("increments totalInteractions", () => {
+  it("preserves totalInteractions (incremented in processInput instead)", () => {
     const state = makeMinimalState();
     const merged = mergeUpdates(state, { current: state.current }, 25);
-    assert.equal(merged.meta.totalInteractions, 1);
+    assert.equal(merged.meta.totalInteractions, 0);
   });
 
   it("updates relationship phase based on avg", () => {

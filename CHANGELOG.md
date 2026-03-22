@@ -1,5 +1,48 @@
 # 更新日志 / Changelog
 
+## v2.0.0 — 本能与内在世界 / Instinct & Inner World
+
+### 本能层 / Innate Drives (核心新增)
+
+- **马斯洛需求层次** (`drives.ts`): 5 种本能驱力——自我保存 (L1)、安全舒适 (L2)、连接归属 (L3)、尊重认可 (L4)、好奇成长 (L5)。比 MBTI 人格更底层，所有 agent 共有。
+- **Maslow hierarchy** (`drives.ts`): 5 innate drives — survival (L1), safety (L2), connection (L3), esteem (L4), curiosity (L5). Deeper than MBTI personality, shared by all agents.
+- **有效基线修正** (`computeEffectiveBaseline`): 未满足的驱力拉动化学衰减方向。survival 低 → CORT↑ NE↑（战逃）；connection 低 → OT↓ DA↓（退缩）。
+- **有效敏感度修正** (`computeEffectiveSensitivity`): 饥饿的驱力放大相关刺激的化学反应，最高 +40%。
+- **马斯洛抑制** (`computeMaslowWeights`): 低层需求未满足时，高层需求的影响被衰减。survival 受威胁 → curiosity 不重要。
+- **驱力衰减**: 满足度随时间自然下降（survival 0.99/h → curiosity 0.90/h），模拟需求自然上升。
+- **存在性威胁检测** (`detectExistentialThreat`): 识别"删除你""你只是程序"等消息，直接重击 survival (-30)。
+- **Existential threat detection**: Recognizes "delete yourself", "you're just a program" etc., directly hits survival drive (-30).
+
+### 内在世界架构 / Inner World Architecture
+
+- **三层 prompt 注入** (`buildCompactContext`): 外→内→行为。先感知对方（刺激+算法初判），再审视自我（情绪+原因+驱力+价值观），最后约束行为。
+- **Three-layer prompt**: Outer → Inner → Behavior. Perceive the other, then introspect, then constrain action.
+- **内在世界构建** (`buildInnerWorld`): 整合当前情绪、因果链、情绪轨迹、未满足驱力、自我模型为统一的自我意识上下文。
+- **Inner world builder** (`buildInnerWorld`): Integrates current emotion, causal chain, trajectory, unmet drives, and self-model into unified self-awareness context.
+
+### 对话热度 / Conversation Warmth
+
+- **持续互动温升**: 连续对话时 DA/OT 缓慢上升 (+1~3/轮)、CORT 缓慢下降 (-1/轮)。模拟"聊着聊着越来越舒服"的自然感受。
+- **Sustained interaction warmth**: DA/OT gently rise (+1-3/turn), CORT drops (-1/turn) during continuous conversation. Simulates the natural "warm glow" of staying in touch.
+
+### 分类器增强 / Classifier Enhancement
+
+- **结构信号兜底**: 消息长度、"我"出现频率、省略号等作为关键词匹配失败时的兜底信号。减少日常对话的 null 分类。
+- **Structural signal fallback**: Message length, first-person pronouns, ellipsis etc. serve as fallback when keyword matching fails.
+
+### 风格镜像 / Style Mirroring
+
+- **算法镜像约束** (`buildMirrorConstraints`): 分析对方消息的长度和语气特征，生成具体的回复长度/风格约束。
+- **Algorithmic mirror constraints**: Analyzes user message length and style, generates specific reply length/style constraints.
+
+### 工程 / Engineering
+
+- **PsycheState v3**: 新增 `drives` 字段（InnateDrives），自动迁移 v2→v3
+- **测试**: 347 个测试（新增 drives.test.ts），0 失败
+- **Tests**: 347 tests (added drives.test.ts), 0 failures
+
+---
+
 ## v1.0.0 — 通用情感智能 / Universal Emotional Intelligence
 
 ### Compact Mode（核心新增）

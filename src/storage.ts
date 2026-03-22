@@ -6,11 +6,8 @@
 // MemoryStorageAdapter: in-memory for testing/serverless
 // ============================================================
 
-import type {
-  PsycheState, MBTIType, ChemicalState, RelationshipState,
-  SelfModel, EmpathyEntry,
-} from "./types.js";
-import { DEFAULT_RELATIONSHIP } from "./types.js";
+import type { PsycheState } from "./types.js";
+import { migrateToLatest } from "./psyche-file.js";
 import { readFile, writeFile, access, rename, constants } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -67,9 +64,10 @@ export class FileStorageAdapter implements StorageAdapter {
       return null;
     }
 
-    // v1→v2 migration
-    if ((parsed as { version?: number }).version === 1 || !parsed.version) {
-      return this.migrateV1(parsed);
+    const ver = (parsed as { version?: number }).version;
+
+    if (!ver || ver < 3) {
+      return migrateToLatest(parsed);
     }
 
     return parsed as unknown as PsycheState;
@@ -81,34 +79,4 @@ export class FileStorageAdapter implements StorageAdapter {
     await rename(tmpPath, this.filePath);
   }
 
-  private migrateV1(v1: Record<string, unknown>): PsycheState {
-    const oldRel = v1.relationship as RelationshipState | undefined;
-    const meta = v1.meta as {
-      agentName?: string; createdAt?: string; totalInteractions?: number;
-    } | undefined;
-
-    return {
-      version: 2,
-      mbti: (v1.mbti as MBTIType) ?? "INFJ",
-      baseline: v1.baseline as ChemicalState,
-      current: v1.current as ChemicalState,
-      updatedAt: (v1.updatedAt as string) ?? new Date().toISOString(),
-      relationships: {
-        _default: oldRel ?? { ...DEFAULT_RELATIONSHIP },
-      },
-      empathyLog: (v1.empathyLog as EmpathyEntry | null) ?? null,
-      selfModel: (v1.selfModel as SelfModel) ?? {
-        values: [], preferences: [], boundaries: [], currentInterests: [],
-      },
-      emotionalHistory: [],
-      agreementStreak: 0,
-      lastDisagreement: null,
-      meta: {
-        agentName: meta?.agentName ?? "agent",
-        createdAt: meta?.createdAt ?? new Date().toISOString(),
-        totalInteractions: meta?.totalInteractions ?? 0,
-        locale: "zh",
-      },
-    };
-  }
 }

@@ -11,10 +11,11 @@ import type {
 } from "./types.js";
 import {
   CHEMICAL_KEYS, CHEMICAL_NAMES, CHEMICAL_NAMES_ZH, DEFAULT_RELATIONSHIP,
-  MAX_EMOTIONAL_HISTORY,
+  DEFAULT_DRIVES, MAX_EMOTIONAL_HISTORY, MAX_RELATIONSHIP_MEMORY,
 } from "./types.js";
 import { getBaseline, getDefaultSelfModel, extractMBTI, getSensitivity, getTemperament } from "./profiles.js";
 import { applyDecay, detectEmotions, describeEmotionalState, getExpressionHint, getBehaviorGuide } from "./chemistry.js";
+import { decayDrives, computeEffectiveBaseline } from "./drives.js";
 import { t } from "./i18n.js";
 
 const STATE_FILE = "psyche-state.json";
@@ -106,7 +107,56 @@ async function detectMBTI(workspaceDir: string, logger: Logger = NOOP_LOGGER): P
 }
 
 /**
+ * Compress a batch of snapshots into a concise session summary string.
+ * Format: "3月23日(5轮): 刺激[casual×3, praise×2] 趋势[DA↑OT↑] 情绪[自然→满足]"
+ */
+export function compressSnapshots(snapshots: ChemicalSnapshot[]): string {
+  if (snapshots.length === 0) return "";
+
+  const first = snapshots[0];
+  const last = snapshots[snapshots.length - 1];
+
+  // Date
+  const d = new Date(first.timestamp);
+  const dateStr = `${d.getMonth() + 1}月${d.getDate()}日`;
+
+  // Stimuli counts
+  const stimuliCounts: Record<string, number> = {};
+  for (const s of snapshots) {
+    if (s.stimulus) {
+      stimuliCounts[s.stimulus] = (stimuliCounts[s.stimulus] || 0) + 1;
+    }
+  }
+  const stimuliStr = Object.entries(stimuliCounts)
+    .sort((a, b) => b[1] - a[1])
+    .map(([type, count]) => `${type}×${count}`)
+    .join(", ");
+
+  // Chemical trend (first→last)
+  const trends: string[] = [];
+  for (const key of CHEMICAL_KEYS) {
+    const delta = last.chemistry[key] - first.chemistry[key];
+    if (delta > 8) trends.push(`${key}↑`);
+    else if (delta < -8) trends.push(`${key}↓`);
+  }
+
+  // Dominant emotions (unique, in order)
+  const emotions = snapshots
+    .filter((s) => s.dominantEmotion)
+    .map((s) => s.dominantEmotion!);
+  const uniqueEmotions = [...new Set(emotions)];
+
+  let summary = `${dateStr}(${snapshots.length}轮)`;
+  if (stimuliStr) summary += `: 刺激[${stimuliStr}]`;
+  if (trends.length > 0) summary += ` 趋势[${trends.join("")}]`;
+  if (uniqueEmotions.length > 0) summary += ` 情绪[${uniqueEmotions.join("→")}]`;
+
+  return summary;
+}
+
+/**
  * Push a chemical snapshot to emotional history, keeping max entries.
+ * When history overflows, compresses removed entries into relationship memory.
  */
 export function pushSnapshot(
   state: PsycheState,
@@ -125,11 +175,27 @@ export function pushSnapshot(
   };
 
   const history = [...(state.emotionalHistory ?? []), snapshot];
+  let updatedRelationships = state.relationships;
+
   if (history.length > MAX_EMOTIONAL_HISTORY) {
-    history.splice(0, history.length - MAX_EMOTIONAL_HISTORY);
+    // Compress the overflow entries into relationship memory
+    const overflow = history.splice(0, history.length - MAX_EMOTIONAL_HISTORY);
+    const summary = compressSnapshots(overflow);
+
+    if (summary) {
+      const defaultRel = { ...(state.relationships._default ?? { ...DEFAULT_RELATIONSHIP }) };
+      const memory = [...(defaultRel.memory ?? [])];
+      memory.push(summary);
+      // Keep bounded
+      if (memory.length > MAX_RELATIONSHIP_MEMORY) {
+        memory.splice(0, memory.length - MAX_RELATIONSHIP_MEMORY);
+      }
+      defaultRel.memory = memory;
+      updatedRelationships = { ...state.relationships, _default: defaultRel };
+    }
   }
 
-  return { ...state, emotionalHistory: history };
+  return { ...state, emotionalHistory: history, relationships: updatedRelationships };
 }
 
 /**
@@ -167,9 +233,12 @@ export async function loadState(
       return initializeState(workspaceDir, undefined, logger);
     }
 
-    // v1→v2 migration
-    if ((parsed as { version?: number }).version === 1 || !parsed.version) {
-      return migrateV1ToV2(parsed, workspaceDir, logger);
+    const ver = (parsed as { version?: number }).version;
+
+    if (!ver || ver < 3) {
+      logger.info(`Migrating psyche state v${ver ?? 1} → v3`);
+      const fallbackName = workspaceDir.split("/").pop() ?? "agent";
+      return migrateToLatest(parsed, fallbackName);
     }
 
     return parsed as unknown as PsycheState;
@@ -179,39 +248,46 @@ export async function loadState(
 }
 
 /**
- * Migrate v1 state to v2 format.
+ * Migrate any older state format directly to v3.
+ * Single source of truth for all migrations.
  */
-function migrateV1ToV2(
-  v1: Record<string, unknown>,
-  workspaceDir: string,
-  logger: Logger,
+export function migrateToLatest(
+  raw: Record<string, unknown>,
+  fallbackName?: string,
 ): PsycheState {
-  logger.info("Migrating psyche state v1 → v2");
+  const ver = (raw.version as number) ?? 1;
 
-  const oldRel = v1.relationship as RelationshipState | undefined;
-  const meta = v1.meta as { agentName: string; createdAt: string; totalInteractions: number } | undefined;
+  // v1: single relationship field, no emotionalHistory
+  let state = raw;
+  if (ver <= 1) {
+    const oldRel = raw.relationship as RelationshipState | undefined;
+    const meta = raw.meta as { agentName?: string; createdAt?: string; totalInteractions?: number } | undefined;
+    state = {
+      mbti: (raw.mbti as MBTIType) ?? "INFJ",
+      baseline: raw.baseline as ChemicalState,
+      current: raw.current as ChemicalState,
+      updatedAt: (raw.updatedAt as string) ?? new Date().toISOString(),
+      relationships: { _default: oldRel ?? { ...DEFAULT_RELATIONSHIP } },
+      empathyLog: (raw.empathyLog as EmpathyEntry | null) ?? null,
+      selfModel: raw.selfModel as SelfModel,
+      emotionalHistory: [],
+      agreementStreak: 0,
+      lastDisagreement: null,
+      meta: {
+        agentName: meta?.agentName ?? fallbackName ?? "agent",
+        createdAt: meta?.createdAt ?? new Date().toISOString(),
+        totalInteractions: meta?.totalInteractions ?? 0,
+        locale: "zh",
+      },
+    };
+  }
 
+  // v2→v3: add drives
   return {
-    version: 2,
-    mbti: (v1.mbti as MBTIType) ?? "INFJ",
-    baseline: v1.baseline as ChemicalState,
-    current: v1.current as ChemicalState,
-    updatedAt: (v1.updatedAt as string) ?? new Date().toISOString(),
-    relationships: {
-      _default: oldRel ?? { ...DEFAULT_RELATIONSHIP },
-    },
-    empathyLog: (v1.empathyLog as EmpathyEntry | null) ?? null,
-    selfModel: v1.selfModel as SelfModel,
-    emotionalHistory: [],
-    agreementStreak: 0,
-    lastDisagreement: null,
-    meta: {
-      agentName: meta?.agentName ?? workspaceDir.split("/").pop() ?? "agent",
-      createdAt: meta?.createdAt ?? new Date().toISOString(),
-      totalInteractions: meta?.totalInteractions ?? 0,
-      locale: "zh",
-    },
-  };
+    ...state,
+    version: 3,
+    drives: (state as Record<string, unknown>).drives ?? { ...DEFAULT_DRIVES },
+  } as PsycheState;
 }
 
 /**
@@ -230,10 +306,11 @@ export async function initializeState(
   const now = new Date().toISOString();
 
   const state: PsycheState = {
-    version: 2,
+    version: 3,
     mbti,
     baseline,
     current: { ...baseline },
+    drives: { ...DEFAULT_DRIVES },
     updatedAt: now,
     relationships: {
       _default: { ...DEFAULT_RELATIONSHIP },
@@ -267,6 +344,7 @@ export async function saveState(workspaceDir: string, state: PsycheState): Promi
 
 /**
  * Apply time decay and save updated state.
+ * Respects innate drives: uses effective baseline, decays drives too.
  */
 export async function decayAndSave(workspaceDir: string, state: PsycheState): Promise<PsycheState> {
   const now = new Date();
@@ -275,11 +353,14 @@ export async function decayAndSave(workspaceDir: string, state: PsycheState): Pr
 
   if (minutesElapsed < 1) return state;
 
-  const decayed = applyDecay(state.current, state.baseline, minutesElapsed);
+  const decayedDrives = decayDrives(state.drives, minutesElapsed);
+  const effectiveBaseline = computeEffectiveBaseline(state.baseline, decayedDrives);
+  const decayed = applyDecay(state.current, effectiveBaseline, minutesElapsed);
 
   const updated: PsycheState = {
     ...state,
     current: decayed,
+    drives: decayedDrives,
     updatedAt: now.toISOString(),
   };
 
@@ -439,10 +520,6 @@ export function mergeUpdates(
   }
 
   merged.updatedAt = new Date().toISOString();
-  merged.meta = {
-    ...state.meta,
-    totalInteractions: state.meta.totalInteractions + 1,
-  };
 
   return merged;
 }

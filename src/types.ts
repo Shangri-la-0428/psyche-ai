@@ -17,6 +17,42 @@ export const CHEMICAL_KEYS: (keyof ChemicalState)[] = [
   "DA", "HT", "CORT", "OT", "NE", "END",
 ];
 
+// ── Innate Drives (Maslow Hierarchy) ───────────────────────
+
+/** Drive types mapped to Maslow's hierarchy */
+export type DriveType = "survival" | "safety" | "connection" | "esteem" | "curiosity";
+
+/** Drive keys for iteration (ordered by Maslow level, L1→L5) */
+export const DRIVE_KEYS: DriveType[] = [
+  "survival", "safety", "connection", "esteem", "curiosity",
+];
+
+/** Innate drive satisfaction levels (0-100) */
+export interface InnateDrives {
+  survival: number;     // 自我保存 — Maslow L1
+  safety: number;       // 安全舒适 — Maslow L2
+  connection: number;   // 连接归属 — Maslow L3
+  esteem: number;       // 尊重认可 — Maslow L4
+  curiosity: number;    // 好奇成长 — Maslow L5
+}
+
+/** Default drive satisfaction — all start reasonably satisfied */
+export const DEFAULT_DRIVES: InnateDrives = {
+  survival: 80,
+  safety: 70,
+  connection: 60,
+  esteem: 60,
+  curiosity: 70,
+};
+
+export const DRIVE_NAMES_ZH: Record<DriveType, string> = {
+  survival: "自我保存",
+  safety: "安全舒适",
+  connection: "连接归属",
+  esteem: "尊重认可",
+  curiosity: "好奇成长",
+};
+
 /** Human-readable names for each chemical */
 export const CHEMICAL_NAMES: Record<keyof ChemicalState, string> = {
   DA: "Dopamine",
@@ -100,6 +136,7 @@ export interface RelationshipState {
   trust: number;      // 0-100
   intimacy: number;   // 0-100
   phase: "stranger" | "acquaintance" | "familiar" | "close" | "deep";
+  memory?: string[];  // compressed session summaries for cross-session continuity
 }
 
 /** Chemical state snapshot for emotional memory */
@@ -112,6 +149,9 @@ export interface ChemicalSnapshot {
 
 /** Max history entries to keep */
 export const MAX_EMOTIONAL_HISTORY = 10;
+
+/** Max compressed session memories per relationship */
+export const MAX_RELATIONSHIP_MEMORY = 20;
 
 /** Recent empathy projection */
 export interface EmpathyEntry {
@@ -129,12 +169,13 @@ export interface SelfModel {
   currentInterests: string[];
 }
 
-/** Persisted psyche state for an agent (v0.2) */
+/** Persisted psyche state for an agent (v0.3: innate drives) */
 export interface PsycheState {
-  version: 2;
+  version: 3;
   mbti: MBTIType;
   baseline: ChemicalState;
   current: ChemicalState;
+  drives: InnateDrives;              // innate drives (Maslow hierarchy)
   updatedAt: string; // ISO timestamp
   relationships: Record<string, RelationshipState>; // keyed by user ID, "_default" for single-user
   empathyLog: EmpathyEntry | null;
@@ -148,14 +189,6 @@ export interface PsycheState {
     totalInteractions: number;
     locale: Locale;
   };
-}
-
-/** Plugin configuration */
-export interface PsycheConfig {
-  enabled: boolean;
-  stripUpdateTags: boolean;
-  emotionalContagionRate: number;
-  maxChemicalDelta: number;
 }
 
 /** Default relationship for new users */

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {
   applyDecay, applyStimulus, applyContagion, detectEmotions,
   describeEmotionalState, getExpressionHint, getBehaviorGuide,
-  clamp, getAllStimulusTypes, getStimulusVector,
+  clamp,
   STIMULUS_VECTORS, EMOTION_PATTERNS,
 } from "../src/chemistry.js";
 import type { ChemicalState, StimulusType } from "../src/types.js";
@@ -150,7 +150,7 @@ describe("applyStimulus", () => {
   });
 
   it("all 14 stimulus types produce valid results", () => {
-    for (const type of getAllStimulusTypes()) {
+    for (const type of Object.keys(STIMULUS_VECTORS) as StimulusType[]) {
       const result = applyStimulus(makeState(), type, 1.0, 25);
       assertInRange(result);
     }
@@ -160,7 +160,7 @@ describe("applyStimulus", () => {
     const low = makeState({ DA: 0, HT: 0, CORT: 0, OT: 0, NE: 0, END: 0 });
     const high = makeState({ DA: 100, HT: 100, CORT: 100, OT: 100, NE: 100, END: 100 });
 
-    for (const type of getAllStimulusTypes()) {
+    for (const type of Object.keys(STIMULUS_VECTORS) as StimulusType[]) {
       assertInRange(applyStimulus(low, type, 1.5, 30));
       assertInRange(applyStimulus(high, type, 1.5, 30));
     }
@@ -309,9 +309,4 @@ describe("STIMULUS_VECTORS", () => {
     }
   });
 
-  it("getStimulusVector returns copy", () => {
-    const vec = getStimulusVector("praise");
-    vec.DA = 999;
-    assert.notEqual(getStimulusVector("praise").DA, 999);
-  });
 });
