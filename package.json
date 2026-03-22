@@ -1,12 +1,35 @@
 {
-  "name": "openclaw-plugin-psyche",
-  "version": "0.2.0",
-  "description": "Artificial Psyche — plug-and-play emotional intelligence for any AI agent",
+  "name": "psyche-ai",
+  "version": "1.0.0",
+  "description": "Artificial Psyche — universal emotional intelligence plugin for any AI agent",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./openclaw": {
+      "types": "./dist/adapters/openclaw.d.ts",
+      "default": "./dist/adapters/openclaw.js"
+    },
+    "./vercel-ai": {
+      "types": "./dist/adapters/vercel-ai.d.ts",
+      "default": "./dist/adapters/vercel-ai.js"
+    },
+    "./langchain": {
+      "types": "./dist/adapters/langchain.d.ts",
+      "default": "./dist/adapters/langchain.js"
+    },
+    "./http": {
+      "types": "./dist/adapters/http.d.ts",
+      "default": "./dist/adapters/http.js"
+    }
+  },
   "bin": {
-    "psyche": "dist/cli.js"
+    "psyche": "dist/cli.js",
+    "psyche-ai": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
@@ -20,16 +43,24 @@
     "type": "git",
     "url": "https://github.com/Shangri-la-0428/openclaw-plugin-psyche.git"
   },
-  "keywords": ["ai", "emotion", "personality", "mbti", "agent", "psyche", "openclaw"],
+  "keywords": ["ai", "emotion", "personality", "mbti", "agent", "psyche", "openclaw", "vercel-ai", "langchain", "emotional-intelligence"],
   "files": ["dist", "openclaw.plugin.json", "README.md", "LICENSE"],
   "engines": {
     "node": ">=22.0.0"
   },
   "peerDependencies": {
-    "openclaw": ">=2026.3.0"
+    "openclaw": ">=2026.3.0",
+    "ai": ">=4.0.0",
+    "@langchain/core": ">=0.3.0"
   },
   "peerDependenciesMeta": {
     "openclaw": {
+      "optional": true
+    },
+    "ai": {
+      "optional": true
+    },
+    "@langchain/core": {
       "optional": true
     }
   },

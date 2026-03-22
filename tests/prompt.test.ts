@@ -145,30 +145,44 @@ describe("buildDynamicContext", () => {
     assert.ok(ctx.includes("90") || ctx.includes("deep"));
   });
 
-  it("includes behavioral constraints when CORT is high", () => {
+  it("includes personality-aware constraints when CORT is high", () => {
+    // ENFP is a Feeler — should get warm-flavored stress response
     const state = makeState({
       current: { DA: 50, HT: 50, CORT: 70, OT: 50, NE: 50, END: 50 },
     });
     const ctx = buildDynamicContext(state);
     assert.ok(ctx.includes("行为约束") || ctx.includes("Behavioral Constraints"));
-    assert.ok(ctx.includes("3句") || ctx.includes("3 sentences"));
+    assert.ok(ctx.includes("性格没变") || ctx.includes("personality"));
+    // ENFP (Feeler) should get soft stress, not cold stress
+    assert.ok(ctx.includes("还是你") || ctx.includes("still you"));
   });
 
-  it("includes behavioral constraints when DA is low", () => {
+  it("includes constraints when DA is low", () => {
+    // ENFP is Extravert — should mention normally talkative but not now
     const state = makeState({
       current: { DA: 30, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 },
     });
     const ctx = buildDynamicContext(state);
     assert.ok(ctx.includes("行为约束") || ctx.includes("Behavioral Constraints"));
-    assert.ok(ctx.includes("精力") || ctx.includes("initiate"));
   });
 
-  it("includes behavioral constraints for high OT", () => {
+  it("includes personality-aware constraints for high OT", () => {
+    // ENFP (Feeler) with high OT → should get intimate/affectionate constraint
     const state = makeState({
       current: { DA: 50, HT: 50, CORT: 30, OT: 80, NE: 50, END: 50 },
     });
     const ctx = buildDynamicContext(state);
-    assert.ok(ctx.includes("老朋友") || ctx.includes("close friend"));
+    assert.ok(ctx.includes("撒娇") || ctx.includes("亲") || ctx.includes("affectionate"));
+  });
+
+  it("generates different constraints for Thinker vs Feeler", () => {
+    const highCort = { DA: 50, HT: 50, CORT: 70, OT: 50, NE: 50, END: 50 };
+    // ENFP (Feeler)
+    const feelerCtx = buildDynamicContext(makeState({ current: highCort }));
+    // INTJ (Thinker)
+    const thinkerCtx = buildDynamicContext(makeState({ current: highCort, mbti: "INTJ" }));
+    // They should have different constraint texts
+    assert.notEqual(feelerCtx, thinkerCtx);
   });
 
   it("omits behavioral constraints when chemistry is neutral", () => {

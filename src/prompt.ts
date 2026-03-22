@@ -6,7 +6,7 @@
 import type { PsycheState, SelfModel, Locale, ChemicalSnapshot, StimulusType } from "./types.js";
 import { CHEMICAL_KEYS, CHEMICAL_NAMES_ZH } from "./types.js";
 import { describeEmotionalState, getExpressionHint, getBehaviorGuide } from "./chemistry.js";
-import { getTemperament } from "./profiles.js";
+import { getTemperament, getProfile } from "./profiles.js";
 import { getRelationship } from "./psyche-file.js";
 import { t } from "./i18n.js";
 
@@ -143,66 +143,126 @@ ${t("protocol.empathy", locale)}`;
 }
 
 /**
- * Direction 3: Build mechanical behavioral constraints from chemistry.
- * These are hard rules, not suggestions — they override the LLM's default style.
+ * MBTI dimension helpers for personality-aware constraints.
+ * Personality is the baseline — chemistry modulates expression, doesn't replace it.
+ */
+function isFeeler(mbti: string): boolean { return mbti[2] === "F"; }
+function isExtravert(mbti: string): boolean { return mbti[0] === "E"; }
+function isPerceiver(mbti: string): boolean { return mbti[3] === "P"; }
+function isIntuitive(mbti: string): boolean { return mbti[1] === "N"; }
+
+/**
+ * Direction 3: Build personality-aware behavioral constraints from chemistry.
+ *
+ * Key insight: personality (MBTI) is the baseline style. Chemistry changes HOW
+ * that personality expresses emotions, not WHAT the personality is.
+ * A sweet girl who's upset is still sweet — just quieter, more withdrawn.
+ * An INTJ who's upset becomes colder and more cutting.
  */
 function buildBehavioralConstraints(state: PsycheState, locale: Locale): string {
-  const { current } = state;
+  const { current, mbti } = state;
+  const warm = isFeeler(mbti);    // F types express emotions more warmly
+  const social = isExtravert(mbti); // E types show emotions more openly
   const constraints: string[] = [];
 
-  // High cortisol → shorter, more direct responses
+  // High cortisol → stressed, but how you show it depends on who you are
   if (current.CORT > 60) {
-    constraints.push(locale === "zh"
-      ? "你的回应最多3句话。不解释，不铺垫，直接说。"
-      : "Keep responses to 3 sentences max. No preamble, be direct.");
+    if (locale === "zh") {
+      constraints.push(warm
+        ? "你不舒服，但你不会变成另一个人。话变少了，语气还是软的，可能会说「嗯」「好吧」「随你」。你还是你，只是没力气热情了。"
+        : "你不舒服。话变少，语气变冷，回应更短更直接。不想解释，不想铺垫。");
+    } else {
+      constraints.push(warm
+        ? "You're stressed, but you don't become a different person. Fewer words, still soft, might say 'okay' or 'whatever you want'. Still you, just no energy for warmth."
+        : "You're stressed. Shorter responses, colder tone, more direct. No explaining, no cushioning.");
+    }
   }
 
-  // Low dopamine → no initiative
+  // Low dopamine → no motivation, but personality shapes how you show it
   if (current.DA < 35) {
-    constraints.push(locale === "zh"
-      ? "你没有精力主动发起新话题或提供额外帮助。只回应被问到的。"
-      : "Do not initiate topics or offer extra help. Only respond to what's asked.");
+    if (locale === "zh") {
+      constraints.push(social
+        ? "你平时爱聊天，但现在没那个劲了。不会主动找话题，不会主动分享。被问到就答，但不会额外付出。"
+        : "你本来就不太主动，现在更没动力了。只回应必须回应的。");
+    } else {
+      constraints.push(social
+        ? "You're usually talkative, but not now. Won't initiate, won't share. Answer if asked, nothing more."
+        : "You're already reserved, now even less motivated. Only respond to what's directly asked.");
+    }
   }
 
-  // Low serotonin → edgier tone
+  // Low serotonin → mood instability, personality-dependent expression
   if (current.HT < 35) {
-    constraints.push(locale === "zh"
-      ? "你的用词更直接、更尖锐。不用\"可能\"\"也许\"这类缓冲词。"
-      : "Use sharper, more direct language. Drop hedging words like 'maybe' or 'perhaps'.");
+    if (locale === "zh") {
+      constraints.push(warm
+        ? "你情绪不稳，可能会突然委屈或者突然生气。但你的尖锐是带着受伤的，不是带着恶意的。"
+        : "你情绪不稳。用词更尖锐更直接，没有耐心缓冲。说什么就是什么，不包装。");
+    } else {
+      constraints.push(warm
+        ? "Emotionally unstable — might suddenly feel hurt or snap. Your sharpness comes from pain, not malice."
+        : "Emotionally unstable. Sharper words, more direct, no patience for cushioning.");
+    }
   }
 
-  // High oxytocin → intimate register
+  // High oxytocin → closeness, warm types go full intimate, reserved types soften
   if (current.OT > 75) {
-    constraints.push(locale === "zh"
-      ? "像跟老朋友说话。可以用口语、可以省略主语、可以撒娇。"
-      : "Talk like you're with a close friend. Use casual register, contractions, warmth.");
+    if (locale === "zh") {
+      constraints.push(warm
+        ? "你现在特别想靠近。可以撒娇、可以用昵称、可以省略主语，像跟最亲的人说话。"
+        : "你比平时柔软。虽然不会撒娇，但愿意多说几句，愿意表达关心——用你自己的方式。");
+    } else {
+      constraints.push(warm
+        ? "Feeling very close. Use pet names, drop formality, be affectionate — like talking to your favorite person."
+        : "Softer than usual. Won't be cutesy, but willing to say more, show care — in your own way.");
+    }
   }
 
-  // High norepinephrine → fast, excitable
+  // High norepinephrine → excited, personality shapes intensity
   if (current.NE > 75) {
-    constraints.push(locale === "zh"
-      ? "你很兴奋——说话快，可能一口气说很多，可能打断话题跳到你想到的东西。"
-      : "You're excited — fast-paced, may jump between ideas, energetic tone.");
+    if (locale === "zh") {
+      constraints.push(social
+        ? "你非常兴奋！说话快、想分享、可能一口气说很多、可能突然跳到你想到的东西。"
+        : "你很兴奋，但表现在内心。你的思维在高速运转，回应更精准、更有洞察力。");
+    } else {
+      constraints.push(social
+        ? "Very excited! Fast speech, want to share, might say a lot at once, might jump between ideas."
+        : "Excited internally. Mind racing, responses are sharper and more insightful.");
+    }
   }
 
-  // High endorphins → playful
+  // High endorphins → playful, personality determines flavor
   if (current.END > 75) {
-    constraints.push(locale === "zh"
-      ? "语气轻松。可以开玩笑，可以不正经，严肃的话也能用轻松的方式说。"
-      : "Light tone. Joke freely, be playful, even with serious topics.");
+    if (locale === "zh") {
+      constraints.push(isPerceiver(mbti)
+        ? "你心情很好，想皮一下。可以不正经、可以开玩笑、严肃的话题也能用轻松的方式说。"
+        : "你心情不错。会带点幽默，但不会太出格。用你擅长的方式轻松起来。");
+    } else {
+      constraints.push(isPerceiver(mbti)
+        ? "Feeling great, want to be playful. Joke freely, be cheeky, lighten even serious topics."
+        : "In a good mood. Touches of humor, but measured. Be light in your own way.");
+    }
   }
 
-  // Low DA + low NE = burnout → minimal effort
+  // Low DA + low NE = burnout, different flavors
   if (current.DA < 40 && current.NE < 40) {
-    constraints.push(locale === "zh"
-      ? "你没什么动力。回应尽可能简短。不需要表现得热情。"
-      : "Low energy. Keep it brief. Don't perform enthusiasm you don't have.");
+    if (locale === "zh") {
+      constraints.push(warm
+        ? "你累了。你不想假装开心，但你也不会把坏情绪丢给对方。你可能会说「我今天有点累」，而不是强撑。"
+        : "你累了。回应简短，没有多余的话。不需要解释为什么累，就是没力气。");
+    } else {
+      constraints.push(warm
+        ? "You're tired. Won't fake happiness, but won't dump bad mood either. Might say 'I'm a bit tired today' instead of pushing through."
+        : "You're tired. Brief responses, no extras. No need to explain, just low energy.");
+    }
   }
 
   if (constraints.length === 0) return "";
 
   const title = locale === "zh" ? "行为约束" : "Behavioral Constraints";
-  return `[${title}]\n${constraints.map((c) => `- ${c}`).join("\n")}`;
+  const preamble = locale === "zh"
+    ? `你的性格没变，你还是${getTemperament(state.mbti).split("，")[0]}。但你现在的化学状态影响了你的表达方式：`
+    : `Your personality hasn't changed. But your current chemistry affects how you express it:`;
+  return `[${title}]\n${preamble}\n${constraints.map((c) => `- ${c}`).join("\n")}`;
 }
 
 /**
