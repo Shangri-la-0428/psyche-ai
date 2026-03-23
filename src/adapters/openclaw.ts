@@ -1,9 +1,12 @@
 // ============================================================
 // OpenClaw Adapter — Wires PsycheEngine to OpenClaw's hook system
 //
-// Usage:
-//   import openclawPlugin from "psyche-ai/openclaw";
-//   // Then register via OpenClaw's plugin system
+// Hooks used:
+//   before_prompt_build  — inject emotional context into system prompt
+//   llm_output           — observe LLM response, update chemistry
+//   before_message_write — strip <psyche_update> tags before display
+//   message_sending      — strip tags for external channels (Discord, etc.)
+//   agent_end            — log final state
 // ============================================================
 
 import type { PsycheState, Locale } from "../types.js";
@@ -12,30 +15,20 @@ import { FileStorageAdapter } from "../storage.js";
 import { loadState } from "../psyche-file.js";
 import type { Logger } from "../psyche-file.js";
 
-// ── OpenClaw Plugin API Types ────────────────────────────────
+// ── OpenClaw Plugin API Types (matching plugin-sdk) ──────────
 
 interface PluginApi {
   pluginConfig?: Record<string, unknown>;
   logger: Logger;
   on(
     event: string,
-    handler: (event: HookEvent, ctx: HookContext) => Promise<Record<string, unknown> | void>,
+    handler: (event: Record<string, unknown>, ctx: Record<string, unknown>) => Promise<Record<string, unknown> | void> | Record<string, unknown> | void,
     opts?: { priority: number },
   ): void;
   registerCli?(
     handler: (cli: CliRegistrar) => void,
     opts: { commands: string[] },
   ): void;
-}
-
-interface HookEvent {
-  text?: string;
-  content?: string;
-}
-
-interface HookContext {
-  workspaceDir?: string;
-  userId?: string;
 }
 
 interface CliCommand {
@@ -68,6 +61,18 @@ function resolveConfig(raw?: Record<string, unknown>): OpenClawPsycheConfig {
   };
 }
 
+// ── Helpers ──────────────────────────────────────────────────
+
+const PSYCHE_TAG_RE = /<psyche_update>[\s\S]*?<\/psyche_update>/g;
+const MULTI_NEWLINE_RE = /\n{3,}/g;
+
+function stripPsycheTags(text: string): string {
+  return text
+    .replace(PSYCHE_TAG_RE, "")
+    .replace(MULTI_NEWLINE_RE, "\n\n")
+    .trim();
+}
+
 // ── Plugin Definition ────────────────────────────────────────
 
 export function register(api: PluginApi) {
@@ -88,8 +93,6 @@ export function register(api: PluginApi) {
       let engine = engines.get(workspaceDir);
       if (engine) return engine;
 
-      // Use existing loadState for workspace-specific detection
-      // (reads IDENTITY.md, SOUL.md for MBTI/name, generates PSYCHE.md)
       const state = await loadState(workspaceDir, logger);
 
       const storage = new FileStorageAdapter(workspaceDir);
@@ -108,14 +111,18 @@ export function register(api: PluginApi) {
     }
 
     // ── Hook 1: Classify user input & inject emotional context ──
+    // before_prompt_build: event.text, ctx.workspaceDir
 
-    api.on("before_prompt_build", async (event: HookEvent, ctx: HookContext) => {
-      const workspaceDir = ctx?.workspaceDir;
+    api.on("before_prompt_build", async (event, ctx) => {
+      const workspaceDir = ctx?.workspaceDir as string | undefined;
       if (!workspaceDir) return {};
 
       try {
         const engine = await getEngine(workspaceDir);
-        const result = await engine.processInput(event?.text ?? "", { userId: ctx.userId });
+        const result = await engine.processInput(
+          (event?.text as string) ?? "",
+          { userId: ctx.userId as string | undefined },
+        );
 
         const state = engine.getState();
         logger.info(
@@ -125,9 +132,10 @@ export function register(api: PluginApi) {
           `context=${result.dynamicContext.length}chars`,
         );
 
+        // All context goes into system-level (invisible to user)
+        const systemParts = [result.systemContext, result.dynamicContext].filter(Boolean);
         return {
-          appendSystemContext: result.systemContext,
-          prependContext: result.dynamicContext,
+          appendSystemContext: systemParts.join("\n\n"),
         };
       } catch (err) {
         logger.warn(`Psyche: failed to build context for ${workspaceDir}: ${err}`);
@@ -135,56 +143,87 @@ export function register(api: PluginApi) {
       }
     }, { priority: 10 });
 
-    // ── Hook 2: Parse psyche_update from LLM output ──────────
+    // ── Hook 2: Observe LLM output, update chemistry ────────
+    // llm_output: event.assistantTexts (string[]), returns void
 
-    api.on("llm_output", async (event: HookEvent, ctx: HookContext) => {
-      const workspaceDir = ctx?.workspaceDir;
+    api.on("llm_output", async (event, ctx) => {
+      const workspaceDir = ctx?.workspaceDir as string | undefined;
       if (!workspaceDir) return;
 
-      const text = event?.text ?? event?.content ?? "";
+      // llm_output event has assistantTexts: string[]
+      const texts = event?.assistantTexts as string[] | undefined;
+      const text = texts?.join("\n") ?? "";
       if (!text) return;
 
       try {
         const engine = await getEngine(workspaceDir);
-        const result = await engine.processOutput(text, { userId: ctx.userId });
+        const result = await engine.processOutput(text, {
+          userId: ctx.userId as string | undefined,
+        });
 
         const state = engine.getState();
         logger.info(
-          `Psyche: state updated for ${state.meta.agentName} ` +
-          `(interactions: ${state.meta.totalInteractions}, ` +
-          `agreementStreak: ${state.agreementStreak})`,
+          `Psyche [output] updated=${result.stateChanged} | ` +
+          `DA:${Math.round(state.current.DA)} HT:${Math.round(state.current.HT)} ` +
+          `CORT:${Math.round(state.current.CORT)} OT:${Math.round(state.current.OT)} | ` +
+          `interactions=${state.meta.totalInteractions}`,
         );
-
-        // Return cleaned text if tags were stripped
-        if (result.cleanedText !== text) {
-          return { text: result.cleanedText, content: result.cleanedText };
-        }
       } catch (err) {
         logger.warn(`Psyche: failed to process output: ${err}`);
       }
+      // llm_output returns void — cannot modify text
     }, { priority: 50 });
 
-    // ── Hook 3: Strip <psyche_update> from visible output ────
+    // ── Hook 3: Strip tags before message is written to session ──
+    // before_message_write: event.message (AgentMessage), returns { message? }
+    // This handles local TUI display — messages are rendered from persisted data
 
     if (config.stripUpdateTags) {
-      api.on("message_sending", async (event: HookEvent, _ctx: HookContext) => {
-        const content = event?.content;
-        if (typeof content !== "string") return {};
-        if (!content.includes("<psyche_update>")) return {};
+      api.on("before_message_write", (event, _ctx) => {
+        const message = event?.message as Record<string, unknown> | undefined;
+        if (!message) return;
 
-        const cleaned = content
-          .replace(/<psyche_update>[\s\S]*?<\/psyche_update>/g, "")
-          .replace(/\n{3,}/g, "\n\n")
-          .trim();
+        // AgentMessage can have content as string or array of content blocks
+        const content = message.content;
+        if (typeof content === "string" && content.includes("<psyche_update>")) {
+          return {
+            message: { ...message, content: stripPsycheTags(content) },
+          };
+        }
 
-        return { content: cleaned };
+        // Handle content as array of blocks (e.g. [{type: "text", text: "..."}])
+        if (Array.isArray(content)) {
+          let changed = false;
+          const newContent = content.map((block: Record<string, unknown>) => {
+            if (block?.type === "text" && typeof block.text === "string" && block.text.includes("<psyche_update>")) {
+              changed = true;
+              return { ...block, text: stripPsycheTags(block.text) };
+            }
+            return block;
+          });
+          if (changed) {
+            return { message: { ...message, content: newContent } };
+          }
+        }
       }, { priority: 90 });
     }
 
-    // ── Hook 4: Log state on session end ─────────────────────
+    // ── Hook 4: Strip tags for external channels ────────────
+    // message_sending: event.content (string), returns { content? }
 
-    api.on("agent_end", async (_event: HookEvent, ctx: HookContext) => {
-      const workspaceDir = ctx?.workspaceDir;
+    if (config.stripUpdateTags) {
+      api.on("message_sending", async (event, _ctx) => {
+        const content = event?.content;
+        if (typeof content !== "string") return {};
+        if (!content.includes("<psyche_update>")) return {};
+        return { content: stripPsycheTags(content) };
+      }, { priority: 90 });
+    }
+
+    // ── Hook 5: Log state on session end ─────────────────────
+
+    api.on("agent_end", async (_event, ctx) => {
+      const workspaceDir = ctx?.workspaceDir as string | undefined;
       if (!workspaceDir) return;
 
       const engine = engines.get(workspaceDir);
@@ -214,7 +253,7 @@ export function register(api: PluginApi) {
         });
     }, { commands: ["psyche"] });
 
-  logger.info("Psyche plugin ready — 4 hooks registered");
+  logger.info("Psyche plugin ready — 5 hooks registered");
 }
 
 export default { register };

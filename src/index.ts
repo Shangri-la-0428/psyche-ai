@@ -30,7 +30,6 @@ export {
 
 // Utilities — for custom adapter / advanced use
 export { classifyStimulus, getPrimaryStimulus } from "./classify.js";
-export { isNearBaseline } from "./prompt.js";
-export { describeEmotionalState, detectEmotions } from "./chemistry.js";
-export { getBaseline, getSensitivity, getDefaultSelfModel } from "./profiles.js";
-export { migrateToLatest } from "./psyche-file.js";
+export { buildProtocolContext, buildDynamicContext, buildCompactContext, isNearBaseline } from "./prompt.js";
+export { describeEmotionalState, getExpressionHint, getBehaviorGuide } from "./chemistry.js";
+export { getBaseline, getTemperament, getSensitivity, getDefaultSelfModel } from "./profiles.js";
