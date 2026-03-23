@@ -159,6 +159,8 @@ cd openclaw-plugin-psyche && node scripts/diagnose.js
 - **跨会话记忆** — 重新遇到用户时注入上次对话的情绪记忆
 - **多 Agent 交互** — 两个 PsycheEngine 实例之间的情绪传染、关系追踪
 - **流式支持** — Vercel AI SDK `streamText` 中间件，自动缓冲和剥离标签
+- **渠道修饰** — Discord/Slack/飞书/终端等不同渠道自动调整表达风格
+- **自定义人格** — 超越 MBTI 预设，完全自定义 baseline/敏感度/气质
 - **Compact Mode** — 算法做化学计算，LLM 只看行为指令（~15-180 tokens vs ~550）
 
 架构详情见 [ARCHITECTURE.md](ARCHITECTURE.md)。
@@ -168,7 +170,7 @@ cd openclaw-plugin-psyche && node scripts/diagnose.js
 ```bash
 npm install
 npm run build
-npm test           # 395 tests
+npm test           # 469 tests
 npm run typecheck  # strict mode
 ```
 

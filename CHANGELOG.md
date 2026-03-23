@@ -1,5 +1,27 @@
 # 更新日志 / Changelog
 
+## v2.3.0 — 渠道修饰符 · 自定义人格档案
+
+### Channel-Specific Behavioral Modifiers (P2.3)
+
+- **`src/channels.ts`**: 7 种渠道类型 (discord/slack/feishu/terminal/web/api/custom)，每种有独立的表达风格配置（emoji/颜文字/正式度/长度提示）。
+- **`buildChannelModifier()`**: 生成简洁的 prompt 修饰片段，中英文双语。
+- **`createCustomChannel()`**: 用户可自定义渠道配置。
+- Prompt 集成：`buildCompactContext` 新增可选 `channelType` 参数，渠道修饰注入为第 10 节。
+
+### Custom Personality Profiles (P2.6)
+
+- **`src/custom-profile.ts`**: 超越 16 种 MBTI 预设，支持完全自定义人格。
+- **`createCustomProfile()`**: 基于任意 MBTI 为起点，覆盖 baseline/sensitivity/temperament/selfModel/drives。
+- **`validateProfileConfig()`**: 验证原始配置对象，返回人类可读的错误信息。
+- **4 种预设模板**: cheerful (活泼), stoic (沉稳), empathetic (共情), analytical (分析)。
+
+### Tests
+
+- 469 tests total (from 395).
+
+---
+
 ## v2.2.0 — 流式支持 · 多 Agent 交互 · 跨会话记忆
 
 ### Vercel AI Streaming (P2.1)

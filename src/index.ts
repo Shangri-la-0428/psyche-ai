@@ -36,6 +36,14 @@ export type { SelfReflection } from "./self-recognition.js";
 export { PsycheInteraction } from "./interaction.js";
 export type { ExchangeResult, ContagionResult, RelationshipSummary, InteractionPhase } from "./interaction.js";
 
+// Channels
+export { getChannelProfile, buildChannelModifier, createCustomChannel } from "./channels.js";
+export type { ChannelType, ChannelProfile } from "./channels.js";
+
+// Custom profiles — beyond MBTI presets
+export { createCustomProfile, validateProfileConfig, PRESET_PROFILES } from "./custom-profile.js";
+export type { CustomProfileConfig, ResolvedProfile } from "./custom-profile.js";
+
 // Utilities — for custom adapter / advanced use
 export { classifyStimulus, getPrimaryStimulus } from "./classify.js";
 export { buildProtocolContext, buildDynamicContext, buildCompactContext, isNearBaseline } from "./prompt.js";

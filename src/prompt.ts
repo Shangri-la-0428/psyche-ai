@@ -11,6 +11,8 @@ import { getRelationship } from "./psyche-file.js";
 import { t } from "./i18n.js";
 import { buildDriveContext, hasCriticalDrive } from "./drives.js";
 import { computeSelfReflection, buildSelfReflectionContext } from "./self-recognition.js";
+import type { ChannelType } from "./channels.js";
+import { getChannelProfile, buildChannelModifier } from "./channels.js";
 
 /**
  * Build the dynamic per-turn emotional context injected via before_prompt_build.
@@ -438,7 +440,7 @@ export function isNearBaseline(state: PsycheState, threshold = 8): boolean {
 export function buildCompactContext(
   state: PsycheState,
   userId?: string,
-  opts?: { userText?: string; algorithmStimulus?: string | null },
+  opts?: { userText?: string; algorithmStimulus?: string | null; channelType?: ChannelType },
 ): string {
   const { current, meta, selfModel, agreementStreak, emotionalHistory } = state;
   const locale = meta.locale ?? "zh";
@@ -553,7 +555,13 @@ export function buildCompactContext(
       : `[Memory]\n${memLines.join("\n")}`);
   }
 
-  // 10. Empathy report — only when user shares feelings
+  // 10. Channel modifier — expression style per platform (between memory and empathy)
+  if (opts?.channelType) {
+    const channelProfile = getChannelProfile(opts.channelType);
+    parts.push(buildChannelModifier(channelProfile, locale));
+  }
+
+  // 11. Empathy report — only when user shares feelings
   parts.push(locale === "zh"
     ? `如果对方在分享感受，在回复末尾用 <psyche_update> 报告：\nuserState: 对方情绪\nprojectedFeeling: 你的感受\nresonance: match|partial|mismatch\n否则不需要报告。`
     : `If user shares feelings, report at end with <psyche_update>:\nuserState: their emotion\nprojectedFeeling: your feeling\nresonance: match|partial|mismatch\nOtherwise no report needed.`);
