@@ -11,7 +11,8 @@ import type {
 } from "./types.js";
 import {
   CHEMICAL_KEYS, CHEMICAL_NAMES, CHEMICAL_NAMES_ZH, DEFAULT_RELATIONSHIP,
-  DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, MAX_EMOTIONAL_HISTORY, MAX_RELATIONSHIP_MEMORY,
+  DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE,
+  MAX_EMOTIONAL_HISTORY, MAX_RELATIONSHIP_MEMORY,
 } from "./types.js";
 import { getBaseline, getDefaultSelfModel, extractMBTI, getSensitivity, getTemperament } from "./profiles.js";
 import { applyDecay, detectEmotions, describeEmotionalState, getExpressionHint, getBehaviorGuide } from "./chemistry.js";
@@ -284,11 +285,13 @@ export function migrateToLatest(
 
   // v2→v3: add drives
   // v3→v4: add learning
+  // v4→v5: add metacognition
   return {
     ...state,
-    version: 4,
+    version: 5,
     drives: (state as Record<string, unknown>).drives ?? { ...DEFAULT_DRIVES },
     learning: (state as Record<string, unknown>).learning ?? { ...DEFAULT_LEARNING_STATE },
+    metacognition: (state as Record<string, unknown>).metacognition ?? { ...DEFAULT_METACOGNITIVE_STATE },
   } as PsycheState;
 }
 
@@ -308,7 +311,7 @@ export async function initializeState(
   const now = new Date().toISOString();
 
   const state: PsycheState = {
-    version: 4,
+    version: 5,
     mbti,
     baseline,
     current: { ...baseline },
@@ -323,6 +326,7 @@ export async function initializeState(
     agreementStreak: 0,
     lastDisagreement: null,
     learning: { ...DEFAULT_LEARNING_STATE },
+    metacognition: { ...DEFAULT_METACOGNITIVE_STATE },
     meta: {
       agentName,
       createdAt: now,

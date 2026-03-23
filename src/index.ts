@@ -25,11 +25,13 @@ export type {
   LearningState, LearnedVectorAdjustment, PredictionRecord,
   OutcomeScore, OutcomeSignals,
   AttachmentStyle, AttachmentData,
+  MetacognitiveState, RegulationRecord, DefensePatternRecord,
+  RegulationStrategyType, DefenseMechanismType,
 } from "./types.js";
 export {
   CHEMICAL_KEYS, CHEMICAL_NAMES, CHEMICAL_NAMES_ZH,
   DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE,
-  DEFAULT_ATTACHMENT, DRIVE_KEYS, DRIVE_NAMES_ZH,
+  DEFAULT_METACOGNITIVE_STATE, DEFAULT_ATTACHMENT, DRIVE_KEYS, DRIVE_NAMES_ZH,
 } from "./types.js";
 
 // Self-recognition
@@ -70,6 +72,20 @@ export {
   updateAttachment, computeSeparationEffect, computeReunionEffect,
 } from "./attachment.js";
 export type { SeparationEffect } from "./attachment.js";
+
+// Metacognition (P5)
+export {
+  assessMetacognition, computeEmotionalConfidence,
+  generateRegulationSuggestions, detectDefenseMechanisms,
+} from "./metacognition.js";
+export type { MetacognitiveAssessment, RegulationSuggestion, DetectedDefense } from "./metacognition.js";
+
+// Decision bias (P5)
+export {
+  computeDecisionBias, computeAttentionWeights,
+  computeExploreExploit, buildDecisionContext,
+} from "./decision-bias.js";
+export type { DecisionBiasVector, AttentionWeights } from "./decision-bias.js";
 
 // Utilities — for custom adapter / advanced use
 export { classifyStimulus, getPrimaryStimulus } from "./classify.js";

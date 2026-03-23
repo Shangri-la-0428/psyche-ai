@@ -10,7 +10,7 @@ import {
   pushSnapshot,
 } from "../src/psyche-file.js";
 import type { PsycheState } from "../src/types.js";
-import { CHEMICAL_KEYS, DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE } from "../src/types.js";
+import { CHEMICAL_KEYS, DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE } from "../src/types.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -23,7 +23,7 @@ async function freshDir(): Promise<string> {
 
 function makeMinimalState(overrides: Partial<PsycheState> = {}): PsycheState {
   return {
-    version: 4,
+    version: 5,
     mbti: "ENFP",
     baseline: { DA: 75, HT: 55, CORT: 30, OT: 60, NE: 65, END: 70 },
     current: { DA: 75, HT: 55, CORT: 30, OT: 60, NE: 65, END: 70 },
@@ -36,6 +36,7 @@ function makeMinimalState(overrides: Partial<PsycheState> = {}): PsycheState {
     lastDisagreement: null,
     drives: { ...DEFAULT_DRIVES },
     learning: { ...DEFAULT_LEARNING_STATE },
+    metacognition: { ...DEFAULT_METACOGNITIVE_STATE },
     meta: { agentName: "TestAgent", createdAt: new Date().toISOString(), totalInteractions: 0, locale: "zh" },
     ...overrides,
   };
@@ -47,7 +48,7 @@ describe("loadState", () => {
   it("auto-initializes when no state file exists", async () => {
     const dir = await freshDir();
     const state = await loadState(dir);
-    assert.equal(state.version, 4);
+    assert.equal(state.version, 5);
     assert.equal(state.mbti, "INFJ"); // default
     assert.ok(state.relationships._default);
     assert.equal(state.agreementStreak, 0);
@@ -79,7 +80,7 @@ describe("loadState", () => {
     };
     await writeFile(join(dir, "psyche-state.json"), JSON.stringify(v1), "utf-8");
     const loaded = await loadState(dir);
-    assert.equal(loaded.version, 4);
+    assert.equal(loaded.version, 5);
     assert.equal(loaded.relationships._default.trust, 60);
     assert.equal(loaded.agreementStreak, 0);
     assert.equal(loaded.meta.locale, "zh");
@@ -91,7 +92,7 @@ describe("loadState", () => {
     await writeFile(join(dir, "psyche-state.json"), "not json {{{", "utf-8");
     const state = await loadState(dir);
     // Should auto-initialize instead of crash
-    assert.equal(state.version, 4);
+    assert.equal(state.version, 5);
     await rm(dir, { recursive: true });
   });
 });
@@ -127,7 +128,7 @@ describe("initializeState", () => {
     const state = await initializeState(dir, { mbti: "ESTP", name: "Tester" });
     assert.equal(state.mbti, "ESTP");
     assert.equal(state.meta.agentName, "Tester");
-    assert.equal(state.version, 4);
+    assert.equal(state.version, 5);
     await rm(dir, { recursive: true });
   });
 

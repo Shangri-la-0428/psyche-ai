@@ -2,11 +2,11 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { buildDynamicContext, buildProtocolContext, buildCompactContext, computeUserInvestment } from "../src/prompt.js";
 import type { PsycheState, ChemicalSnapshot } from "../src/types.js";
-import { DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE } from "../src/types.js";
+import { DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE } from "../src/types.js";
 
 function makeState(overrides: Partial<PsycheState> = {}): PsycheState {
   return {
-    version: 4,
+    version: 5,
     mbti: "ENFP",
     baseline: { DA: 75, HT: 55, CORT: 30, OT: 60, NE: 65, END: 70 },
     current: { DA: 75, HT: 55, CORT: 30, OT: 60, NE: 65, END: 70 },
@@ -19,6 +19,7 @@ function makeState(overrides: Partial<PsycheState> = {}): PsycheState {
     lastDisagreement: null,
     drives: { ...DEFAULT_DRIVES },
     learning: { ...DEFAULT_LEARNING_STATE },
+    metacognition: { ...DEFAULT_METACOGNITIVE_STATE },
     meta: { agentName: "TestBot", createdAt: new Date().toISOString(), totalInteractions: 5, locale: "zh" },
     ...overrides,
   };

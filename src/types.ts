@@ -261,9 +261,54 @@ export const MAX_OUTCOME_HISTORY = 50;
 /** Max regret history entries */
 export const MAX_REGRET_HISTORY = 20;
 
-/** Persisted psyche state for an agent (v4: emotional learning) */
+/** Max metacognitive regulation history entries */
+export const MAX_REGULATION_HISTORY = 30;
+
+/** Max defense pattern entries */
+export const MAX_DEFENSE_PATTERNS = 10;
+
+// ── Metacognition Types (v5) ────────────────────────────────
+
+/** Regulation strategy type */
+export type RegulationStrategyType = "reappraisal" | "strategic-expression" | "self-soothing";
+
+/** Defense mechanism type */
+export type DefenseMechanismType = "rationalization" | "projection" | "sublimation" | "avoidance";
+
+/** Record of a past regulation attempt */
+export interface RegulationRecord {
+  strategy: RegulationStrategyType;
+  timestamp: string;
+  effective: boolean;
+}
+
+/** Tracked defense pattern frequency */
+export interface DefensePatternRecord {
+  mechanism: DefenseMechanismType;
+  frequency: number;
+  lastSeen: string;
+}
+
+/** Persistent metacognitive state */
+export interface MetacognitiveState {
+  regulationHistory: RegulationRecord[];
+  defensePatterns: DefensePatternRecord[];
+  /** Running average of emotional confidence across assessments */
+  avgEmotionalConfidence: number;
+  totalAssessments: number;
+}
+
+/** Default empty metacognitive state */
+export const DEFAULT_METACOGNITIVE_STATE: MetacognitiveState = {
+  regulationHistory: [],
+  defensePatterns: [],
+  avgEmotionalConfidence: 0.5,
+  totalAssessments: 0,
+};
+
+/** Persisted psyche state for an agent (v5: metacognition + decision modulation) */
 export interface PsycheState {
-  version: 3 | 4;
+  version: 3 | 4 | 5;
   mbti: MBTIType;
   baseline: ChemicalState;
   current: ChemicalState;
@@ -276,6 +321,7 @@ export interface PsycheState {
   agreementStreak: number;          // consecutive agreements without disagreement
   lastDisagreement: string | null;  // ISO timestamp
   learning: LearningState;          // v4: emotional learning data
+  metacognition: MetacognitiveState; // v5: metacognitive monitoring
   meta: {
     agentName: string;
     createdAt: string;

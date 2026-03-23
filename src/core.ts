@@ -13,7 +13,7 @@
 // ============================================================
 
 import type { PsycheState, StimulusType, Locale, MBTIType, ChemicalState, OutcomeScore } from "./types.js";
-import { DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE } from "./types.js";
+import { DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE } from "./types.js";
 import type { StorageAdapter } from "./storage.js";
 import { applyDecay, applyStimulus, applyContagion, clamp } from "./chemistry.js";
 import { classifyStimulus } from "./classify.js";
@@ -33,6 +33,8 @@ import {
   evaluateOutcome, computeContextHash, updateLearnedVector,
   predictChemistry, recordPrediction,
 } from "./learning.js";
+import { assessMetacognition } from "./metacognition.js";
+import { buildDecisionContext } from "./decision-bias.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -121,6 +123,11 @@ export class PsycheEngine {
       if (!loaded.learning) {
         loaded.learning = { ...DEFAULT_LEARNING_STATE };
         loaded.version = 4;
+      }
+      // Migrate v4 → v5: add metacognitive state if missing
+      if (!(loaded as PsycheState).metacognition) {
+        (loaded as PsycheState).metacognition = { ...DEFAULT_METACOGNITIVE_STATE };
+        loaded.version = 5;
       }
       this.state = loaded;
     } else {
@@ -257,6 +264,32 @@ export class PsycheEngine {
       };
     }
 
+    // ── Metacognition: assess emotional state before acting ────
+    const metacognitiveAssessment = assessMetacognition(
+      state,
+      appliedStimulus ?? "casual",
+      state.learning.outcomeHistory,
+    );
+
+    // Apply self-soothing regulation if suggested with high confidence
+    for (const reg of metacognitiveAssessment.regulationSuggestions) {
+      if (reg.strategy === "self-soothing" && reg.confidence >= 0.6 && reg.chemistryAdjustment) {
+        const adj = reg.chemistryAdjustment;
+        state = {
+          ...state,
+          current: {
+            ...state.current,
+            DA: clamp(state.current.DA + (adj.DA ?? 0)),
+            HT: clamp(state.current.HT + (adj.HT ?? 0)),
+            CORT: clamp(state.current.CORT + (adj.CORT ?? 0)),
+            OT: clamp(state.current.OT + (adj.OT ?? 0)),
+            NE: clamp(state.current.NE + (adj.NE ?? 0)),
+            END: clamp(state.current.END + (adj.END ?? 0)),
+          },
+        };
+      }
+    }
+
     // Push snapshot to emotional history
     state = pushSnapshot(state, appliedStimulus);
 
@@ -296,12 +329,18 @@ export class PsycheEngine {
 
     const locale = state.meta.locale ?? this.cfg.locale;
 
+    // Build metacognitive and decision context strings
+    const metacogNote = metacognitiveAssessment.metacognitiveNote;
+    const decisionCtx = buildDecisionContext(state);
+
     if (this.cfg.compactMode) {
       return {
         systemContext: "",
         dynamicContext: buildCompactContext(state, opts?.userId, {
           userText: text || undefined,
           algorithmStimulus: appliedStimulus,
+          metacognitiveNote: metacogNote || undefined,
+          decisionContext: decisionCtx || undefined,
         }),
         stimulus: appliedStimulus,
       };
@@ -309,7 +348,10 @@ export class PsycheEngine {
 
     return {
       systemContext: this.getProtocol(locale),
-      dynamicContext: buildDynamicContext(state, opts?.userId),
+      dynamicContext: buildDynamicContext(state, opts?.userId, {
+        metacognitiveNote: metacogNote || undefined,
+        decisionContext: decisionCtx || undefined,
+      }),
       stimulus: appliedStimulus,
     };
   }
@@ -464,7 +506,7 @@ export class PsycheEngine {
     const now = new Date().toISOString();
 
     return {
-      version: 4,
+      version: 5,
       mbti,
       baseline,
       current: { ...baseline },
@@ -477,6 +519,7 @@ export class PsycheEngine {
       agreementStreak: 0,
       lastDisagreement: null,
       learning: { ...DEFAULT_LEARNING_STATE },
+      metacognition: { ...DEFAULT_METACOGNITIVE_STATE },
       meta: {
         agentName: name,
         createdAt: now,

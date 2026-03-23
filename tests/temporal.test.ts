@@ -10,7 +10,7 @@ import type { AnticipationState } from "../src/temporal.js";
 import type {
   ChemicalState, ChemicalSnapshot, PsycheState, StimulusType,
 } from "../src/types.js";
-import { CHEMICAL_KEYS, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_RELATIONSHIP } from "../src/types.js";
+import { CHEMICAL_KEYS, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_RELATIONSHIP } from "../src/types.js";
 import { STIMULUS_VECTORS } from "../src/chemistry.js";
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -32,7 +32,7 @@ function makeSnapshot(stimulus: StimulusType | null, overrides: Partial<Chemical
 function makeState(overrides: Partial<PsycheState> = {}): PsycheState {
   const now = new Date().toISOString();
   return {
-    version: 4,
+    version: 5,
     mbti: "INFJ",
     baseline: makeChemistry(),
     current: makeChemistry(),
@@ -45,6 +45,7 @@ function makeState(overrides: Partial<PsycheState> = {}): PsycheState {
     agreementStreak: 0,
     lastDisagreement: null,
     learning: { ...DEFAULT_LEARNING_STATE },
+    metacognition: { ...DEFAULT_METACOGNITIVE_STATE },
     meta: { agentName: "test", createdAt: now, totalInteractions: 0, locale: "zh" },
     ...overrides,
   };

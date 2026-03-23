@@ -165,6 +165,9 @@ cd openclaw-plugin-psyche && node scripts/diagnose.js
 - **上下文分类** — 关系/驱力/历史感知的刺激分类，超越简单正则
 - **时间意识** — 预期、惊喜/失望、遗憾（马尔可夫预测+反事实分析）
 - **依恋动力学** — 4种依恋风格（安全/焦虑/回避/混乱），分离焦虑，重逢效应
+- **元认知** — 情绪自我觉察，评估情绪可靠性，三种调节策略（认知重评/策略性表达/自我安抚）
+- **防御机制检测** — 合理化、投射、升华、回避，在自省中浮现而非压制
+- **决策调制** — 6维偏差向量（探索/警惕/社交/果断/创意/坚持），情绪驱动注意力和决策
 - **Compact Mode** — 算法做化学计算，LLM 只看行为指令（~15-180 tokens vs ~550）
 
 架构详情见 [ARCHITECTURE.md](ARCHITECTURE.md)。
@@ -174,7 +177,7 @@ cd openclaw-plugin-psyche && node scripts/diagnose.js
 ```bash
 npm install
 npm run build
-npm test           # 568 tests
+npm test           # 622 tests
 npm run typecheck  # strict mode
 ```
 

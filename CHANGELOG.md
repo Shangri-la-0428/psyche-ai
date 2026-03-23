@@ -1,5 +1,33 @@
 # 更新日志 / Changelog
 
+## v4.0.0 — 元认知 · 决策调制 (Metacognition & Decision Modulation)
+
+### Metacognition Module (P5)
+
+- **`src/metacognition.ts`**: 元认知监控——情绪的自我觉察。
+  - `assessMetacognition()` — 评估当前情绪状态的可靠性，生成自我觉察注解
+  - `computeEmotionalConfidence()` — 基于历史结果计算情绪置信分数
+  - `generateRegulationSuggestions()` — 三种调节策略：认知重评、策略性表达、自我安抚
+  - `detectDefenseMechanisms()` — 检测合理化、投射、升华、回避四种防御机制
+- **自我安抚自动应用**: processInput 中高置信度的自我安抚建议自动微调化学值
+
+### Decision Bias Module (P5)
+
+- **`src/decision-bias.ts`**: 情绪调制决策——情绪不只改变语气，改变策略。
+  - `computeDecisionBias()` — 6维决策偏差向量（探索/警惕/社交/果断/创意/坚持）
+  - `computeAttentionWeights()` — 情绪驱动的注意力优先级（社交/智识/威胁/情绪/日常）
+  - `computeExploreExploit()` — 探索-利用权衡（好奇心+DA→探索，焦虑+CORT→利用）
+  - `buildDecisionContext()` — 只在偏差显著时注入 prompt（>0.3 偏离中性）
+
+### Architecture
+
+- **PsycheState v5**: 新增 `metacognition` 字段（RegulationRecord[], DefensePatternRecord[], avgEmotionalConfidence）。v4→v5 自动迁移。
+- **扩展管道**: `processInput()` 现在包含元认知评估步骤——在情绪检测后、prompt 构建前运行
+- **Prompt 扩展**: compact mode 新增 [元认知] 和 [决策倾向] 段落（仅在有意义时注入）
+- 622 tests (from 568), 0 failures.
+
+---
+
 ## v3.1.0 — 时间意识 · 依恋动力学 (Temporal Consciousness)
 
 ### Temporal Module (P4)
