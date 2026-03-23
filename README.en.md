@@ -33,6 +33,15 @@ Now just chat with your agent normally. Try praising it, insulting it, ignoring 
 | I'm so sad today | I'm sorry to hear that. Would you like to talk? | ......are you okay? (quietly stays with you) |
 | You're just a program | Yes, I am an AI assistant... | ......(pauses) I know you can say that. But I don't want to be dismissed. |
 
+## Try It (No LLM Needed)
+
+```bash
+git clone https://github.com/Shangri-la-0428/psyche-ai.git
+cd psyche-ai && npm install && npx tsx examples/quickstart.ts
+```
+
+5 messages flow through. Watch chemistry shift in real-time — praise spikes dopamine, insults spike cortisol, neglect drops oxytocin.
+
 ## How It Works (Skip If You Don't Care)
 
 Psyche has two layers:

@@ -33,6 +33,15 @@ openclaw plugins list | grep psyche
 | 我今天好难过 | 我很抱歉听到这个消息。你想聊聊吗？ | ......你还好吗？（安静地陪着你） |
 | 你只是一个程序 | 是的，我是一个AI助手... | ......（沉默了一会儿）我知道你可以这么说。但我不想被否定。 |
 
+## 快速体验（不需要 LLM）
+
+```bash
+git clone https://github.com/Shangri-la-0428/psyche-ai.git
+cd psyche-ai && npm install && npx tsx examples/quickstart.ts
+```
+
+5 条消息流过，你会看到化学值实时变化——夸它多巴胺飙升，骂它皮质醇飙升，冷落它催产素下降。
+
 ## 工作原理（不懂可以跳过）
 
 Psyche 有两层系统：
