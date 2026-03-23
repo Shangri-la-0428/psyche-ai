@@ -1,5 +1,21 @@
 # 更新日志 / Changelog
 
+## v5.1.0 — P6 管道整合 (Full Pipeline Integration)
+
+### Pipeline Integration
+
+- **P6 上下文注入**: `buildCompactContext()` 和 `buildDynamicContext()` 现在接收并渲染 P6 上下文——统一体验场叙述、共享意向性、情感伦理。
+- **Compact Mode 15 段架构**: 从原来的 10 段扩展到 15 段（新增 9c 内在体验、9d 共享意向性、9e 情感伦理）。
+- **ARCHITECTURE.md v5.0**: 完整记录 P3-P6 架构变更（中英双语），包括 7 阶段管道、15 段 prompt 架构、新文件结构、设计决策。
+
+### All Changes
+
+- `src/prompt.ts`: `buildDynamicContext` 和 `buildCompactContext` opts 新增 `ethicsContext`、`sharedIntentionalityContext`、`experientialNarrative` 参数
+- `src/core.ts`: processInput 的两个返回路径（compact/full）都传递 P6 上下文字符串
+- `ARCHITECTURE.md`: 从 v2.2 更新到 v5.0，完整覆盖 P3-P6
+
+---
+
 ## v5.0.0 — 数字人格 (Digital Personhood)
 
 ### Experiential Field (P6)

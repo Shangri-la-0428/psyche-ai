@@ -22,7 +22,13 @@ import { getChannelProfile, buildChannelModifier } from "./channels.js";
 export function buildDynamicContext(
   state: PsycheState,
   userId?: string,
-  opts?: { metacognitiveNote?: string; decisionContext?: string },
+  opts?: {
+    metacognitiveNote?: string;
+    decisionContext?: string;
+    ethicsContext?: string;
+    sharedIntentionalityContext?: string;
+    experientialNarrative?: string;
+  },
 ): string {
   const { current, baseline, mbti, empathyLog, selfModel, meta, agreementStreak, emotionalHistory } = state;
   const locale = meta.locale ?? "zh";
@@ -121,6 +127,22 @@ export function buildDynamicContext(
   if (opts?.decisionContext) {
     const dbTitle = locale === "zh" ? "决策倾向" : "Decision Bias";
     parts.push("", `[${dbTitle}] ${opts.decisionContext}`);
+  }
+
+  // Experiential field narrative (P6)
+  if (opts?.experientialNarrative) {
+    const efTitle = locale === "zh" ? "内在体验" : "Inner Experience";
+    parts.push("", `[${efTitle}] ${opts.experientialNarrative}`);
+  }
+
+  // Shared intentionality (P6)
+  if (opts?.sharedIntentionalityContext) {
+    parts.push("", opts.sharedIntentionalityContext);
+  }
+
+  // Ethics (P6)
+  if (opts?.ethicsContext) {
+    parts.push("", opts.ethicsContext);
   }
 
   parts.push(
@@ -462,6 +484,9 @@ export function buildCompactContext(
     channelType?: ChannelType;
     metacognitiveNote?: string;
     decisionContext?: string;
+    ethicsContext?: string;
+    sharedIntentionalityContext?: string;
+    experientialNarrative?: string;
   },
 ): string {
   const { current, meta, selfModel, agreementStreak, emotionalHistory } = state;
@@ -580,6 +605,23 @@ export function buildCompactContext(
     parts.push(locale === "zh"
       ? `[决策倾向] ${opts.decisionContext}`
       : `[Decision Bias] ${opts.decisionContext}`);
+  }
+
+  // 9c. Experiential field narrative (P6) — inner experience beyond named emotions
+  if (opts?.experientialNarrative) {
+    parts.push(locale === "zh"
+      ? `[内在体验] ${opts.experientialNarrative}`
+      : `[Inner Experience] ${opts.experientialNarrative}`);
+  }
+
+  // 9d. Shared intentionality (P6) — theory of mind, joint attention
+  if (opts?.sharedIntentionalityContext) {
+    parts.push(opts.sharedIntentionalityContext);
+  }
+
+  // 9e. Ethics (P6) — manipulation detection, self-protection
+  if (opts?.ethicsContext) {
+    parts.push(opts.ethicsContext);
   }
 
   // 10. Cross-session emotional memory — surface relationship history

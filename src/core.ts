@@ -35,6 +35,10 @@ import {
 } from "./learning.js";
 import { assessMetacognition } from "./metacognition.js";
 import { buildDecisionContext } from "./decision-bias.js";
+import { computeExperientialField } from "./experiential-field.js";
+import { computeGenerativeSelf, buildIdentityNarrative } from "./generative-self.js";
+import { updateSharedIntentionality, buildSharedIntentionalityContext } from "./shared-intentionality.js";
+import { assessEthics, buildEthicalContext } from "./ethics.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -328,6 +332,77 @@ export class PsycheEngine {
       this.pendingPrediction = null;
     }
 
+    // ── P6: Digital Personhood computations ────────────────────
+
+    // Experiential field — unified inner experience
+    const experientialField = computeExperientialField(state, metacognitiveAssessment);
+
+    // Shared intentionality — theory of mind + joint attention
+    const sharedState = updateSharedIntentionality(
+      state, appliedStimulus, opts?.userId,
+    );
+
+    // Ethics — emotional self-care check
+    const ethicalAssessment = assessEthics(state);
+
+    // Generative self — update identity narrative periodically (every 10 turns)
+    if (state.meta.totalInteractions % 10 === 0 && state.meta.totalInteractions > 0) {
+      const selfModel = computeGenerativeSelf(state);
+      state = {
+        ...state,
+        personhood: {
+          ...state.personhood,
+          identityNarrative: selfModel.identityNarrative,
+          growthDirection: selfModel.growthArc.direction,
+          causalInsights: selfModel.causalInsights.slice(0, 20).map((ci) => ({
+            trait: ci.trait,
+            because: ci.because,
+            confidence: ci.confidence,
+            discoveredAt: new Date().toISOString(),
+          })),
+        },
+      };
+    }
+
+    // Persist ethical concerns if significant
+    if (ethicalAssessment.ethicalHealth < 0.7) {
+      const newConcerns = ethicalAssessment.concerns
+        .filter((c) => c.severity > 0.4)
+        .map((c) => ({ type: c.type, severity: c.severity, timestamp: new Date().toISOString() }));
+      if (newConcerns.length > 0) {
+        state = {
+          ...state,
+          personhood: {
+            ...state.personhood,
+            ethicalConcernHistory: [
+              ...state.personhood.ethicalConcernHistory.slice(-14),
+              ...newConcerns,
+            ],
+          },
+        };
+      }
+    }
+
+    // Persist theory of mind
+    if (sharedState.theoryOfMind.confidence > 0.3) {
+      const userId = opts?.userId ?? "_default";
+      state = {
+        ...state,
+        personhood: {
+          ...state.personhood,
+          theoryOfMind: {
+            ...state.personhood.theoryOfMind,
+            [userId]: {
+              estimatedMood: sharedState.theoryOfMind.estimatedMood,
+              estimatedIntent: sharedState.theoryOfMind.estimatedIntent,
+              confidence: sharedState.theoryOfMind.confidence,
+              lastUpdated: sharedState.theoryOfMind.lastUpdated,
+            },
+          },
+        },
+      };
+    }
+
     // Persist
     this.state = state;
     await this.storage.save(state);
@@ -337,6 +412,9 @@ export class PsycheEngine {
     // Build metacognitive and decision context strings
     const metacogNote = metacognitiveAssessment.metacognitiveNote;
     const decisionCtx = buildDecisionContext(state);
+    const ethicsCtx = buildEthicalContext(ethicalAssessment, locale);
+    const sharedCtx = buildSharedIntentionalityContext(sharedState, locale);
+    const experientialNarrative = experientialField.narrative || undefined;
 
     if (this.cfg.compactMode) {
       return {
@@ -346,6 +424,9 @@ export class PsycheEngine {
           algorithmStimulus: appliedStimulus,
           metacognitiveNote: metacogNote || undefined,
           decisionContext: decisionCtx || undefined,
+          ethicsContext: ethicsCtx || undefined,
+          sharedIntentionalityContext: sharedCtx || undefined,
+          experientialNarrative: experientialNarrative,
         }),
         stimulus: appliedStimulus,
       };
@@ -356,6 +437,9 @@ export class PsycheEngine {
       dynamicContext: buildDynamicContext(state, opts?.userId, {
         metacognitiveNote: metacogNote || undefined,
         decisionContext: decisionCtx || undefined,
+        ethicsContext: ethicsCtx || undefined,
+        sharedIntentionalityContext: sharedCtx || undefined,
+        experientialNarrative: experientialNarrative,
       }),
       stimulus: appliedStimulus,
     };
