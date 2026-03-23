@@ -163,6 +163,8 @@ cd openclaw-plugin-psyche && node scripts/diagnose.js
 - **自定义人格** — 超越 MBTI 预设，完全自定义 baseline/敏感度/气质
 - **情绪学习** — 从交互结果中学习，调整情绪反应参数（躯体标记假说）
 - **上下文分类** — 关系/驱力/历史感知的刺激分类，超越简单正则
+- **时间意识** — 预期、惊喜/失望、遗憾（马尔可夫预测+反事实分析）
+- **依恋动力学** — 4种依恋风格（安全/焦虑/回避/混乱），分离焦虑，重逢效应
 - **Compact Mode** — 算法做化学计算，LLM 只看行为指令（~15-180 tokens vs ~550）
 
 架构详情见 [ARCHITECTURE.md](ARCHITECTURE.md)。
@@ -172,7 +174,7 @@ cd openclaw-plugin-psyche && node scripts/diagnose.js
 ```bash
 npm install
 npm run build
-npm test           # 525 tests
+npm test           # 568 tests
 npm run typecheck  # strict mode
 ```
 

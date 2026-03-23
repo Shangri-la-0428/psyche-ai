@@ -1,6 +1,6 @@
 {
   "name": "psyche-ai",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "Artificial Psyche — universal emotional intelligence plugin for any AI agent",
   "type": "module",
   "main": "dist/index.js",

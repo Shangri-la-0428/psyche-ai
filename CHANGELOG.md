@@ -1,5 +1,30 @@
 # 更新日志 / Changelog
 
+## v3.1.0 — 时间意识 · 依恋动力学 (Temporal Consciousness)
+
+### Temporal Module (P4)
+
+- **`src/temporal.ts`**: 预期、惊喜/失望、遗憾。
+  - `predictNextStimulus()` — 马尔可夫刺激预测，基于交互历史和关系阶段
+  - `generateAnticipation()` — 预期化学微调：预测正面刺激→DA/OT 微升，预测负面→CORT 微升
+  - `computeSurpriseEffect()` — 预期被违反时产生额外化学效应（失望/惊喜）
+  - `computeRegret()` — 反事实分析："如果当时化学值在基线，结果会更好吗？"
+
+### Attachment Module (P4)
+
+- **`src/attachment.ts`**: 依恋形成与分离焦虑。
+  - `updateAttachment()` — 追踪安全/焦虑/回避分数，自动判定依恋风格
+  - `computeSeparationEffect()` — 安全依恋24h后温柔渴望，焦虑依恋4h后痛苦
+  - `computeReunionEffect()` — 重逢化学：安全→温暖，焦虑→强烈但短暂的释然
+- **4 种依恋风格**: secure / anxious / avoidant / disorganized（基于 Bowlby 理论）
+- **AttachmentData** 添加到 RelationshipState（可选字段，向后兼容）
+
+### Tests
+
+- 568 tests total (from 525).
+
+---
+
 ## v3.0.0 — 情绪学习 (Somatic Markers)
 
 ### Emotional Learning Engine (P3)

@@ -24,11 +24,12 @@ export type {
   EmpathyEntry, EmotionPattern, DriveType, InnateDrives,
   LearningState, LearnedVectorAdjustment, PredictionRecord,
   OutcomeScore, OutcomeSignals,
+  AttachmentStyle, AttachmentData,
 } from "./types.js";
 export {
   CHEMICAL_KEYS, CHEMICAL_NAMES, CHEMICAL_NAMES_ZH,
   DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE,
-  DRIVE_KEYS, DRIVE_NAMES_ZH,
+  DEFAULT_ATTACHMENT, DRIVE_KEYS, DRIVE_NAMES_ZH,
 } from "./types.js";
 
 // Self-recognition
@@ -57,6 +58,18 @@ export {
 // Context-aware classification (P3)
 export { classifyStimulusWithContext, extractContextFeatures, stimulusWarmth } from "./context-classifier.js";
 export type { ContextFeatures, ContextualClassification } from "./context-classifier.js";
+
+// Temporal consciousness (P4)
+export {
+  predictNextStimulus, generateAnticipation, computeSurpriseEffect, computeRegret,
+} from "./temporal.js";
+export type { StimulusPrediction, AnticipationState, RegretEntry } from "./temporal.js";
+
+// Attachment dynamics (P4)
+export {
+  updateAttachment, computeSeparationEffect, computeReunionEffect,
+} from "./attachment.js";
+export type { SeparationEffect } from "./attachment.js";
 
 // Utilities — for custom adapter / advanced use
 export { classifyStimulus, getPrimaryStimulus } from "./classify.js";

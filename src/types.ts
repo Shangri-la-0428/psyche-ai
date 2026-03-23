@@ -131,12 +131,38 @@ export interface EmotionPattern {
   behaviorGuide: string;
 }
 
+/** Attachment style for relationship dynamics */
+export type AttachmentStyle = "secure" | "anxious" | "avoidant" | "disorganized";
+
+/** Attachment state tracked per-relationship */
+export interface AttachmentData {
+  style: AttachmentStyle;
+  strength: number;           // 0-100
+  securityScore: number;      // 0-100
+  anxietyScore: number;       // 0-100
+  avoidanceScore: number;     // 0-100
+  lastInteractionAt: string;  // ISO timestamp
+  interactionCount: number;
+}
+
+/** Default attachment for new relationships */
+export const DEFAULT_ATTACHMENT: AttachmentData = {
+  style: "secure",
+  strength: 0,
+  securityScore: 50,
+  anxietyScore: 50,
+  avoidanceScore: 50,
+  lastInteractionAt: new Date().toISOString(),
+  interactionCount: 0,
+};
+
 /** Relationship tracking */
 export interface RelationshipState {
   trust: number;      // 0-100
   intimacy: number;   // 0-100
   phase: "stranger" | "acquaintance" | "familiar" | "close" | "deep";
   memory?: string[];  // compressed session summaries for cross-session continuity
+  attachment?: AttachmentData;  // v5: attachment dynamics
 }
 
 /** Chemical state snapshot for emotional memory */
@@ -231,6 +257,9 @@ export const MAX_PREDICTION_HISTORY = 50;
 
 /** Max outcome history entries */
 export const MAX_OUTCOME_HISTORY = 50;
+
+/** Max regret history entries */
+export const MAX_REGRET_HISTORY = 20;
 
 /** Persisted psyche state for an agent (v4: emotional learning) */
 export interface PsycheState {
