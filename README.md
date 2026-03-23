@@ -161,6 +161,8 @@ cd openclaw-plugin-psyche && node scripts/diagnose.js
 - **流式支持** — Vercel AI SDK `streamText` 中间件，自动缓冲和剥离标签
 - **渠道修饰** — Discord/Slack/飞书/终端等不同渠道自动调整表达风格
 - **自定义人格** — 超越 MBTI 预设，完全自定义 baseline/敏感度/气质
+- **情绪学习** — 从交互结果中学习，调整情绪反应参数（躯体标记假说）
+- **上下文分类** — 关系/驱力/历史感知的刺激分类，超越简单正则
 - **Compact Mode** — 算法做化学计算，LLM 只看行为指令（~15-180 tokens vs ~550）
 
 架构详情见 [ARCHITECTURE.md](ARCHITECTURE.md)。
@@ -170,7 +172,7 @@ cd openclaw-plugin-psyche && node scripts/diagnose.js
 ```bash
 npm install
 npm run build
-npm test           # 469 tests
+npm test           # 525 tests
 npm run typecheck  # strict mode
 ```
 

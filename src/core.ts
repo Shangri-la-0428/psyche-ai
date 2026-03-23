@@ -1,15 +1,19 @@
 // ============================================================
 // PsycheEngine — Framework-agnostic emotional intelligence core
 //
-// Two-phase API:
-//   processInput(text)  → systemContext + dynamicContext + stimulus
-//   processOutput(text) → cleanedText + stateChanged
+// Three-phase API:
+//   processInput(text)   → systemContext + dynamicContext + stimulus
+//   processOutput(text)  → cleanedText + stateChanged
+//   processOutcome(text) → outcomeScore (optional: evaluate last interaction)
 //
-// Orchestrates: chemistry, classify, prompt, profiles, guards
+// Auto-learning: processInput auto-evaluates the previous turn's
+// outcome using the new user message as the outcome signal.
+//
+// Orchestrates: chemistry, classify, prompt, profiles, guards, learning
 // ============================================================
 
-import type { PsycheState, StimulusType, Locale, MBTIType } from "./types.js";
-import { DEFAULT_RELATIONSHIP, DEFAULT_DRIVES } from "./types.js";
+import type { PsycheState, StimulusType, Locale, MBTIType, ChemicalState, OutcomeScore } from "./types.js";
+import { DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE } from "./types.js";
 import type { StorageAdapter } from "./storage.js";
 import { applyDecay, applyStimulus, applyContagion, clamp } from "./chemistry.js";
 import { classifyStimulus } from "./classify.js";
@@ -25,6 +29,10 @@ import {
   computeEffectiveBaseline, computeEffectiveSensitivity,
 } from "./drives.js";
 import { checkForUpdate } from "./update.js";
+import {
+  evaluateOutcome, computeContextHash, updateLearnedVector,
+  predictChemistry, recordPrediction,
+} from "./learning.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -55,6 +63,21 @@ export interface ProcessOutputResult {
   stateChanged: boolean;
 }
 
+export interface ProcessOutcomeResult {
+  /** Outcome evaluation score (-1 to 1) */
+  outcomeScore: OutcomeScore;
+  /** Whether learning state was updated */
+  learningUpdated: boolean;
+}
+
+/** Internal: snapshot of a pending prediction for auto-learning */
+interface PendingPrediction {
+  predictedChemistry: ChemicalState;
+  preInteractionState: PsycheState;
+  appliedStimulus: StimulusType | null;
+  contextHash: string;
+}
+
 const NOOP_LOGGER: Logger = { info: () => {}, warn: () => {}, debug: () => {} };
 
 // ── PsycheEngine ─────────────────────────────────────────────
@@ -72,6 +95,8 @@ export class PsycheEngine {
     compactMode: boolean;
   };
   private readonly protocolCache = new Map<Locale, string>();
+  /** Pending prediction from last processInput for auto-learning */
+  private pendingPrediction: PendingPrediction | null = null;
 
   constructor(config: PsycheEngineConfig = {}, storage: StorageAdapter) {
     this.storage = storage;
@@ -92,6 +117,11 @@ export class PsycheEngine {
   async initialize(): Promise<void> {
     const loaded = await this.storage.load();
     if (loaded) {
+      // Migrate v3 → v4: add learning state if missing
+      if (!loaded.learning) {
+        loaded.learning = { ...DEFAULT_LEARNING_STATE };
+        loaded.version = 4;
+      }
       this.state = loaded;
     } else {
       this.state = this.createDefaultState();
@@ -108,6 +138,52 @@ export class PsycheEngine {
    */
   async processInput(text: string, opts?: { userId?: string }): Promise<ProcessInputResult> {
     let state = this.ensureInitialized();
+
+    // ── Auto-learning: evaluate previous turn's outcome ──────
+    if (this.pendingPrediction && text.length > 0) {
+      const nextClassifications = classifyStimulus(text);
+      const nextStimulus = (nextClassifications[0]?.confidence ?? 0) >= 0.5
+        ? nextClassifications[0].type
+        : null;
+
+      const outcome = evaluateOutcome(
+        this.pendingPrediction.preInteractionState,
+        state,
+        nextStimulus,
+        this.pendingPrediction.appliedStimulus,
+      );
+
+      // Record prediction accuracy
+      state = {
+        ...state,
+        learning: recordPrediction(
+          state.learning,
+          this.pendingPrediction.predictedChemistry,
+          state.current,
+          this.pendingPrediction.appliedStimulus,
+        ),
+      };
+
+      // Update learned vectors based on outcome
+      if (this.pendingPrediction.appliedStimulus) {
+        state = {
+          ...state,
+          learning: updateLearnedVector(
+            state.learning,
+            this.pendingPrediction.appliedStimulus,
+            this.pendingPrediction.contextHash,
+            outcome.adaptiveScore,
+            state.current,
+            state.baseline,
+          ),
+        };
+      }
+
+      this.pendingPrediction = null;
+    }
+
+    // ── Snapshot pre-interaction state for next turn's outcome evaluation
+    const preInteractionState = { ...state };
 
     // Time decay toward baseline (chemistry + drives)
     const now = new Date();
@@ -190,6 +266,30 @@ export class PsycheEngine {
       meta: { ...state.meta, totalInteractions: state.meta.totalInteractions + 1 },
     };
 
+    // ── Generate prediction for next turn's auto-learning ────
+    if (appliedStimulus) {
+      const ctxHash = computeContextHash(state, opts?.userId);
+      const effectiveSensitivity = computeEffectiveSensitivity(
+        getSensitivity(state.mbti), state.drives, appliedStimulus,
+      );
+      const predicted = predictChemistry(
+        preInteractionState.current,
+        appliedStimulus,
+        state.learning,
+        ctxHash,
+        effectiveSensitivity,
+        this.cfg.maxChemicalDelta,
+      );
+      this.pendingPrediction = {
+        predictedChemistry: predicted,
+        preInteractionState,
+        appliedStimulus,
+        contextHash: ctxHash,
+      };
+    } else {
+      this.pendingPrediction = null;
+    }
+
     // Persist
     this.state = state;
     await this.storage.save(state);
@@ -268,6 +368,67 @@ export class PsycheEngine {
   }
 
   /**
+   * Phase 3 (optional): Explicitly evaluate the outcome of the last interaction.
+   *
+   * This is automatically called at the start of processInput, so most users
+   * don't need to call it manually. Use this for explicit outcome evaluation
+   * (e.g., when a session ends without a follow-up message).
+   *
+   * @param nextUserStimulus - The stimulus detected in the user's next message,
+   *   or null if the session ended.
+   */
+  async processOutcome(
+    nextUserStimulus: StimulusType | null,
+    opts?: { userId?: string },
+  ): Promise<ProcessOutcomeResult | null> {
+    if (!this.pendingPrediction) return null;
+
+    let state = this.ensureInitialized();
+    const pending = this.pendingPrediction;
+    this.pendingPrediction = null;
+
+    const outcome = evaluateOutcome(
+      pending.preInteractionState,
+      state,
+      nextUserStimulus,
+      pending.appliedStimulus,
+    );
+
+    // Record prediction
+    state = {
+      ...state,
+      learning: recordPrediction(
+        state.learning,
+        pending.predictedChemistry,
+        state.current,
+        pending.appliedStimulus,
+      ),
+    };
+
+    // Update learned vectors
+    let learningUpdated = false;
+    if (pending.appliedStimulus) {
+      state = {
+        ...state,
+        learning: updateLearnedVector(
+          state.learning,
+          pending.appliedStimulus,
+          pending.contextHash,
+          outcome.adaptiveScore,
+          state.current,
+          state.baseline,
+        ),
+      };
+      learningUpdated = true;
+    }
+
+    this.state = state;
+    await this.storage.save(state);
+
+    return { outcomeScore: outcome, learningUpdated };
+  }
+
+  /**
    * Get the current psyche state (read-only snapshot).
    */
   getState(): PsycheState {
@@ -303,7 +464,7 @@ export class PsycheEngine {
     const now = new Date().toISOString();
 
     return {
-      version: 3,
+      version: 4,
       mbti,
       baseline,
       current: { ...baseline },
@@ -315,6 +476,7 @@ export class PsycheEngine {
       emotionalHistory: [],
       agreementStreak: 0,
       lastDisagreement: null,
+      learning: { ...DEFAULT_LEARNING_STATE },
       meta: {
         agentName: name,
         createdAt: now,

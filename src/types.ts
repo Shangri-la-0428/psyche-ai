@@ -169,9 +169,72 @@ export interface SelfModel {
   currentInterests: string[];
 }
 
-/** Persisted psyche state for an agent (v0.3: innate drives) */
+// ── Learning Types (v4) ─────────────────────────────────────
+
+/** Learned adjustment to a stimulus vector for a specific context */
+export interface LearnedVectorAdjustment {
+  stimulus: StimulusType;
+  contextHash: string;
+  adjustment: Partial<StimulusVector>;
+  confidence: number;       // 0-1
+  sampleCount: number;
+  lastUpdated: string;      // ISO timestamp
+}
+
+/** A single prediction record for prediction error tracking */
+export interface PredictionRecord {
+  predictedChemistry: ChemicalState;
+  actualChemistry: ChemicalState;
+  stimulus: StimulusType | null;
+  predictionError: number;  // scalar distance
+  timestamp: string;
+}
+
+/** Outcome evaluation signals for a turn */
+export interface OutcomeSignals {
+  driveDelta: number;
+  relationshipDelta: number;
+  userWarmthDelta: number;
+  conversationContinued: boolean;
+}
+
+/** Outcome evaluation for a single interaction turn */
+export interface OutcomeScore {
+  turnIndex: number;
+  stimulus: StimulusType | null;
+  adaptiveScore: number;    // -1 to 1
+  signals: OutcomeSignals;
+  timestamp: string;
+}
+
+/** Persisted learning state */
+export interface LearningState {
+  learnedVectors: LearnedVectorAdjustment[];
+  predictionHistory: PredictionRecord[];
+  outcomeHistory: OutcomeScore[];
+  totalOutcomesProcessed: number;
+}
+
+/** Default empty learning state */
+export const DEFAULT_LEARNING_STATE: LearningState = {
+  learnedVectors: [],
+  predictionHistory: [],
+  outcomeHistory: [],
+  totalOutcomesProcessed: 0,
+};
+
+/** Max learned vector entries */
+export const MAX_LEARNED_VECTORS = 200;
+
+/** Max prediction history entries */
+export const MAX_PREDICTION_HISTORY = 50;
+
+/** Max outcome history entries */
+export const MAX_OUTCOME_HISTORY = 50;
+
+/** Persisted psyche state for an agent (v4: emotional learning) */
 export interface PsycheState {
-  version: 3;
+  version: 3 | 4;
   mbti: MBTIType;
   baseline: ChemicalState;
   current: ChemicalState;
@@ -183,6 +246,7 @@ export interface PsycheState {
   emotionalHistory: ChemicalSnapshot[]; // recent chemical trajectory
   agreementStreak: number;          // consecutive agreements without disagreement
   lastDisagreement: string | null;  // ISO timestamp
+  learning: LearningState;          // v4: emotional learning data
   meta: {
     agentName: string;
     createdAt: string;

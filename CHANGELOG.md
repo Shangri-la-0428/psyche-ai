@@ -1,5 +1,29 @@
 # 更新日志 / Changelog
 
+## v3.0.0 — 情绪学习 (Somatic Markers)
+
+### Emotional Learning Engine (P3)
+
+- **`src/learning.ts`**: 从交互结果中学习。OutcomeEvaluator 评估情绪反应的适应性，StimulusVectorStore 存储上下文相关的学习向量，PredictionEngine 预测化学变化并从预测误差中学习。
+- **`processOutcome()`**: 新增第三阶段 API——显式评估上一轮交互的结果。
+- **Auto-learning**: processInput 自动在下一轮开始时评估上一轮结果，无需手动调用。
+- **学习向量**: 静态 STIMULUS_VECTORS 现在被上下文感知的学习向量增强。相同刺激在不同关系/情境下产生不同化学反应。
+- **预测误差驱动**: 在应用刺激前预测化学变化，事后比较。预测误差信号驱动参数调整。
+
+### Context-Aware Classification (P3)
+
+- **`src/context-classifier.ts`**: 上下文感知的刺激分类。在正则分类基础上叠加关系深度、重复疲劳、驱力饥渴、反谄媚等修正。
+- **关系修正**: 陌生人+亲密→置信度降低，亲密关系+日常→提升。
+- **驱力饥渴**: connection 低→对正面刺激更敏感，survival 低→对威胁更敏感。
+
+### Architecture
+
+- **PsycheState v4**: 新增 `learning` 字段（LearnedVectorAdjustment[], PredictionRecord[], OutcomeScore[]）。v3→v4 自动迁移。
+- **三阶段管道**: `processInput() → [LLM] → processOutput() → processOutcome()`
+- 525 tests (from 469).
+
+---
+
 ## v2.3.0 — 渠道修饰符 · 自定义人格档案
 
 ### Channel-Specific Behavioral Modifiers (P2.3)

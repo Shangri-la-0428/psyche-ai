@@ -4,14 +4,14 @@ import { PsycheEngine } from "../src/core.js";
 import { PsycheInteraction } from "../src/interaction.js";
 import { MemoryStorageAdapter } from "../src/storage.js";
 import type { PsycheState, ChemicalState } from "../src/types.js";
-import { CHEMICAL_KEYS, DEFAULT_RELATIONSHIP, DEFAULT_DRIVES } from "../src/types.js";
+import { CHEMICAL_KEYS, DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE } from "../src/types.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
 function makeState(overrides: Partial<PsycheState> = {}): PsycheState {
   const now = new Date().toISOString();
   return {
-    version: 3,
+    version: 4,
     mbti: "ENFP",
     baseline: { DA: 75, HT: 55, CORT: 30, OT: 60, NE: 65, END: 70 },
     current: { DA: 75, HT: 55, CORT: 30, OT: 60, NE: 65, END: 70 },
@@ -23,6 +23,7 @@ function makeState(overrides: Partial<PsycheState> = {}): PsycheState {
     agreementStreak: 0,
     lastDisagreement: null,
     drives: { ...DEFAULT_DRIVES },
+    learning: { ...DEFAULT_LEARNING_STATE },
     meta: { agentName: "AgentA", createdAt: now, totalInteractions: 0, locale: "en" },
     ...overrides,
   };

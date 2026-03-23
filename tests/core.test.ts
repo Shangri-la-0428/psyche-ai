@@ -3,13 +3,13 @@ import assert from "node:assert/strict";
 import { PsycheEngine } from "../src/core.js";
 import { MemoryStorageAdapter } from "../src/storage.js";
 import type { PsycheState } from "../src/types.js";
-import { DEFAULT_RELATIONSHIP, DEFAULT_DRIVES } from "../src/types.js";
+import { DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE } from "../src/types.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
 function makeExistingState(overrides: Partial<PsycheState> = {}): PsycheState {
   return {
-    version: 3,
+    version: 4,
     mbti: "INTJ",
     baseline: { DA: 45, HT: 70, CORT: 40, OT: 30, NE: 60, END: 35 },
     current: { DA: 80, HT: 50, CORT: 60, OT: 30, NE: 60, END: 35 },
@@ -21,6 +21,7 @@ function makeExistingState(overrides: Partial<PsycheState> = {}): PsycheState {
     agreementStreak: 0,
     lastDisagreement: null,
     drives: { ...DEFAULT_DRIVES },
+    learning: { ...DEFAULT_LEARNING_STATE },
     meta: { agentName: "Existing", createdAt: new Date().toISOString(), totalInteractions: 10, locale: "en" },
     ...overrides,
   };
@@ -42,7 +43,7 @@ describe("PsycheEngine", () => {
 
   it("initializes with default state when storage is empty", () => {
     const state = engine.getState();
-    assert.equal(state.version, 3);
+    assert.equal(state.version, 4);
     assert.equal(state.mbti, "ENFP");
     assert.equal(state.meta.agentName, "TestBot");
     assert.equal(state.meta.locale, "zh");

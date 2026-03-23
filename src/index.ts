@@ -11,7 +11,7 @@
 
 // Core
 export { PsycheEngine } from "./core.js";
-export type { PsycheEngineConfig, ProcessInputResult, ProcessOutputResult } from "./core.js";
+export type { PsycheEngineConfig, ProcessInputResult, ProcessOutputResult, ProcessOutcomeResult } from "./core.js";
 
 // Storage
 export { FileStorageAdapter, MemoryStorageAdapter } from "./storage.js";
@@ -22,10 +22,13 @@ export type {
   PsycheState, MBTIType, Locale, StimulusType,
   ChemicalState, ChemicalSnapshot, SelfModel, RelationshipState,
   EmpathyEntry, EmotionPattern, DriveType, InnateDrives,
+  LearningState, LearnedVectorAdjustment, PredictionRecord,
+  OutcomeScore, OutcomeSignals,
 } from "./types.js";
 export {
   CHEMICAL_KEYS, CHEMICAL_NAMES, CHEMICAL_NAMES_ZH,
-  DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DRIVE_KEYS, DRIVE_NAMES_ZH,
+  DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE,
+  DRIVE_KEYS, DRIVE_NAMES_ZH,
 } from "./types.js";
 
 // Self-recognition
@@ -43,6 +46,17 @@ export type { ChannelType, ChannelProfile } from "./channels.js";
 // Custom profiles — beyond MBTI presets
 export { createCustomProfile, validateProfileConfig, PRESET_PROFILES } from "./custom-profile.js";
 export type { CustomProfileConfig, ResolvedProfile } from "./custom-profile.js";
+
+// Emotional learning (P3)
+export {
+  evaluateOutcome, getLearnedVector, updateLearnedVector,
+  computeContextHash, predictChemistry, computePredictionError,
+  recordPrediction, getAveragePredictionError,
+} from "./learning.js";
+
+// Context-aware classification (P3)
+export { classifyStimulusWithContext, extractContextFeatures, stimulusWarmth } from "./context-classifier.js";
+export type { ContextFeatures, ContextualClassification } from "./context-classifier.js";
 
 // Utilities — for custom adapter / advanced use
 export { classifyStimulus, getPrimaryStimulus } from "./classify.js";
