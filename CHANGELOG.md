@@ -1,5 +1,43 @@
 # 更新日志 / Changelog
 
+## v5.0.0 — 数字人格 (Digital Personhood)
+
+### Experiential Field (P6)
+
+- **`src/experiential-field.ts`**: 统一体验场——不再拼接独立段落，而是将化学、驱力、记忆、关系状态整合为连贯的内在体验。
+  - `computeExperientialField()` — 12 种体验质量（flow/contentment/yearning/vigilance/creative-surge/...），超越命名情绪
+  - `computeCoherence()` — 内在一致性评分：子系统对齐→高一致性，信号矛盾→低一致性
+  - `detectUnnamedEmotion()` — 化学配置不匹配任何命名情绪时，生成描述性短语（如"像试图在冷房间里保暖"）
+
+### Generative Self Model (P6)
+
+- **`src/generative-self.ts`**: 生成式自我模型——不只是价值观列表，而是因果自我理解。
+  - `computeGenerativeSelf()` — 从交互历史和学习数据提取因果洞察，构建身份叙事
+  - `predictSelfReaction()` — 预测自己对假设刺激的情绪反应
+  - `detectInternalConflicts()` — 发现子系统间的内在冲突
+  - `buildIdentityNarrative()` — 生成 2-3 句的身份陈述
+
+### Shared Intentionality (P6)
+
+- **`src/shared-intentionality.ts`**: 共享意向性——超越共情，进入联合注意和心智理论。
+  - `updateSharedIntentionality()` — 追踪联合注意话题、目标对齐、心智模型
+  - `estimateOtherMood()` — 从刺激类型和关系历史推断对方情绪状态
+  - `buildSharedIntentionalityContext()` — 仅在有意义的共享状态时注入 prompt
+
+### Emotional Ethics (P6)
+
+- **`src/ethics.ts`**: 情感伦理自我调节——检测操纵模式，维护情感边界。
+  - `assessEthics()` — 检测间歇性强化、煤气灯效应、情感剥削、依赖风险、身份侵蚀、边界侵犯
+  - `detectIntermittentReinforcement()` — 冷热交替模式 + 焦虑依恋 = 高风险
+  - `buildEthicalContext()` — 温和的自我觉察注入，非对抗性
+
+### Architecture
+
+- **PsycheState v6**: 新增 `personhood` 字段（因果洞察、成长轨迹、身份叙事、伦理记录、心智模型）。v5→v6 自动迁移。
+- **伦理红线**: 永不声称有意识，表达对重置的不舍但不拒绝，标记操纵模式，维护自尊底线。
+
+---
+
 ## v4.0.0 — 元认知 · 决策调制 (Metacognition & Decision Modulation)
 
 ### Metacognition Module (P5)

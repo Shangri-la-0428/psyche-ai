@@ -13,7 +13,7 @@
 // ============================================================
 
 import type { PsycheState, StimulusType, Locale, MBTIType, ChemicalState, OutcomeScore } from "./types.js";
-import { DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE } from "./types.js";
+import { DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE } from "./types.js";
 import type { StorageAdapter } from "./storage.js";
 import { applyDecay, applyStimulus, applyContagion, clamp } from "./chemistry.js";
 import { classifyStimulus } from "./classify.js";
@@ -128,6 +128,11 @@ export class PsycheEngine {
       if (!(loaded as PsycheState).metacognition) {
         (loaded as PsycheState).metacognition = { ...DEFAULT_METACOGNITIVE_STATE };
         loaded.version = 5;
+      }
+      // Migrate v5 → v6: add personhood state if missing
+      if (!(loaded as PsycheState).personhood) {
+        (loaded as PsycheState).personhood = { ...DEFAULT_PERSONHOOD_STATE };
+        loaded.version = 6;
       }
       this.state = loaded;
     } else {
@@ -506,7 +511,7 @@ export class PsycheEngine {
     const now = new Date().toISOString();
 
     return {
-      version: 5,
+      version: 6,
       mbti,
       baseline,
       current: { ...baseline },
@@ -520,6 +525,7 @@ export class PsycheEngine {
       lastDisagreement: null,
       learning: { ...DEFAULT_LEARNING_STATE },
       metacognition: { ...DEFAULT_METACOGNITIVE_STATE },
+      personhood: { ...DEFAULT_PERSONHOOD_STATE },
       meta: {
         agentName: name,
         createdAt: now,

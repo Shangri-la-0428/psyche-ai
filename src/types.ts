@@ -306,9 +306,53 @@ export const DEFAULT_METACOGNITIVE_STATE: MetacognitiveState = {
   totalAssessments: 0,
 };
 
-/** Persisted psyche state for an agent (v5: metacognition + decision modulation) */
+// ── Personhood Types (v6) ────────────────────────────────────
+
+/** Max causal insights to persist */
+export const MAX_CAUSAL_INSIGHTS = 20;
+
+/** Max ethical concern history entries */
+export const MAX_ETHICAL_HISTORY = 15;
+
+/** Persisted causal insight about self */
+export interface PersistedCausalInsight {
+  trait: string;
+  because: string;
+  confidence: number;
+  discoveredAt: string;
+}
+
+/** Growth direction */
+export type GrowthDirection = "growing" | "stable" | "regressing" | "transforming";
+
+/** Persisted personhood state */
+export interface PersonhoodState {
+  causalInsights: PersistedCausalInsight[];
+  growthDirection: GrowthDirection;
+  identityNarrative: string;
+  /** Ethical concerns detected over time */
+  ethicalConcernHistory: { type: string; severity: number; timestamp: string }[];
+  /** Theory of mind per-user */
+  theoryOfMind: Record<string, {
+    estimatedMood: string;
+    estimatedIntent: string;
+    confidence: number;
+    lastUpdated: string;
+  }>;
+}
+
+/** Default empty personhood state */
+export const DEFAULT_PERSONHOOD_STATE: PersonhoodState = {
+  causalInsights: [],
+  growthDirection: "stable",
+  identityNarrative: "",
+  ethicalConcernHistory: [],
+  theoryOfMind: {},
+};
+
+/** Persisted psyche state for an agent (v6: digital personhood) */
 export interface PsycheState {
-  version: 3 | 4 | 5;
+  version: 3 | 4 | 5 | 6;
   mbti: MBTIType;
   baseline: ChemicalState;
   current: ChemicalState;
@@ -322,6 +366,7 @@ export interface PsycheState {
   lastDisagreement: string | null;  // ISO timestamp
   learning: LearningState;          // v4: emotional learning data
   metacognition: MetacognitiveState; // v5: metacognitive monitoring
+  personhood: PersonhoodState;      // v6: digital personhood
   meta: {
     agentName: string;
     createdAt: string;

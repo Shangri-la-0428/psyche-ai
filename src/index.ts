@@ -27,11 +27,13 @@ export type {
   AttachmentStyle, AttachmentData,
   MetacognitiveState, RegulationRecord, DefensePatternRecord,
   RegulationStrategyType, DefenseMechanismType,
+  PersonhoodState, PersistedCausalInsight, GrowthDirection,
 } from "./types.js";
 export {
   CHEMICAL_KEYS, CHEMICAL_NAMES, CHEMICAL_NAMES_ZH,
   DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE,
-  DEFAULT_METACOGNITIVE_STATE, DEFAULT_ATTACHMENT, DRIVE_KEYS, DRIVE_NAMES_ZH,
+  DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE,
+  DEFAULT_ATTACHMENT, DRIVE_KEYS, DRIVE_NAMES_ZH,
 } from "./types.js";
 
 // Self-recognition
@@ -86,6 +88,25 @@ export {
   computeExploreExploit, buildDecisionContext,
 } from "./decision-bias.js";
 export type { DecisionBiasVector, AttentionWeights } from "./decision-bias.js";
+
+// Experiential field (P6)
+export { computeExperientialField, computeCoherence, detectUnnamedEmotion } from "./experiential-field.js";
+export type { ExperientialField, ExperientialQuality } from "./experiential-field.js";
+
+// Generative self (P6)
+export { computeGenerativeSelf, predictSelfReaction, detectInternalConflicts, buildIdentityNarrative } from "./generative-self.js";
+export type { GenerativeSelfModel, CausalInsight, SelfPrediction, GrowthArc, InternalConflict } from "./generative-self.js";
+
+// Shared intentionality (P6)
+export { updateSharedIntentionality, estimateOtherMood, buildSharedIntentionalityContext } from "./shared-intentionality.js";
+export type { SharedIntentionalityState, TheoryOfMindModel, JointAttentionTopic, GoalAlignment } from "./shared-intentionality.js";
+
+// Emotional ethics (P6)
+export {
+  assessEthics, detectIntermittentReinforcement, detectDependencyRisk,
+  buildEthicalContext,
+} from "./ethics.js";
+export type { EthicalAssessment, EthicalConcern, SelfProtectionAction } from "./ethics.js";
 
 // Utilities — for custom adapter / advanced use
 export { classifyStimulus, getPrimaryStimulus } from "./classify.js";

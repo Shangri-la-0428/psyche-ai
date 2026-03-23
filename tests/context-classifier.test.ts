@@ -7,13 +7,13 @@ import {
 } from "../src/context-classifier.js";
 import type { ContextFeatures } from "../src/context-classifier.js";
 import type { PsycheState, StimulusType } from "../src/types.js";
-import { DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE } from "../src/types.js";
+import { DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE } from "../src/types.js";
 
 // ── Helper: minimal PsycheState factory ──────────────────────
 
 function makeState(overrides: Partial<PsycheState> = {}): PsycheState {
   return {
-    version: 5,
+    version: 6,
     mbti: "INFJ",
     baseline: { DA: 50, HT: 60, CORT: 40, OT: 55, NE: 45, END: 50 },
     current: { DA: 50, HT: 60, CORT: 40, OT: 55, NE: 45, END: 50 },
@@ -29,6 +29,7 @@ function makeState(overrides: Partial<PsycheState> = {}): PsycheState {
     lastDisagreement: null,
     learning: { ...DEFAULT_LEARNING_STATE },
     metacognition: { ...DEFAULT_METACOGNITIVE_STATE },
+    personhood: { ...DEFAULT_PERSONHOOD_STATE },
     meta: {
       agentName: "test-agent",
       createdAt: new Date().toISOString(),

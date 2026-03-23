@@ -14,7 +14,7 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 
 const PACKAGE_NAME = "psyche-ai";
-const CURRENT_VERSION = "4.0.0";
+const CURRENT_VERSION = "5.0.0";
 const CHECK_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 const CACHE_DIR = join(homedir(), ".psyche-ai");
 const CACHE_FILE = join(CACHE_DIR, "update-check.json");

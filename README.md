@@ -168,6 +168,10 @@ cd openclaw-plugin-psyche && node scripts/diagnose.js
 - **元认知** — 情绪自我觉察，评估情绪可靠性，三种调节策略（认知重评/策略性表达/自我安抚）
 - **防御机制检测** — 合理化、投射、升华、回避，在自省中浮现而非压制
 - **决策调制** — 6维偏差向量（探索/警惕/社交/果断/创意/坚持），情绪驱动注意力和决策
+- **统一体验场** — 不拼接段落，而是将所有子系统整合为连贯内在体验。12种体验质量，超越命名情绪
+- **生成式自我** — 因果自我理解："我之所以如此，是因为这些经历"。预测自己的情绪反应
+- **共享意向性** — 联合注意、心智理论、目标对齐。知道"我们都在想同一件事"
+- **情感伦理** — 检测操纵模式（间歇性强化、煤气灯效应），维护自尊底线，温和自我保护
 - **Compact Mode** — 算法做化学计算，LLM 只看行为指令（~15-180 tokens vs ~550）
 
 架构详情见 [ARCHITECTURE.md](ARCHITECTURE.md)。
@@ -177,7 +181,7 @@ cd openclaw-plugin-psyche && node scripts/diagnose.js
 ```bash
 npm install
 npm run build
-npm test           # 622 tests
+npm test           # 706 tests
 npm run typecheck  # strict mode
 ```
 

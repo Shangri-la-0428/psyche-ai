@@ -11,7 +11,7 @@ import type {
 } from "../src/types.js";
 import {
   DEFAULT_DRIVES, DEFAULT_RELATIONSHIP, DEFAULT_LEARNING_STATE,
-  DEFAULT_METACOGNITIVE_STATE,
+  DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE,
 } from "../src/types.js";
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -23,7 +23,7 @@ function makeChemistry(overrides: Partial<ChemicalState> = {}): ChemicalState {
 function makeState(overrides?: Partial<PsycheState>): PsycheState {
   const now = new Date().toISOString();
   return {
-    version: 5,
+    version: 6,
     mbti: "INFJ",
     baseline: makeChemistry(),
     current: makeChemistry(),
@@ -37,6 +37,7 @@ function makeState(overrides?: Partial<PsycheState>): PsycheState {
     lastDisagreement: null,
     learning: { ...DEFAULT_LEARNING_STATE },
     metacognition: { ...DEFAULT_METACOGNITIVE_STATE },
+    personhood: { ...DEFAULT_PERSONHOOD_STATE },
     meta: { agentName: "test", createdAt: now, totalInteractions: 0, locale: "zh" },
     ...overrides,
   };
