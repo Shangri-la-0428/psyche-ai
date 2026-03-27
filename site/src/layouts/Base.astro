@@ -1,0 +1,139 @@
+---
+interface Props {
+  title: string;
+  description?: string;
+  page?: string;
+}
+
+const { title, description = "Virtual endocrine system that gives AI genuine inner experience. 6 neurotransmitters, trait drift, anti-sycophancy.", page = "home" } = Astro.props;
+
+import { ClientRouter } from 'astro:transitions';
+---
+
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark" data-page={page} data-lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{title}</title>
+  <meta name="description" content={description} />
+  <meta property="og:title" content={title} />
+  <meta property="og:description" content={description} />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/favicon.ico" sizes="32x32" />
+  <meta name="theme-color" content="#000000" />
+  <link rel="preload" href="/fonts/jetbrains-mono-var.woff2" as="font" type="font/woff2" crossorigin />
+  <script is:inline>
+    // Language — in <head> to prevent FOUC
+    (function() {
+      var lang = localStorage.getItem('lang');
+      if (lang && ['zh', 'en'].includes(lang)) {
+        document.documentElement.setAttribute('data-lang', lang);
+        document.documentElement.lang = lang === 'en' ? 'en' : 'zh-CN';
+      }
+    })();
+  </script>
+  <ClientRouter />
+</head>
+<body>
+  <a href="#main-content" class="skip-to-content">Skip to content</a>
+  <div class="scroll-spine" aria-hidden="true"></div>
+  <slot />
+
+  <script is:inline>
+    // Auto-assign main content id for skip link
+    (function() {
+      var m = document.querySelector('main');
+      if (m && !m.id) m.id = 'main-content';
+    })();
+    // Console prophecy — for engineers who look deeper
+    (function() {
+      var q = '\n  6 neurotransmitters. 14 emergent moods.\n  Zero LLM calls. Pure algorithmic chemistry.\n\n  npm install psyche-ai\n  github.com/Shangri-la-0428/psyche-ai\n';
+      console.log('%c' + q, 'font-family:"JetBrains Mono",monospace;color:#555;font-size:11px;line-height:1.8;');
+    })();
+    // Scroll reveal — below-fold sections fade up on entry
+    (function() {
+      var vh = window.innerHeight;
+      var io = new IntersectionObserver(function(entries) {
+        entries.forEach(function(e) {
+          if (e.isIntersecting) {
+            e.target.classList.add('revealed');
+            io.unobserve(e.target);
+          }
+        });
+      }, { threshold: 0.08 });
+      document.querySelectorAll('section').forEach(function(el) {
+        if (el.getBoundingClientRect().top > vh * 0.75) {
+          el.classList.add('reveal');
+        }
+        if (el.classList.contains('reveal')) {
+          io.observe(el);
+        }
+      });
+    })();
+    // Section TOC — auto-generated floating nav for pages with 4+ sections
+    (function() {
+      if (document.documentElement.dataset.page === 'home') return;
+      var labels = document.querySelectorAll('.section-label');
+      if (labels.length < 4) return;
+
+      // Build nav
+      var nav = document.createElement('nav');
+      nav.className = 'section-toc';
+      nav.setAttribute('aria-label', 'Page sections');
+      var items = [];
+
+      labels.forEach(function(label, i) {
+        // Ensure parent section has an id
+        var section = label.closest('section');
+        if (!section) return;
+        if (!section.id) section.id = 'sec-' + i;
+
+        var a = document.createElement('a');
+        a.href = '#' + section.id;
+        // Get text from the appropriate language span
+        var lang = document.documentElement.getAttribute('data-lang') || 'zh';
+        var span = label.querySelector('.' + (lang === 'en' ? 'en' : 'cn'));
+        var text = span ? span.textContent.trim() : label.textContent.trim();
+        if (text.length > 16) text = text.slice(0, 15) + '…';
+        a.textContent = text;
+        a.className = 'toc-item';
+        nav.appendChild(a);
+        items.push({ el: a, section: section });
+      });
+
+      document.body.appendChild(nav);
+
+      // Highlight current section
+      var io = new IntersectionObserver(function(entries) {
+        entries.forEach(function(e) {
+          var item = items.find(function(it) { return it.section === e.target; });
+          if (item) {
+            if (e.isIntersecting) item.el.classList.add('toc-active');
+            else item.el.classList.remove('toc-active');
+          }
+        });
+      }, { threshold: 0.15 });
+      items.forEach(function(it) { io.observe(it.section); });
+
+      // Update text on language change
+      var langObs = new MutationObserver(function() {
+        var lang = document.documentElement.getAttribute('data-lang') || 'zh';
+        items.forEach(function(it) {
+          var label = it.section.querySelector('.section-label');
+          if (!label) return;
+          var span = label.querySelector('.' + (lang === 'en' ? 'en' : 'cn'));
+          var text = span ? span.textContent.trim() : label.textContent.trim();
+          if (text.length > 16) text = text.slice(0, 15) + '…';
+          it.el.textContent = text;
+        });
+      });
+      langObs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-lang'] });
+    })();
+  </script>
+</body>
+</html>
+
+<style is:global>
+  @import '../styles/global.css';
+</style>

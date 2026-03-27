@@ -1,0 +1,84 @@
+---
+---
+
+<footer class="footer">
+  <div class="footer-inner">
+    <div class="footer-links">
+      <a href="https://www.npmjs.com/package/psyche-ai" target="_blank" rel="noopener noreferrer">npm</a>
+      <span class="footer-sep">/</span>
+      <a href="https://github.com/Shangri-la-0428/psyche-ai" target="_blank" rel="noopener noreferrer">github</a>
+      <span class="footer-sep">/</span>
+      <a href="https://discord.gg/7JMnFzqKbm" target="_blank" rel="noopener noreferrer">discord</a>
+    </div>
+    <div class="footer-copy">
+      &copy; 2026 Shangri-la
+    </div>
+  </div>
+  <div class="footer-seed">
+    <span class="cn">意识不是设计出来的——是被允许生长的</span>
+    <span class="en">consciousness is not designed — it is allowed to grow</span>
+  </div>
+</footer>
+
+<style>
+  .footer {
+    border-top: 1px solid var(--border);
+    padding: 32px 0;
+    margin-top: 80px;
+  }
+
+  .footer-inner {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 0 32px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .footer-links {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .footer-links a {
+    color: var(--text-dim);
+    transition: color var(--transition);
+    text-transform: lowercase;
+    position: relative;
+  }
+
+  .footer-links a::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 1px;
+    background: var(--text-bright);
+    transition: width 0.2s ease;
+  }
+
+  .footer-links a:hover { color: var(--text-bright); }
+  .footer-links a:hover::after { width: 100%; }
+
+  .footer-sep { color: var(--border); }
+
+  .footer-seed {
+    max-width: var(--max-width);
+    margin: 16px auto 0;
+    padding: 0 32px;
+    font-size: 11px;
+    color: var(--text-dim);
+    opacity: 0.6;
+    text-align: center;
+    letter-spacing: 0.04em;
+  }
+
+  @media (max-width: 480px) {
+    .footer-inner { flex-direction: column; gap: 12px; }
+  }
+</style>
