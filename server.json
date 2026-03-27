@@ -6,12 +6,12 @@
     "url": "https://github.com/Shangri-la-0428/psyche-ai",
     "source": "github"
   },
-  "version": "9.2.2",
+  "version": "9.2.3",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "psyche-ai",
-      "version": "9.2.2",
+      "version": "9.2.3",
       "transport": {
         "type": "stdio"
       },

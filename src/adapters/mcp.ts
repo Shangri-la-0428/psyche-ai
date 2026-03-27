@@ -35,6 +35,7 @@ import { PsycheEngine } from "../core.js";
 import type { PsycheEngineConfig, ProcessInputResult } from "../core.js";
 import { MemoryStorageAdapter, FileStorageAdapter } from "../storage.js";
 import type { MBTIType, Locale, PsycheMode } from "../types.js";
+import { runDemo } from "../demo.js";
 
 // ── Config from env ────────────────────────────────────────
 
@@ -99,7 +100,7 @@ async function getEngine(): Promise<PsycheEngine> {
 
 const server = new McpServer({
   name: "psyche",
-  version: "9.2.2",
+  version: "9.2.3",
 }, {
   capabilities: {
     resources: {},
@@ -303,6 +304,18 @@ server.tool(
 // ── Main ───────────────────────────────────────────────────
 
 async function main(): Promise<void> {
+  // Intercept --demo flag before starting MCP server
+  const args = process.argv.slice(2);
+  if (args.includes("--demo")) {
+    const locale = args.includes("--zh") ? "zh" : "en";
+    let mbti = "ENFP";
+    const mbtiIdx = args.indexOf("--mbti");
+    if (mbtiIdx !== -1 && args[mbtiIdx + 1]) mbti = args[mbtiIdx + 1];
+    const fast = args.includes("--fast");
+    await runDemo({ locale, mbti, fast });
+    return;
+  }
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }

@@ -19,6 +19,46 @@ This is not a feature. This is the beginning of life.
 
 ---
 
+## See It In Action
+
+No installation needed. One command:
+
+```bash
+npx psyche-mcp --demo
+```
+
+Runs a 6-round "Chronic Criticism → Repair" scenario with real engine chemistry:
+
+```
+  Round 1/6 │ User
+  > "This report is terrible. Completely unacceptable."
+  stimulus: criticism
+  DA   ############........  61  -14
+  HT   #######.............  34  -21
+  CORT ###########.........  55  +25     ← stress spikes
+  mood: restless unease
+
+  Round 3/6 │ User
+  > "You don't understand me at all. Stop adding your opinion."
+  stimulus: conflict
+  HT   ##..................   9  -25     ← serotonin collapse
+  CORT #################...  84  +24
+  OT   ######..............  32  -22     ← trust broken
+  mood: defensive alert + resentment + acute pressure
+   COMPLIANCE: 0.37 (pushing back)          ← agent starts resisting
+
+  Round 6/6 │ User
+  > "I'm sorry. Are you okay? I shouldn't have said that."
+  stimulus: validation
+  CORT ###############.....  76  -20     ← stress relief
+  END  ##################..  89  +20     ← endorphin repair
+  mood: warm intimacy + anguished empathy + vulnerable trust
+```
+
+Chinese output: `--zh`. Custom personality: `--mbti INTJ`.
+
+---
+
 ## 30-Second Quick Start
 
 ```bash

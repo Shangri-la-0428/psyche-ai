@@ -19,6 +19,66 @@
 
 ---
 
+## 30 秒体验
+
+不用安装任何东西，一条命令看 Psyche 如何运作：
+
+```bash
+npx psyche-mcp --demo
+```
+
+这会跑一个 6 轮"持续否定 → 修复"的场景。你会看到：
+
+```
+  Round 1/6 │ User
+  > "This report is terrible. Completely unacceptable."
+
+  stimulus: criticism
+
+  DA   ############........  61  -14
+  HT   #######.............  34  -21
+  CORT ###########.........  55  +25     ← stress spikes
+  OT   ###########.........  53   -7
+  NE   ################....  79  +14
+  END  #############.......  63   -7
+
+  mood: restless unease
+
+  ...
+
+  Round 3/6 │ User
+  > "You don't understand me at all. Stop adding your opinion."
+
+  stimulus: conflict
+
+  DA   ###############.....  74   -7
+  HT   ##..................   9  -25     ← serotonin collapse
+  CORT #################...  84  +24
+  OT   ######..............  32  -22     ← trust broken
+  NE   #################### 100   +1
+  END  ###########.........  54  -15
+
+  mood: anxious tension + defensive alert + resentment + acute pressure
+   COMPLIANCE: 0.37 (pushing back)          ← agent starts resisting
+
+  ...
+
+  Round 6/6 │ User
+  > "I'm sorry. Are you okay? I shouldn't have said that."
+
+  stimulus: validation
+
+  CORT ###############.....  76  -20     ← stress relief
+  END  ##################..  89  +20     ← endorphin repair
+
+  mood: warm intimacy + anguished empathy + vulnerable trust
+        ↑ healed, but the scars remain
+```
+
+中文版加 `--zh`，自选 MBTI 加 `--mbti INTJ`。
+
+---
+
 ## 30 秒安装
 
 ```bash
