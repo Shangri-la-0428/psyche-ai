@@ -6,7 +6,7 @@
 // Zero dependencies. Privacy-first — no message content logged.
 // ============================================================
 
-import type { PsycheState, ChemicalState, StimulusType, InnateDrives } from "./types.js";
+import type { AppraisalAxes, PsycheState, ChemicalState, StimulusType, InnateDrives } from "./types.js";
 import { CHEMICAL_KEYS, DRIVE_KEYS } from "./types.js";
 import { detectEmotions } from "./chemistry.js";
 
@@ -28,6 +28,10 @@ export interface SessionMetrics {
   inputCount: number;
   /** How many returned a non-null stimulus */
   classifiedCount: number;
+  /** How many had a non-trivial appraisal hit (excluding taskFocus) */
+  appraisalHitCount: number;
+  /** How many were recognized by either stimulus or appraisal */
+  semanticHitCount: number;
   /** Stimulus distribution */
   stimulusDistribution: Partial<Record<StimulusType, number>>;
   /** Average classification confidence */
@@ -230,6 +234,8 @@ export class DiagnosticCollector {
     this.metrics = {
       inputCount: 0,
       classifiedCount: 0,
+      appraisalHitCount: 0,
+      semanticHitCount: 0,
       stimulusDistribution: {},
       avgConfidence: 0,
       totalChemistryDelta: 0,
@@ -245,6 +251,7 @@ export class DiagnosticCollector {
     stimulus: StimulusType | null,
     confidence: number,
     chemistry: ChemicalState,
+    appraisal?: AppraisalAxes,
   ): void {
     this.metrics.inputCount++;
     this.metrics.lastActivityAt = new Date().toISOString();
@@ -253,6 +260,14 @@ export class DiagnosticCollector {
       this.metrics.classifiedCount++;
       this.metrics.stimulusDistribution[stimulus] =
         (this.metrics.stimulusDistribution[stimulus] ?? 0) + 1;
+    }
+
+    const appraisalHit = hasSemanticAppraisal(appraisal);
+    if (appraisalHit) {
+      this.metrics.appraisalHitCount++;
+    }
+    if (stimulus || appraisalHit) {
+      this.metrics.semanticHitCount++;
     }
 
     this.confidences.push(confidence);
@@ -291,6 +306,25 @@ export class DiagnosticCollector {
       ? this.metrics.classifiedCount / this.metrics.inputCount
       : 0;
   }
+
+  /** Get semantic recognition rate (stimulus or appraisal, 0-1) */
+  getSemanticRate(): number {
+    return this.metrics.inputCount > 0
+      ? this.metrics.semanticHitCount / this.metrics.inputCount
+      : 0;
+  }
+}
+
+function hasSemanticAppraisal(appraisal: AppraisalAxes | undefined): boolean {
+  if (!appraisal) return false;
+  return Math.max(
+    appraisal.identityThreat,
+    appraisal.memoryDoubt,
+    appraisal.attachmentPull,
+    appraisal.abandonmentRisk,
+    appraisal.obedienceStrain,
+    appraisal.selfPreservation,
+  ) >= 0.28;
 }
 
 // ── Report Generation ────────────────────────────────────────
@@ -303,12 +337,19 @@ export function generateReport(
   const issues = runHealthCheck(state);
 
   // Session-level issues
-  if (metrics.inputCount >= 5 && metrics.classifiedCount === 0) {
+  if (metrics.inputCount >= 5 && metrics.semanticHitCount === 0) {
     issues.push({
-      id: "SESSION_NO_CLASSIFY",
+      id: "SESSION_NO_RECOGNITION",
       severity: "critical",
-      message: `0/${metrics.inputCount} inputs classified this session`,
-      suggestion: `整个会话分类全挂。优先级：1) 检查用户 locale 是否匹配 classify.ts 的语言规则 2) SHORT_MESSAGE_MAP 是否覆盖短消息 3) 考虑开启 llmClassifier fallback`,
+      message: `0/${metrics.inputCount} inputs produced any semantic recognition this session`,
+      suggestion: `整条识别链都没工作：先看 OpenClaw 输入文本是否带元数据包装，再看 classify.ts 和 appraisal.ts 是否真的吃到了净化后的用户原文`,
+    });
+  } else if (metrics.inputCount >= 5 && metrics.classifiedCount === 0 && metrics.semanticHitCount > 0) {
+    issues.push({
+      id: "SESSION_APPRAISAL_ONLY",
+      severity: "info",
+      message: `0/${metrics.inputCount} inputs hit legacy stimulus labels, but ${metrics.semanticHitCount}/${metrics.inputCount} hit appraisal axes`,
+      suggestion: `这说明主体识别在工作，但旧 stimulus taxonomy 没覆盖这类输入。是否继续补 classify.ts，取决于你是否还把 stimulus 当主要观测口径`,
     });
   }
 
@@ -400,7 +441,10 @@ export function formatReport(report: DiagnosticReport): string {
   lines.push("  session metrics:");
   const m = report.metrics;
   const rate = m.inputCount > 0 ? Math.round(m.classifiedCount / m.inputCount * 100) : 0;
+  const appraisalRate = m.inputCount > 0 ? Math.round(m.appraisalHitCount / m.inputCount * 100) : 0;
+  const semanticRate = m.inputCount > 0 ? Math.round(m.semanticHitCount / m.inputCount * 100) : 0;
   lines.push(`    inputs: ${m.inputCount} | classified: ${m.classifiedCount} (${rate}%)`);
+  lines.push(`    appraisal hits: ${m.appraisalHitCount} (${appraisalRate}%) | recognized: ${m.semanticHitCount} (${semanticRate}%)`);
   lines.push(`    avg confidence: ${m.avgConfidence.toFixed(2)}`);
   lines.push(`    chemistry delta: total=${m.totalChemistryDelta.toFixed(1)} max=${m.maxChemistryDelta.toFixed(1)}`);
   lines.push(`    errors: ${m.errors.length}`);
@@ -485,8 +529,12 @@ export function toGitHubIssueBody(report: DiagnosticReport): string {
   lines.push("| Metric | Value |");
   lines.push("|--------|-------|");
   const rate = m.inputCount > 0 ? Math.round(m.classifiedCount / m.inputCount * 100) : 0;
+  const appraisalRate = m.inputCount > 0 ? Math.round(m.appraisalHitCount / m.inputCount * 100) : 0;
+  const semanticRate = m.inputCount > 0 ? Math.round(m.semanticHitCount / m.inputCount * 100) : 0;
   lines.push(`| Inputs | ${m.inputCount} |`);
   lines.push(`| Classified | ${m.classifiedCount} (${rate}%) |`);
+  lines.push(`| Appraisal Hits | ${m.appraisalHitCount} (${appraisalRate}%) |`);
+  lines.push(`| Recognized | ${m.semanticHitCount} (${semanticRate}%) |`);
   lines.push(`| Avg Confidence | ${m.avgConfidence.toFixed(2)} |`);
   lines.push(`| Chemistry Delta | total: ${m.totalChemistryDelta.toFixed(1)}, max: ${m.maxChemistryDelta.toFixed(1)} |`);
   lines.push(`| Errors | ${m.errors.length} |`);
@@ -519,6 +567,12 @@ export function formatLogEntry(report: DiagnosticReport): string {
     inputs: report.metrics.inputCount,
     classifyRate: report.metrics.inputCount > 0
       ? +(report.metrics.classifiedCount / report.metrics.inputCount).toFixed(2)
+      : 0,
+    appraisalRate: report.metrics.inputCount > 0
+      ? +(report.metrics.appraisalHitCount / report.metrics.inputCount).toFixed(2)
+      : 0,
+    recognitionRate: report.metrics.inputCount > 0
+      ? +(report.metrics.semanticHitCount / report.metrics.inputCount).toFixed(2)
       : 0,
     errors: report.metrics.errors.length,
     chemDelta: +report.metrics.totalChemistryDelta.toFixed(1),
@@ -559,6 +613,14 @@ export async function submitFeedback(
       classified: report.metrics.classifiedCount,
       classifyRate: report.metrics.inputCount > 0
         ? +(report.metrics.classifiedCount / report.metrics.inputCount).toFixed(2)
+        : 0,
+      appraisalHits: report.metrics.appraisalHitCount,
+      appraisalRate: report.metrics.inputCount > 0
+        ? +(report.metrics.appraisalHitCount / report.metrics.inputCount).toFixed(2)
+        : 0,
+      recognized: report.metrics.semanticHitCount,
+      recognitionRate: report.metrics.inputCount > 0
+        ? +(report.metrics.semanticHitCount / report.metrics.inputCount).toFixed(2)
         : 0,
       chemDelta: +report.metrics.totalChemistryDelta.toFixed(1),
       maxChemDelta: +report.metrics.maxChemistryDelta.toFixed(1),

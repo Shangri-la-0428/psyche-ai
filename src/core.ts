@@ -716,6 +716,7 @@ export class PsycheEngine {
         appliedStimulus,
         appliedStimulus ? 1.0 : 0.0,
         state.current,
+        appraisalAxes,
       );
     }
 

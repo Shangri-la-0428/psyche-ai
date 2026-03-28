@@ -146,4 +146,17 @@ describe("FileStorageAdapter", () => {
     const loaded = await adapter.load();
     assert.equal(loaded, null);
   });
+
+  it("serializes concurrent saves without losing the target file", async () => {
+    const adapter = new FileStorageAdapter(tmpDir);
+    await Promise.all([
+      adapter.save(makeState({ meta: { agentName: "A", createdAt: new Date().toISOString(), totalInteractions: 1, locale: "zh", mode: "natural" as const } })),
+      adapter.save(makeState({ meta: { agentName: "B", createdAt: new Date().toISOString(), totalInteractions: 2, locale: "zh", mode: "natural" as const } })),
+      adapter.save(makeState({ meta: { agentName: "C", createdAt: new Date().toISOString(), totalInteractions: 3, locale: "zh", mode: "natural" as const } })),
+    ]);
+
+    const loaded = await adapter.load();
+    assert.ok(loaded, "state file should still exist after concurrent saves");
+    assert.ok(["A", "B", "C"].includes(loaded!.meta.agentName));
+  });
 });

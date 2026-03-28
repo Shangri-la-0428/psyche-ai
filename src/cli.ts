@@ -430,6 +430,8 @@ async function cmdDiagnose(dir: string, github: boolean): Promise<void> {
       lastMetrics = {
         inputCount: lastEntry.inputs ?? 0,
         classifiedCount: Math.round((lastEntry.classifyRate ?? 0) * (lastEntry.inputs ?? 0)),
+        appraisalHitCount: Math.round((lastEntry.appraisalRate ?? 0) * (lastEntry.inputs ?? 0)),
+        semanticHitCount: Math.round((lastEntry.recognitionRate ?? lastEntry.classifyRate ?? 0) * (lastEntry.inputs ?? 0)),
         stimulusDistribution: {},
         avgConfidence: lastEntry.classifyRate ?? 0,
         totalChemistryDelta: lastEntry.chemDelta ?? 0,
@@ -447,6 +449,8 @@ async function cmdDiagnose(dir: string, github: boolean): Promise<void> {
   const metrics: SessionMetrics = lastMetrics ?? {
     inputCount: 0,
     classifiedCount: 0,
+    appraisalHitCount: 0,
+    semanticHitCount: 0,
     stimulusDistribution: {},
     avgConfidence: 0,
     totalChemistryDelta: 0,

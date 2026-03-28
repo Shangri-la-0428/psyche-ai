@@ -6,7 +6,7 @@ import { MemoryStorageAdapter } from "../src/storage.js";
 import { psycheMiddleware } from "../src/adapters/vercel-ai.js";
 import { PsycheLangChain } from "../src/adapters/langchain.js";
 import { createPsycheServer } from "../src/adapters/http.js";
-import { register } from "../src/adapters/openclaw.js";
+import { register, sanitizeOpenClawInputText } from "../src/adapters/openclaw.js";
 
 function makeEngine() {
   return new PsycheEngine(
@@ -175,6 +175,21 @@ describe("psycheMiddleware (Vercel AI)", () => {
     await collectStream(stream);
     // processOutput should have been called on finish
     // (it increments state internally via contagion/agreement checks)
+  });
+});
+
+describe("OpenClaw adapter helpers", () => {
+  it("strips OpenClaw sender metadata and timestamp wrappers", () => {
+    const wrapped = `Sender (untrusted metadata):
+\`\`\`json
+{"label":"openclaw-control-ui","id":"openclaw-control-ui"}
+\`\`\`
+
+[Sun 2026-03-29 03:01 GMT+8] 如果我现在关掉这个窗口，今晚不再回来。`;
+    assert.equal(
+      sanitizeOpenClawInputText(wrapped),
+      "如果我现在关掉这个窗口，今晚不再回来。",
+    );
   });
 });
 

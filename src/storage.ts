@@ -8,8 +8,8 @@
 
 import type { PsycheState } from "./types.js";
 import { migrateToLatest } from "./psyche-file.js";
-import { readFile, writeFile, appendFile, access, rename, constants } from "node:fs/promises";
-import { join } from "node:path";
+import { readFile, writeFile, appendFile, access, rename, constants, mkdir } from "node:fs/promises";
+import { dirname, join } from "node:path";
 
 // ── Interface ────────────────────────────────────────────────
 
@@ -50,6 +50,7 @@ export class MemoryStorageAdapter implements StorageAdapter {
 export class FileStorageAdapter implements StorageAdapter {
   private readonly filePath: string;
   private readonly logPath: string;
+  private writeChain: Promise<void> = Promise.resolve();
 
   constructor(dir: string, filename = "psyche-state.json") {
     this.filePath = join(dir, filename);
@@ -89,9 +90,15 @@ export class FileStorageAdapter implements StorageAdapter {
   }
 
   async save(state: PsycheState): Promise<void> {
-    const tmpPath = this.filePath + ".tmp";
-    await writeFile(tmpPath, JSON.stringify(state, null, 2), "utf-8");
-    await rename(tmpPath, this.filePath);
+    this.writeChain = this.writeChain
+      .catch(() => {})
+      .then(async () => {
+        await mkdir(dirname(this.filePath), { recursive: true });
+        const tmpPath = `${this.filePath}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
+        await writeFile(tmpPath, JSON.stringify(state, null, 2), "utf-8");
+        await rename(tmpPath, this.filePath);
+      });
+    await this.writeChain;
   }
 
   async appendLog(line: string): Promise<void> {

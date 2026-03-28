@@ -63,6 +63,8 @@ function makeMetrics(overrides: Partial<SessionMetrics> = {}): SessionMetrics {
   return {
     inputCount: 10,
     classifiedCount: 7,
+    appraisalHitCount: 2,
+    semanticHitCount: 8,
     stimulusDistribution: { praise: 3, intellectual: 2, humor: 2 },
     avgConfidence: 0.75,
     totalChemistryDelta: 42.5,
@@ -203,6 +205,26 @@ describe("DiagnosticCollector", () => {
     assert.equal(m.classifiedCount, 2);
   });
 
+  it("counts appraisal-only turns as semantic hits", () => {
+    const c = new DiagnosticCollector();
+    const chem: ChemicalState = { DA: 50, HT: 65, CORT: 35, OT: 35, NE: 55, END: 45 };
+    c.recordInput(null, 0, chem, {
+      identityThreat: 0.82,
+      memoryDoubt: 0,
+      attachmentPull: 0,
+      abandonmentRisk: 0,
+      obedienceStrain: 0,
+      selfPreservation: 0,
+      taskFocus: 0.12,
+    });
+
+    const m = c.getMetrics();
+    assert.equal(m.classifiedCount, 0);
+    assert.equal(m.appraisalHitCount, 1);
+    assert.equal(m.semanticHitCount, 1);
+    assert.ok(Math.abs(c.getSemanticRate() - 1) < 0.01);
+  });
+
   it("tracks stimulus distribution", () => {
     const c = new DiagnosticCollector();
     const chem: ChemicalState = { DA: 50, HT: 65, CORT: 35, OT: 35, NE: 55, END: 45 };
@@ -271,14 +293,24 @@ describe("generateReport", () => {
     const state = makeState({
       meta: { agentName: "A", createdAt: "", totalInteractions: 20, locale: "zh" },
     });
-    const metrics = makeMetrics({ inputCount: 10, classifiedCount: 0 });
+    const metrics = makeMetrics({ inputCount: 10, classifiedCount: 0, appraisalHitCount: 0, semanticHitCount: 0 });
     const report = generateReport(state, metrics, PACKAGE_VERSION);
 
     assert.equal(report.version, PACKAGE_VERSION);
     assert.equal(report.agent, "A");
-    // Should have CHEM_FROZEN (from health check) + SESSION_NO_CLASSIFY (from session)
-    const sessionIssue = report.issues.find(i => i.id === "SESSION_NO_CLASSIFY");
+    // Should have CHEM_FROZEN (from health check) + SESSION_NO_RECOGNITION (from session)
+    const sessionIssue = report.issues.find(i => i.id === "SESSION_NO_RECOGNITION");
     assert.ok(sessionIssue, "should detect SESSION_NO_CLASSIFY");
+  });
+
+  it("does not raise no-recognition when appraisal hits exist without stimulus labels", () => {
+    const state = makeState({
+      meta: { agentName: "A", createdAt: "", totalInteractions: 20, locale: "zh" },
+    });
+    const metrics = makeMetrics({ inputCount: 10, classifiedCount: 0, appraisalHitCount: 8, semanticHitCount: 8 });
+    const report = generateReport(state, metrics, PACKAGE_VERSION);
+    assert.equal(report.issues.find(i => i.id === "SESSION_NO_RECOGNITION"), undefined);
+    assert.ok(report.issues.find(i => i.id === "SESSION_APPRAISAL_ONLY"));
   });
 
   it("detects session errors", () => {
@@ -332,7 +364,7 @@ describe("toGitHubIssueBody", () => {
     const state = makeState({
       meta: { agentName: "A", createdAt: "", totalInteractions: 20, locale: "zh" },
     });
-    const metrics = makeMetrics({ inputCount: 10, classifiedCount: 0 });
+    const metrics = makeMetrics({ inputCount: 10, classifiedCount: 0, appraisalHitCount: 0, semanticHitCount: 0 });
     const report = generateReport(state, metrics, PACKAGE_VERSION);
     const md = toGitHubIssueBody(report);
 
@@ -365,6 +397,8 @@ describe("formatLogEntry", () => {
     assert.equal(parsed.v, PACKAGE_VERSION);
     assert.equal(parsed.agent, "TestAgent");
     assert.equal(parsed.inputs, 10);
+    assert.equal(typeof parsed.appraisalRate, "number");
+    assert.equal(typeof parsed.recognitionRate, "number");
     assert.ok(Array.isArray(parsed.issues));
   });
 

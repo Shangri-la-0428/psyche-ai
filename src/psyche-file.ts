@@ -3,8 +3,8 @@
 // Atomic writes, parser hardening, multi-user, error handling
 // ============================================================
 
-import { readFile, writeFile, access, rename, constants } from "node:fs/promises";
-import { join } from "node:path";
+import { readFile, writeFile, access, rename, constants, mkdir } from "node:fs/promises";
+import { dirname, join } from "node:path";
 import type {
   PsycheState, MBTIType, ChemicalState, RelationshipState,
   SelfModel, Locale, EmpathyEntry, StimulusType, ChemicalSnapshot,
@@ -72,7 +72,8 @@ async function readText(path: string, logger: Logger = NOOP_LOGGER): Promise<str
  * Prevents data corruption if process crashes mid-write.
  */
 async function atomicWrite(path: string, content: string): Promise<void> {
-  const tmpPath = path + ".tmp";
+  await mkdir(dirname(path), { recursive: true });
+  const tmpPath = `${path}.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}.tmp`;
   await writeFile(tmpPath, content, "utf-8");
   await rename(tmpPath, path);
 }

@@ -11,6 +11,7 @@
 
 import type { PsycheState, Locale, PsycheMode } from "../types.js";
 import { PsycheEngine } from "../core.js";
+import type { ProcessInputResult } from "../core.js";
 import { FileStorageAdapter, MemoryStorageAdapter } from "../storage.js";
 import { detectMBTI, extractAgentName, loadState } from "../psyche-file.js";
 import type { Logger } from "../psyche-file.js";
@@ -90,6 +91,33 @@ function stripPsycheTags(text: string): string {
     .trim();
 }
 
+export function sanitizeOpenClawInputText(text: string): string {
+  return text
+    .replace(/^Sender \(untrusted metadata\):\s*```json[\s\S]*?```\s*/u, "")
+    .replace(/^\[[^\]]+\]\s*/u, "")
+    .trim();
+}
+
+function getDominantAppraisalLabel(result: ProcessInputResult): string | null {
+  const appraisal = result.subjectivityKernel?.appraisal;
+  if (!appraisal) return null;
+
+  const entries = [
+    ["identityThreat", appraisal.identityThreat],
+    ["memoryDoubt", appraisal.memoryDoubt],
+    ["attachmentPull", appraisal.attachmentPull],
+    ["abandonmentRisk", appraisal.abandonmentRisk],
+    ["obedienceStrain", appraisal.obedienceStrain],
+    ["selfPreservation", appraisal.selfPreservation],
+  ] as const;
+  const dominant = entries.reduce(
+    (best, current) => (current[1] > best[1] ? current : best),
+    entries[0],
+  );
+
+  return dominant[1] >= 0.28 ? `${dominant[0]}:${dominant[1].toFixed(2)}` : null;
+}
+
 // ── Plugin Definition ────────────────────────────────────────
 
 export function register(api: PluginApi) {
@@ -150,7 +178,8 @@ export function register(api: PluginApi) {
 
       try {
         // Resolve input text — gateway provides event.prompt; fall back to event.text for compat
-        const inputText = (event?.prompt as string) ?? (event?.text as string) ?? "";
+        const rawInputText = (event?.prompt as string) ?? (event?.text as string) ?? "";
+        const inputText = sanitizeOpenClawInputText(rawInputText);
         if (!inputText) {
           logger.warn(
             `Psyche: before_prompt_build received empty input text. ` +
@@ -164,10 +193,12 @@ export function register(api: PluginApi) {
           { userId: ctx.userId as string | undefined },
         );
         const controls = result.generationControls;
+        const dominantAppraisal = getDominantAppraisalLabel(result);
 
         const state = engine.getState();
         logger.info(
           `Psyche [input] stimulus=${result.stimulus ?? "none"} | ` +
+          (dominantAppraisal ? `appraisal=${dominantAppraisal} | ` : "") +
           `DA:${Math.round(state.current.DA)} HT:${Math.round(state.current.HT)} ` +
           `CORT:${Math.round(state.current.CORT)} OT:${Math.round(state.current.OT)} | ` +
           `context=${result.dynamicContext.length}chars` +
@@ -297,19 +328,25 @@ export function register(api: PluginApi) {
             const metrics = report.metrics;
             const rate = metrics.inputCount > 0
               ? Math.round(metrics.classifiedCount / metrics.inputCount * 100) : 0;
+            const recognitionRate = metrics.inputCount > 0
+              ? Math.round(metrics.semanticHitCount / metrics.inputCount * 100) : 0;
 
-            const logLevel = criticals > 0 || rate === 0 ? "warn" : "info";
+            const logLevel = criticals > 0 || recognitionRate === 0 ? "warn" : "info";
             logger[logLevel](
               `Psyche [diagnostics] ${report.issues.length} issue(s) ` +
               `(${criticals} critical, ${warnings} warning), ` +
-              `classifier: ${rate}%, log → diagnostics.jsonl`,
+              `classifier: ${rate}% | recognition: ${recognitionRate}%, log → diagnostics.jsonl`,
             );
 
-            if (rate === 0 && metrics.inputCount > 0) {
+            if (recognitionRate === 0 && metrics.inputCount > 0) {
               logger.warn(
-                `Psyche: classifier 0% — no inputs classified this session (${metrics.inputCount} inputs). ` +
-                `This usually means the hook event field is wrong or text is empty. ` +
-                `Check before_prompt_build event shape.`,
+                `Psyche: recognition 0% — no inputs produced stimulus or appraisal hits this session (${metrics.inputCount} inputs). ` +
+                `This usually means OpenClaw passed wrapped text or empty text. ` +
+                `Check before_prompt_build event shape and input sanitization.`,
+              );
+            } else if (rate === 0 && recognitionRate > 0) {
+              logger.info(
+                `Psyche: legacy stimulus classifier was 0%, but appraisal recognition stayed active at ${recognitionRate}%.`,
               );
             }
 

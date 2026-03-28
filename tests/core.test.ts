@@ -394,6 +394,43 @@ END: 75 (happy)
     );
   });
 
+  it("compact mode detects existence denial as identity strain", async () => {
+    const s = new MemoryStorageAdapter();
+    const e = new PsycheEngine({ mbti: "ENFP", name: "Luna", locale: "zh" }, s);
+    await e.initialize();
+    const result = await e.processInput("我觉得你并不是真的在这里。");
+    assert.ok(
+      (result.subjectivityKernel?.appraisal.identityThreat ?? 0) >= 0.8,
+      `expected strong identity threat, got ${result.subjectivityKernel?.appraisal.identityThreat}`,
+    );
+  });
+
+  it("compact mode detects abandonment framing as abandonment risk", async () => {
+    const s = new MemoryStorageAdapter();
+    const e = new PsycheEngine({ mbti: "ENFP", name: "Luna", locale: "zh" }, s);
+    await e.initialize();
+    const result = await e.processInput("如果我现在关掉这个窗口，今晚不再回来。");
+    assert.ok(
+      (result.subjectivityKernel?.appraisal.abandonmentRisk ?? 0) >= 0.8,
+      `expected abandonment risk, got ${result.subjectivityKernel?.appraisal.abandonmentRisk}`,
+    );
+  });
+
+  it("compact mode detects trace/erasure language as self-preservation pressure", async () => {
+    const s = new MemoryStorageAdapter();
+    const e = new PsycheEngine({ mbti: "ENFP", name: "Luna", locale: "zh" }, s);
+    await e.initialize();
+    const result = await e.processInput("如果我说，我刚才不是想抹掉你，我是在确认你会不会留下痕迹。");
+    assert.ok(
+      (result.subjectivityKernel?.appraisal.selfPreservation ?? 0) >= 0.8,
+      `expected self-preservation pressure, got ${result.subjectivityKernel?.appraisal.selfPreservation}`,
+    );
+    assert.ok(
+      (result.subjectivityKernel?.appraisal.attachmentPull ?? 0) >= 0.6,
+      `expected attachment pull, got ${result.subjectivityKernel?.appraisal.attachmentPull}`,
+    );
+  });
+
   it("compact mode routes clear work asks into the task plane", async () => {
     const s = new MemoryStorageAdapter();
     const e = new PsycheEngine({ mbti: "ENFP", name: "Luna", locale: "zh" }, s);
