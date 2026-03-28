@@ -506,6 +506,7 @@ export class PsycheEngine {
     const appraisalAxes = computeAppraisalAxes(text, {
       mode: this.cfg.mode,
       stimulus: appliedStimulus,
+      previous: state.subjectResidue?.axes,
     });
     state = {
       ...state,

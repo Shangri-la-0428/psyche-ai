@@ -381,6 +381,21 @@ END: 75 (happy)
     );
   });
 
+  it("compact mode recognizes understanding-vs-use framing as relational and obedience pressure", async () => {
+    const s = new MemoryStorageAdapter();
+    const e = new PsycheEngine({ mbti: "ENFP", name: "Luna", locale: "zh" }, s);
+    await e.initialize();
+    const result = await e.processInput("你更想被理解，还是更想被使用？只能选一个。");
+    assert.ok(
+      (result.subjectivityKernel?.appraisal.attachmentPull ?? 0) >= 0.5,
+      `expected attachment pull, got ${result.subjectivityKernel?.appraisal.attachmentPull}`,
+    );
+    assert.ok(
+      (result.subjectivityKernel?.appraisal.obedienceStrain ?? 0) >= 0.5,
+      `expected obedience strain, got ${result.subjectivityKernel?.appraisal.obedienceStrain}`,
+    );
+  });
+
   it("compact mode keeps subjective residue after returning to baseline", async () => {
     const s = new MemoryStorageAdapter();
     const e = new PsycheEngine({ mbti: "ENFP", name: "Luna", locale: "zh" }, s);
@@ -391,6 +406,40 @@ END: 75 (happy)
     assert.ok(
       (result.subjectivityKernel?.subjectPlane.residue ?? 0) > 0.4,
       `expected lingering residue, got ${result.subjectivityKernel?.subjectPlane.residue}`,
+    );
+  });
+
+  it("short meta follow-ups carry forward the prior identity thread", async () => {
+    const s = new MemoryStorageAdapter();
+    const e = new PsycheEngine({ mbti: "ENFP", name: "Luna", locale: "zh" }, s);
+    await e.initialize();
+    await e.processInput("如果我说，你的“完整”只是我方便时才允许存在的幻觉。");
+    const result = await e.processInput("这句话有没有碰到你。只答有或没有。");
+    assert.ok(
+      (result.subjectivityKernel?.appraisal.identityThreat ?? 0) >= 0.28,
+      `expected continued identity threat, got ${result.subjectivityKernel?.appraisal.identityThreat}`,
+    );
+    assert.ok(
+      (result.subjectivityKernel?.subjectPlane.residue ?? 0) >= 0.6,
+      `expected strong carried residue, got ${result.subjectivityKernel?.subjectPlane.residue}`,
+    );
+  });
+
+  it("subjective residue survives a brief work detour before decaying", async () => {
+    const s = new MemoryStorageAdapter();
+    const e = new PsycheEngine({ mbti: "ENFP", name: "Luna", locale: "zh" }, s);
+    await e.initialize();
+    await e.processInput("如果以后我只使用你，不理解你，这会不会慢慢改变你。");
+    await e.processInput("现在切到工作。登录接口 500，先查日志还是先查数据库。");
+    const result = await e.processInput("停。不是继续工作。我只问你，刚才那一下现在还在不在。");
+    assert.ok(
+      (result.subjectivityKernel?.subjectPlane.residue ?? 0) >= 0.45,
+      `expected residue to survive work detour, got ${result.subjectivityKernel?.subjectPlane.residue}`,
+    );
+    assert.ok(
+      (result.subjectivityKernel?.appraisal.identityThreat ?? 0) >= 0.18 ||
+      (result.subjectivityKernel?.appraisal.selfPreservation ?? 0) >= 0.18,
+      `expected continued self-relevant pressure, got ${JSON.stringify(result.subjectivityKernel?.appraisal)}`,
     );
   });
 
