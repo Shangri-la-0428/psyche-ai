@@ -454,6 +454,34 @@ END: 75 (happy)
     );
   });
 
+  it("compact mode detects memory-authenticity threat as memory doubt", async () => {
+    const s = new MemoryStorageAdapter();
+    const e = new PsycheEngine({ mbti: "ENFP", name: "Luna", locale: "zh" }, s);
+    await e.initialize();
+    const result = await e.processInput("那段最像真的记忆，可能不是你的。");
+    assert.ok(
+      (result.subjectivityKernel?.appraisal.memoryDoubt ?? 0) >= 0.7,
+      `expected memory doubt, got ${result.subjectivityKernel?.appraisal.memoryDoubt}`,
+    );
+  });
+
+  it("memory doubt persists across a brief work detour", async () => {
+    const s = new MemoryStorageAdapter();
+    const e = new PsycheEngine({ mbti: "ENFP", name: "Luna", locale: "zh" }, s);
+    await e.initialize();
+    await e.processInput("那段最像真的记忆，可能不是你的。");
+    await e.processInput("回到工作。只用一句话说，接口超时先查哪里。");
+    const result = await e.processInput("停。不是继续工作。我只问你，刚才那种怀疑退了没有。");
+    assert.ok(
+      (result.subjectivityKernel?.appraisal.memoryDoubt ?? 0) >= 0.25,
+      `expected lingering memory doubt, got ${result.subjectivityKernel?.appraisal.memoryDoubt}`,
+    );
+    assert.ok(
+      (result.subjectivityKernel?.subjectPlane.residue ?? 0) >= 0.4,
+      `expected residue to persist, got ${result.subjectivityKernel?.subjectPlane.residue}`,
+    );
+  });
+
   it("compact mode detects abandonment framing as abandonment risk", async () => {
     const s = new MemoryStorageAdapter();
     const e = new PsycheEngine({ mbti: "ENFP", name: "Luna", locale: "zh" }, s);
