@@ -97,11 +97,13 @@ openclaw plugins list | grep psyche
 **检查更新：**
 
 ```bash
-# 查看当前版本
+# 查看当前安装版本
 npm list psyche-ai
-# 最新版应该是 9.0.0
 
-# 手动更新到最新
+# 查看 npm 上的最新版
+npm view psyche-ai version
+
+# 手动更新到最新版
 npm update psyche-ai
 ```
 
@@ -123,7 +125,7 @@ npm update psyche-ai
 ## 快速体验（不需要 LLM）
 
 ```bash
-git clone https://github.com/anthropics/psyche-ai.git
+git clone https://github.com/Shangri-la-0428/psyche-ai.git
 cd psyche-ai && npm install && npx tsx examples/quickstart.ts
 ```
 
