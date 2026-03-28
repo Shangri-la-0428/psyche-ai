@@ -1,0 +1,52 @@
+---
+---
+
+<button class="theme-toggle" aria-label="Toggle theme" title="Toggle theme">
+  <span class="icon-light">&#9788;</span>
+  <span class="icon-dark">&#9790;</span>
+  <span class="icon-system">&#9673;</span>
+</button>
+
+<script is:inline>
+  (function() {
+    var btn = document.querySelector('.theme-toggle');
+    if (!btn) return;
+    var cycle = ['system', 'light', 'dark'];
+    btn.addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-theme') || 'system';
+      var next = cycle[(cycle.indexOf(current) + 1) % cycle.length];
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+    });
+  })();
+</script>
+
+<style>
+  .theme-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 4px 10px;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 14px;
+    color: var(--text-dim);
+    transition: color var(--transition);
+  }
+
+  .theme-toggle:hover {
+    color: var(--text-bright);
+  }
+
+  .theme-toggle:active {
+    transform: scale(0.92);
+  }
+
+  .icon-light, .icon-dark, .icon-system { display: none; }
+
+  :global([data-theme="light"]) .icon-light { display: inline; }
+  :global([data-theme="dark"]) .icon-dark { display: inline; }
+  :global([data-theme="system"]) .icon-system { display: inline; }
+</style>

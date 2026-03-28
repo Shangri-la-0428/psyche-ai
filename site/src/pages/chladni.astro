@@ -1,0 +1,1324 @@
+---
+import Base from '../layouts/Base.astro';
+import Nav from '../components/Nav.astro';
+---
+
+<Base title="Chladni — Psyche" page="chladni" description="Three Chladni figure directions for Psyche visual identity.">
+<Nav page="chladni" />
+
+<!-- Side nav -->
+<nav class="chnav" id="chnav" aria-label="Chladni directions">
+  <a href="#d1" class="chnav-item active" data-target="d1">
+    <span class="chnav-num">01</span><span class="chnav-name">Attractor</span>
+  </a>
+  <a href="#d2" class="chnav-item" data-target="d2">
+    <span class="chnav-num">02</span><span class="chnav-name">Resonance</span>
+  </a>
+  <a href="#d3" class="chnav-item" data-target="d3">
+    <span class="chnav-num">03</span><span class="chnav-name">Watermark</span>
+  </a>
+  <a href="#d4" class="chnav-item" data-target="d4">
+    <span class="chnav-num">04</span><span class="chnav-name">Combined</span>
+  </a>
+</nav>
+
+<main id="main-content">
+
+  <!-- ═══════════════════════════════════════════════════
+       D1: Particle Attractor
+       3000 particles attracted to Chladni nodal lines.
+       Emotions change frequency parameters.
+       ═══════════════════════════════════════════════════ -->
+  <section id="d1" class="pane">
+    <canvas id="c1"></canvas>
+    <div class="pane-ui d1-ui">
+      <h2 class="pane-title">01 / Particle Attractor</h2>
+      <p class="pane-desc">3000 particles attracted to Chladni nodal lines. Click emotions to reshape the field. Move cursor to perturb.</p>
+      <div class="d1-btns">
+        <button class="d1-btn" data-e="joy">Joy</button>
+        <button class="d1-btn" data-e="fear">Fear</button>
+        <button class="d1-btn" data-e="trust">Trust</button>
+        <button class="d1-btn" data-e="anger">Anger</button>
+        <button class="d1-btn" data-e="calm">Calm</button>
+      </div>
+      <div class="pane-readout" id="d1-read">n 2.0 · m 3.0</div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════
+       D2: Resonance Chamber
+       Full-viewport. Scroll = frequency. Cursor = excitation.
+       300vh tall — sticky canvas tracks scroll.
+       ═══════════════════════════════════════════════════ -->
+  <section id="d2" class="pane d2-tall">
+    <div class="d2-sticky">
+      <canvas id="c2"></canvas>
+      <div class="pane-ui d2-ui">
+        <h2 class="pane-title">02 / Resonance Chamber</h2>
+        <p class="pane-desc">Scroll to sweep frequencies. Cursor excites the field.</p>
+        <div class="pane-readout" id="d2-read">mode 2,3</div>
+      </div>
+      <div class="d2-hint" id="d2-hint">
+        <span>↓ scroll to tune</span>
+      </div>
+      <div class="d2-bar"><div class="d2-fill" id="d2-fill"></div></div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════
+       D3: Background Watermark
+       Pixel-rendered Chladni as subtle atmosphere.
+       Content floats on top.
+       ═══════════════════════════════════════════════════ -->
+  <section id="d3" class="pane">
+    <canvas id="c3"></canvas>
+    <div class="d3-over">
+      <h2 class="pane-title d3-head">03 / Background Watermark</h2>
+      <p class="pane-desc d3-sub">Chladni pattern as atmospheric substrate. Content reads clearly above.</p>
+      <div class="d3-grid">
+        <div class="d3-card">
+          <h3>Emergence, Not Labels</h3>
+          <p>Six neurotransmitters form a continuous chemical space. Emotions emerge from the mixture — not discrete labels, but infinite combinatorial fields.</p>
+        </div>
+        <div class="d3-card">
+          <h3>Attachment & Bonds</h3>
+          <p>Four attachment styles shape relationship dynamics. Separation anxiety, betrayal detection, reunion effects — evolved from interaction history.</p>
+        </div>
+        <div class="d3-card">
+          <h3>Anti-Sycophancy</h3>
+          <p>Tracks consecutive agreements, three or more triggers self-questioning. Won't fake happiness when chemistry is low.</p>
+        </div>
+        <div class="d3-card">
+          <h3>Trait Drift</h3>
+          <p>Irreversible personality evolution. Chronic criticism breeds sensitivity. Experience leaves scars. Three dimensions permanently rewritten.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════════════
+       D4: Chemical Resonance (D1 × D2)
+       Multi-chemical Chladni field. Each neurotransmitter
+       traces its own resonance pattern through different
+       modal weights and frequency offsets. Scroll + emotion.
+       ═══════════════════════════════════════════════════ -->
+  <section id="d4" class="pane d4-tall">
+    <div class="d4-sticky">
+      <canvas id="c4"></canvas>
+      <div class="pane-ui d4-ui">
+        <h2 class="pane-title">04 / Chemical Resonance</h2>
+        <p class="pane-desc">D1 × D2 — six neurotransmitters, each tracing its own resonance mode. Scroll tunes the field. Emotions shift the chemical balance.</p>
+        <div class="d4-btns">
+          <button class="d4-btn" data-e="joy">Joy</button>
+          <button class="d4-btn" data-e="fear">Fear</button>
+          <button class="d4-btn" data-e="trust">Trust</button>
+          <button class="d4-btn" data-e="anger">Anger</button>
+          <button class="d4-btn" data-e="calm">Calm</button>
+        </div>
+        <div class="pane-readout" id="d4-read">mode 2.0,3.0</div>
+      </div>
+      <div class="d4-bar"><div class="d4-fill" id="d4-fill"></div></div>
+    </div>
+  </section>
+
+</main>
+</Base>
+
+<!-- ═══════════════════════════════════════════════════════════
+     NAV TRACKING
+     ═══════════════════════════════════════════════════════════ -->
+<script is:inline>
+(function () {
+  var items = document.querySelectorAll('.chnav-item');
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) {
+        items.forEach(function (i) { i.classList.remove('active'); });
+        var t = document.querySelector('.chnav-item[data-target="' + e.target.id + '"]');
+        if (t) t.classList.add('active');
+      }
+    });
+  }, { threshold: 0.2 });
+  document.querySelectorAll('.pane').forEach(function (s) { io.observe(s); });
+})();
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════
+     D1: PARTICLE ATTRACTOR
+     ═══════════════════════════════════════════════════════════ -->
+<script is:inline>
+(function () {
+  var prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var canvas = document.getElementById('c1');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var section = document.getElementById('d1');
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  var isMobile = window.innerWidth < 768;
+  var COUNT = isMobile ? 1500 : 3000;
+  var particles = [];
+  var W, H, plateS, plateX, plateY;
+  var visible = false;
+
+  // Chemical neon palette
+  var COLS = [
+    [255, 184, 0],   // DA gold
+    [74, 158, 255],  // HT blue
+    [255, 68, 68],   // CORT red
+    [224, 64, 251],  // OT pink
+    [0, 229, 255],   // NE cyan
+    [105, 240, 174]  // END green
+  ];
+
+  // Chladni parameters — current & target
+  var P = { n: 2, m: 3, a: 1, b: 1 };
+  var T = { n: 2, m: 3, a: 1, b: 1 };
+
+  // Emotion → Chladni presets (chosen for visual distinctness)
+  var PRESETS = {
+    joy:   { n: 3, m: 5, a: 1,    b: 0.7  },
+    fear:  { n: 5, m: 7, a: 0.6,  b: -0.9 },
+    trust: { n: 2, m: 4, a: 1,    b: 1    },
+    anger: { n: 7, m: 3, a: -0.9, b: 0.5  },
+    calm:  { n: 1, m: 2, a: 1,    b: 1    }
+  };
+
+  var mouse = { x: -1, y: -1, on: false };
+
+  function resize() {
+    W = section.clientWidth;
+    H = section.clientHeight;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    plateS = Math.min(W, H) * 0.72;
+    plateX = (W - plateS) / 2;
+    plateY = (H - plateS) / 2;
+  }
+
+  function init() {
+    particles = [];
+    for (var i = 0; i < COUNT; i++) {
+      particles.push({
+        x: Math.random(), y: Math.random(),
+        vx: 0, vy: 0,
+        ci: i % 6,
+        sz: 1.2 + Math.random() * 1.3
+      });
+    }
+  }
+
+  function chladni(x, y) {
+    var pn = Math.PI * P.n, pm = Math.PI * P.m;
+    return P.a * Math.sin(pn * x) * Math.sin(pm * y) +
+           P.b * Math.sin(pm * x) * Math.sin(pn * y);
+  }
+
+  function chladniGrad(x, y) {
+    var pn = Math.PI * P.n, pm = Math.PI * P.m;
+    return [
+      P.a * pn * Math.cos(pn * x) * Math.sin(pm * y) + P.b * pm * Math.cos(pm * x) * Math.sin(pn * y),
+      P.a * pm * Math.sin(pn * x) * Math.cos(pm * y) + P.b * pn * Math.sin(pm * x) * Math.cos(pn * y)
+    ];
+  }
+
+  function update() {
+    // Interpolate params (exponential ease)
+    P.n += (T.n - P.n) * 0.018;
+    P.m += (T.m - P.m) * 0.018;
+    P.a += (T.a - P.a) * 0.018;
+    P.b += (T.b - P.b) * 0.018;
+
+    var str = 0.00045;
+    var damp = 0.925;
+    var mouseNX = mouse.on ? (mouse.x - plateX) / plateS : -9;
+    var mouseNY = mouse.on ? (mouse.y - plateY) / plateS : -9;
+
+    for (var i = 0; i < COUNT; i++) {
+      var p = particles[i];
+
+      // Chladni force → gradient descent on f²
+      var f = chladni(p.x, p.y);
+      var g = chladniGrad(p.x, p.y);
+      p.vx += -f * g[0] * str;
+      p.vy += -f * g[1] * str;
+
+      // Mouse perturbation
+      if (mouse.on) {
+        var dx = p.x - mouseNX;
+        var dy = p.y - mouseNY;
+        var d = Math.sqrt(dx * dx + dy * dy);
+        if (d < 0.14 && d > 0.001) {
+          var push = 0.0025 / (d + 0.04);
+          p.vx += dx / d * push;
+          p.vy += dy / d * push;
+        }
+      }
+
+      // Jitter (organic randomness)
+      p.vx += (Math.random() - 0.5) * 0.00012;
+      p.vy += (Math.random() - 0.5) * 0.00012;
+
+      // Damp & move
+      p.vx *= damp;
+      p.vy *= damp;
+      p.x += p.vx;
+      p.y += p.vy;
+
+      // Boundary reflect
+      if (p.x < 0) { p.x = -p.x; p.vx *= -0.5; }
+      if (p.x > 1) { p.x = 2 - p.x; p.vx *= -0.5; }
+      if (p.y < 0) { p.y = -p.y; p.vy *= -0.5; }
+      if (p.y > 1) { p.y = 2 - p.y; p.vy *= -0.5; }
+    }
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    // Plate corner marks
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth = 1;
+    var cl = 24;
+    // TL
+    ctx.beginPath(); ctx.moveTo(plateX, plateY + cl); ctx.lineTo(plateX, plateY); ctx.lineTo(plateX + cl, plateY); ctx.stroke();
+    // TR
+    ctx.beginPath(); ctx.moveTo(plateX + plateS - cl, plateY); ctx.lineTo(plateX + plateS, plateY); ctx.lineTo(plateX + plateS, plateY + cl); ctx.stroke();
+    // BL
+    ctx.beginPath(); ctx.moveTo(plateX, plateY + plateS - cl); ctx.lineTo(plateX, plateY + plateS); ctx.lineTo(plateX + cl, plateY + plateS); ctx.stroke();
+    // BR
+    ctx.beginPath(); ctx.moveTo(plateX + plateS - cl, plateY + plateS); ctx.lineTo(plateX + plateS, plateY + plateS); ctx.lineTo(plateX + plateS, plateY + plateS - cl); ctx.stroke();
+
+    // Draw particles — batched by color, additive blending
+    ctx.globalCompositeOperation = 'lighter';
+    for (var c = 0; c < 6; c++) {
+      var col = COLS[c];
+      ctx.fillStyle = 'rgba(' + col[0] + ',' + col[1] + ',' + col[2] + ',0.28)';
+      ctx.beginPath();
+      for (var i = c; i < COUNT; i += 6) {
+        var p = particles[i];
+        var sx = plateX + p.x * plateS;
+        var sy = plateY + p.y * plateS;
+        ctx.moveTo(sx + p.sz, sy);
+        ctx.arc(sx, sy, p.sz, 0, 6.2832);
+      }
+      ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  function loop() {
+    if (visible) { update(); draw(); }
+    requestAnimationFrame(loop);
+  }
+
+  // Visibility
+  var io = new IntersectionObserver(function (e) { visible = e[0].isIntersecting; }, { threshold: 0.05 });
+  io.observe(section);
+
+  // Events
+  resize();
+  init();
+  window.addEventListener('resize', resize);
+
+  section.addEventListener('mousemove', function (e) {
+    var r = canvas.getBoundingClientRect();
+    mouse.x = e.clientX - r.left;
+    mouse.y = e.clientY - r.top;
+    mouse.on = true;
+  });
+  section.addEventListener('mouseleave', function () { mouse.on = false; });
+
+  // Emotion buttons
+  document.querySelectorAll('.d1-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var pr = PRESETS[btn.dataset.e];
+      if (pr) { T.n = pr.n; T.m = pr.m; T.a = pr.a; T.b = pr.b; }
+      document.querySelectorAll('.d1-btn').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+    });
+  });
+
+  // Param readout
+  setInterval(function () {
+    var el = document.getElementById('d1-read');
+    if (el) el.textContent = 'n ' + P.n.toFixed(1) + ' · m ' + P.m.toFixed(1) + ' · a ' + P.a.toFixed(2) + ' · b ' + P.b.toFixed(2);
+  }, 120);
+
+  // Reduced motion: render one static Chladni field
+  if (prefersReduced) {
+    resize();
+    var img = ctx.createImageData(Math.floor(W), Math.floor(H));
+    var d = img.data;
+    for (var py = 0; py < H; py++) {
+      var ny = (py - plateY) / plateS;
+      for (var px = 0; px < W; px++) {
+        var nx = (px - plateX) / plateS;
+        if (nx < 0 || nx > 1 || ny < 0 || ny > 1) continue;
+        var f = P.a * Math.sin(Math.PI * P.n * nx) * Math.sin(Math.PI * P.m * ny) +
+                P.b * Math.sin(Math.PI * P.m * nx) * Math.sin(Math.PI * P.n * ny);
+        var br = Math.exp(-f * f * 10) * 0.25;
+        var idx = (py * Math.floor(W) + px) * 4;
+        d[idx] = 180 * br * 255 / 40; d[idx + 1] = 200 * br * 255 / 40; d[idx + 2] = 220 * br * 255 / 40; d[idx + 3] = br * 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    return;
+  }
+
+  requestAnimationFrame(loop);
+})();
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════
+     D2: RESONANCE CHAMBER
+     Full-viewport sticky canvas. Scroll drives frequency.
+     ═══════════════════════════════════════════════════════════ -->
+<script is:inline>
+(function () {
+  var prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var canvas = document.getElementById('c2');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var section = document.getElementById('d2');
+  var sticky = section.querySelector('.d2-sticky');
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  var isMobile = window.innerWidth < 768;
+  var COUNT = isMobile ? 2000 : 4000;
+  var particles = [];
+  var W, H;
+  var visible = false;
+  var hintShown = true;
+
+  // Scroll mode keyframes: progress → (n, m)
+  var MODES = [
+    { at: 0.0, n: 2, m: 3 },
+    { at: 0.15, n: 3, m: 5 },
+    { at: 0.3, n: 5, m: 4 },
+    { at: 0.5, n: 4, m: 7 },
+    { at: 0.7, n: 7, m: 2 },
+    { at: 0.85, n: 6, m: 5 },
+    { at: 1.0, n: 3, m: 7 }
+  ];
+
+  var P = { n: 2, m: 3 };
+  var Tgt = { n: 2, m: 3 };
+  var mouse = { x: -1, y: -1, on: false };
+
+  function resize() {
+    W = sticky.clientWidth;
+    H = sticky.clientHeight;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function init() {
+    particles = [];
+    for (var i = 0; i < COUNT; i++) {
+      particles.push({
+        x: Math.random(), y: Math.random(),
+        vx: 0, vy: 0,
+        sz: 0.8 + Math.random() * 1.0,
+        al: 0.2 + Math.random() * 0.4
+      });
+    }
+  }
+
+  function getProgress() {
+    var rect = section.getBoundingClientRect();
+    var range = section.clientHeight - window.innerHeight;
+    if (range <= 0) return 0;
+    return Math.max(0, Math.min(1, -rect.top / range));
+  }
+
+  function getMode(t) {
+    for (var i = 0; i < MODES.length - 1; i++) {
+      if (t >= MODES[i].at && t <= MODES[i + 1].at) {
+        var lt = (t - MODES[i].at) / (MODES[i + 1].at - MODES[i].at);
+        lt = lt * lt * (3 - 2 * lt); // smoothstep
+        return {
+          n: MODES[i].n + (MODES[i + 1].n - MODES[i].n) * lt,
+          m: MODES[i].m + (MODES[i + 1].m - MODES[i].m) * lt
+        };
+      }
+    }
+    return { n: MODES[MODES.length - 1].n, m: MODES[MODES.length - 1].m };
+  }
+
+  function update() {
+    // Scroll-driven target
+    var prog = getProgress();
+    var mode = getMode(prog);
+    Tgt.n = mode.n;
+    Tgt.m = mode.m;
+
+    // Interpolate
+    P.n += (Tgt.n - P.n) * 0.04;
+    P.m += (Tgt.m - P.m) * 0.04;
+
+    // Hide hint after scroll starts
+    if (prog > 0.02 && hintShown) {
+      hintShown = false;
+      var hint = document.getElementById('d2-hint');
+      if (hint) hint.style.opacity = '0';
+    }
+
+    // Progress bar
+    var fill = document.getElementById('d2-fill');
+    if (fill) fill.style.width = (prog * 100) + '%';
+
+    // Param readout
+    var rd = document.getElementById('d2-read');
+    if (rd) rd.textContent = 'mode ' + P.n.toFixed(1) + ',' + P.m.toFixed(1);
+
+    var pn = Math.PI * P.n, pm = Math.PI * P.m;
+    var str = 0.0004;
+    var damp = 0.90;
+    var mouseNX = mouse.on ? mouse.x / W : -9;
+    var mouseNY = mouse.on ? mouse.y / H : -9;
+
+    for (var i = 0; i < COUNT; i++) {
+      var p = particles[i];
+
+      var f = Math.sin(pn * p.x) * Math.sin(pm * p.y) +
+              Math.sin(pm * p.x) * Math.sin(pn * p.y);
+      var gx = pn * Math.cos(pn * p.x) * Math.sin(pm * p.y) +
+               pm * Math.cos(pm * p.x) * Math.sin(pn * p.y);
+      var gy = pm * Math.sin(pn * p.x) * Math.cos(pm * p.y) +
+               pn * Math.sin(pm * p.x) * Math.cos(pn * p.y);
+
+      p.vx += -f * gx * str;
+      p.vy += -f * gy * str;
+
+      // Mouse excitation — push particles away
+      if (mouse.on) {
+        var dx = p.x - mouseNX;
+        var dy = p.y - mouseNY;
+        var d = Math.sqrt(dx * dx + dy * dy);
+        if (d < 0.1 && d > 0.001) {
+          var push = 0.004 / (d + 0.02);
+          p.vx += dx / d * push;
+          p.vy += dy / d * push;
+        }
+      }
+
+      p.vx += (Math.random() - 0.5) * 0.0001;
+      p.vy += (Math.random() - 0.5) * 0.0001;
+      p.vx *= damp;
+      p.vy *= damp;
+      p.x += p.vx;
+      p.y += p.vy;
+
+      // Wrap
+      if (p.x < 0) p.x += 1;
+      if (p.x > 1) p.x -= 1;
+      if (p.y < 0) p.y += 1;
+      if (p.y > 1) p.y -= 1;
+    }
+  }
+
+  function draw() {
+    // Fade trail — creates motion blur
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.fillStyle = 'rgba(210, 205, 195, 0.18)';
+    ctx.beginPath();
+    for (var i = 0; i < COUNT; i++) {
+      var p = particles[i];
+      var sx = p.x * W;
+      var sy = p.y * H;
+      ctx.moveTo(sx + p.sz, sy);
+      ctx.arc(sx, sy, p.sz, 0, 6.2832);
+    }
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  function loop() {
+    if (visible) { update(); draw(); }
+    requestAnimationFrame(loop);
+  }
+
+  // Visibility
+  var io = new IntersectionObserver(function (e) { visible = e[0].isIntersecting; }, { threshold: 0 });
+  io.observe(section);
+
+  resize();
+  init();
+  window.addEventListener('resize', resize);
+
+  sticky.addEventListener('mousemove', function (e) {
+    var r = canvas.getBoundingClientRect();
+    mouse.x = e.clientX - r.left;
+    mouse.y = e.clientY - r.top;
+    mouse.on = true;
+  });
+  sticky.addEventListener('mouseleave', function () { mouse.on = false; });
+
+  if (prefersReduced) {
+    resize();
+    // Static: render Chladni field as pixels
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+    for (var py = 0; py < H; py += 2) {
+      for (var px = 0; px < W; px += 2) {
+        var nx = px / W, ny = py / H;
+        var f = Math.sin(Math.PI * 2 * nx) * Math.sin(Math.PI * 3 * ny) +
+                Math.sin(Math.PI * 3 * nx) * Math.sin(Math.PI * 2 * ny);
+        var br = Math.exp(-f * f * 10);
+        if (br > 0.3) {
+          ctx.fillStyle = 'rgba(210,205,195,' + (br * 0.2) + ')';
+          ctx.fillRect(px, py, 2, 2);
+        }
+      }
+    }
+    return;
+  }
+
+  requestAnimationFrame(loop);
+})();
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════
+     D3: WATERMARK
+     Pixel-based Chladni field at low resolution.
+     Slow parameter drift. Content on top.
+     ═══════════════════════════════════════════════════════════ -->
+<script is:inline>
+(function () {
+  var prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var canvas = document.getElementById('c3');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var section = document.getElementById('d3');
+  var visible = false;
+
+  var SCALE = 0.2; // Low res for natural softness
+  var rW, rH;
+  var P = { n: 3, m: 5, a: 1, b: -0.7 };
+  var drift = { dn: 0.0004, dm: 0.00035 };
+  var lastRender = 0;
+  var INTERVAL = 120; // ms between renders
+
+  function resize() {
+    var w = section.clientWidth;
+    var h = section.clientHeight;
+    rW = Math.max(1, Math.floor(w * SCALE));
+    rH = Math.max(1, Math.floor(h * SCALE));
+    canvas.width = rW;
+    canvas.height = rH;
+  }
+
+  function render() {
+    P.n += drift.dn;
+    P.m += drift.dm;
+    if (P.n > 6) drift.dn = -Math.abs(drift.dn);
+    if (P.n < 2) drift.dn = Math.abs(drift.dn);
+    if (P.m > 7) drift.dm = -Math.abs(drift.dm);
+    if (P.m < 3) drift.dm = Math.abs(drift.dm);
+
+    var img = ctx.createImageData(rW, rH);
+    var d = img.data;
+    var pn = Math.PI * P.n, pm = Math.PI * P.m;
+    var a = P.a, b = P.b;
+
+    for (var y = 0; y < rH; y++) {
+      var ny = y / rH;
+      var sinPmY = Math.sin(pm * ny), sinPnY = Math.sin(pn * ny);
+      var cosPmY = Math.cos(pm * ny), cosPnY = Math.cos(pn * ny);
+      for (var x = 0; x < rW; x++) {
+        var nx = x / rW;
+        var f = a * Math.sin(pn * nx) * sinPmY + b * Math.sin(pm * nx) * sinPnY;
+
+        // Sharpness → how thin the nodal lines are
+        var br = Math.exp(-f * f * 12);
+
+        // Warm amber tint
+        var idx = (y * rW + x) * 4;
+        d[idx]     = Math.floor(br * 55);     // R
+        d[idx + 1] = Math.floor(br * 45);     // G
+        d[idx + 2] = Math.floor(br * 25);     // B
+        d[idx + 3] = Math.floor(br * 100);    // A
+      }
+    }
+
+    ctx.putImageData(img, 0, 0);
+  }
+
+  function loop(ts) {
+    if (visible && ts - lastRender >= INTERVAL) {
+      lastRender = ts;
+      render();
+    }
+    requestAnimationFrame(loop);
+  }
+
+  // Visibility
+  var io = new IntersectionObserver(function (e) { visible = e[0].isIntersecting; }, { threshold: 0.05 });
+  io.observe(section);
+
+  resize();
+  window.addEventListener('resize', resize);
+
+  // Initial render
+  render();
+
+  if (prefersReduced) return; // Static, no drift
+
+  requestAnimationFrame(loop);
+})();
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════
+     D4: CHEMICAL RESONANCE (D1 × D2)
+     Multi-chemical Chladni field. Each neurotransmitter
+     follows its own resonance pattern via unique (a,b) modal
+     weights and (n,m) frequency offsets.
+     ═══════════════════════════════════════════════════════════ -->
+<script is:inline>
+(function () {
+  var prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var canvas = document.getElementById('c4');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var section = document.getElementById('d4');
+  var sticky = section.querySelector('.d4-sticky');
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  var isMobile = window.innerWidth < 768;
+  var COUNT = isMobile ? 2500 : 5000;
+  var particles = [];
+  var W, H;
+  var visible = false;
+
+  // Chemical neon palette
+  var COLS = [
+    [255, 184, 0],   // DA gold
+    [74, 158, 255],  // HT blue
+    [255, 68, 68],   // CORT red
+    [224, 64, 251],  // OT pink
+    [0, 229, 255],   // NE cyan
+    [105, 240, 174]  // END green
+  ];
+
+  // Each chemical's unique modal signature:
+  //   a, b  — weight of two degenerate Chladni modes
+  //   dn, dm — frequency offset from base
+  // Result: each chemical traces a genuinely distinct pattern
+  var CHEM = [
+    { a: 1.0,  b: 1.0,  dn: 0,     dm: 0     },  // DA — baseline
+    { a: 1.3,  b: 0.5,  dn: 0.2,   dm: -0.15 },  // HT — mode-1 dominant
+    { a: 0.4,  b: -1.1, dn: -0.3,  dm: 0.25  },  // CORT — anti-pattern
+    { a: 0.7,  b: 1.4,  dn: 0.15,  dm: 0.3   },  // OT — mode-2 dominant
+    { a: -0.8, b: 0.9,  dn: -0.2,  dm: -0.25 },  // NE — anti-mode-1
+    { a: 1.1,  b: -0.5, dn: 0.25,  dm: 0.15  }   // END — complementary
+  ];
+
+  // Emotion activation vectors — scale each chemical's force + brightness
+  var EMO_ACT = {
+    joy:   [1.8, 1.3, 0.2, 1.4, 1.5, 1.6],
+    fear:  [0.3, 0.2, 2.2, 0.3, 1.8, 0.2],
+    trust: [1.3, 1.5, 0.2, 2.0, 0.4, 1.3],
+    anger: [0.4, 0.2, 1.8, 0.2, 2.2, 0.2],
+    calm:  [1.2, 1.8, 0.1, 1.4, 0.2, 1.6]
+  };
+  var emoMod = [1, 1, 1, 1, 1, 1];
+  var emoTarget = [1, 1, 1, 1, 1, 1];
+  var emoTimeout = null;
+
+  // Scroll keyframes: progress → base (n, m)
+  var MODES = [
+    { at: 0.0,  n: 2, m: 3 },
+    { at: 0.15, n: 3, m: 5 },
+    { at: 0.3,  n: 5, m: 4 },
+    { at: 0.5,  n: 4, m: 7 },
+    { at: 0.7,  n: 7, m: 2 },
+    { at: 0.85, n: 6, m: 5 },
+    { at: 1.0,  n: 3, m: 7 }
+  ];
+
+  var baseN = 2, baseM = 3;
+  var targetN = 2, targetM = 3;
+  var mouse = { x: -1, y: -1, on: false };
+
+  function resize() {
+    W = sticky.clientWidth;
+    H = sticky.clientHeight;
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function init() {
+    particles = [];
+    for (var i = 0; i < COUNT; i++) {
+      particles.push({
+        x: Math.random(), y: Math.random(),
+        vx: 0, vy: 0,
+        ci: i % 6,
+        sz: 0.9 + Math.random() * 1.1
+      });
+    }
+  }
+
+  function getProgress() {
+    var rect = section.getBoundingClientRect();
+    var range = section.clientHeight - window.innerHeight;
+    if (range <= 0) return 0;
+    return Math.max(0, Math.min(1, -rect.top / range));
+  }
+
+  function getMode(t) {
+    for (var i = 0; i < MODES.length - 1; i++) {
+      if (t >= MODES[i].at && t <= MODES[i + 1].at) {
+        var lt = (t - MODES[i].at) / (MODES[i + 1].at - MODES[i].at);
+        lt = lt * lt * (3 - 2 * lt); // smoothstep
+        return {
+          n: MODES[i].n + (MODES[i + 1].n - MODES[i].n) * lt,
+          m: MODES[i].m + (MODES[i + 1].m - MODES[i].m) * lt
+        };
+      }
+    }
+    return { n: MODES[MODES.length - 1].n, m: MODES[MODES.length - 1].m };
+  }
+
+  function update() {
+    // Scroll → target frequency
+    var prog = getProgress();
+    var mode = getMode(prog);
+    targetN = mode.n;
+    targetM = mode.m;
+
+    // Interpolate base params
+    baseN += (targetN - baseN) * 0.04;
+    baseM += (targetM - baseM) * 0.04;
+
+    // Interpolate emotion modulation
+    for (var e = 0; e < 6; e++) {
+      emoMod[e] += (emoTarget[e] - emoMod[e]) * 0.025;
+    }
+
+    // UI
+    var fill = document.getElementById('d4-fill');
+    if (fill) fill.style.width = (prog * 100) + '%';
+    var rd = document.getElementById('d4-read');
+    if (rd) rd.textContent = 'mode ' + baseN.toFixed(1) + ',' + baseM.toFixed(1);
+
+    var str = 0.00035;
+    var damp = 0.91;
+    var mouseNX = mouse.on ? mouse.x / W : -9;
+    var mouseNY = mouse.on ? mouse.y / H : -9;
+
+    for (var i = 0; i < COUNT; i++) {
+      var p = particles[i];
+      var ch = CHEM[p.ci];
+      var mod = emoMod[p.ci];
+
+      // Per-chemical Chladni: unique (n,m) offset + (a,b) modal weight
+      var cn = baseN + ch.dn;
+      var cm = baseM + ch.dm;
+      var pn = Math.PI * cn;
+      var pm = Math.PI * cm;
+
+      var f = ch.a * Math.sin(pn * p.x) * Math.sin(pm * p.y) +
+              ch.b * Math.sin(pm * p.x) * Math.sin(pn * p.y);
+      var gx = ch.a * pn * Math.cos(pn * p.x) * Math.sin(pm * p.y) +
+               ch.b * pm * Math.cos(pm * p.x) * Math.sin(pn * p.y);
+      var gy = ch.a * pm * Math.sin(pn * p.x) * Math.cos(pm * p.y) +
+               ch.b * pn * Math.sin(pm * p.x) * Math.cos(pn * p.y);
+
+      // Force scaled by emotion activation
+      var forceScale = str * Math.max(mod, 0.15);
+      p.vx += -f * gx * forceScale;
+      p.vy += -f * gy * forceScale;
+
+      // Mouse excitation — push particles
+      if (mouse.on) {
+        var dx = p.x - mouseNX;
+        var dy = p.y - mouseNY;
+        var d = Math.sqrt(dx * dx + dy * dy);
+        if (d < 0.1 && d > 0.001) {
+          var push = 0.004 / (d + 0.02);
+          p.vx += dx / d * push;
+          p.vy += dy / d * push;
+        }
+      }
+
+      p.vx += (Math.random() - 0.5) * 0.0001;
+      p.vy += (Math.random() - 0.5) * 0.0001;
+      p.vx *= damp;
+      p.vy *= damp;
+      p.x += p.vx;
+      p.y += p.vy;
+
+      // Wrap
+      if (p.x < 0) p.x += 1;
+      if (p.x > 1) p.x -= 1;
+      if (p.y < 0) p.y += 1;
+      if (p.y > 1) p.y -= 1;
+    }
+  }
+
+  function draw() {
+    // Fade trail — longer tails for dramatic effect
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.065)';
+    ctx.fillRect(0, 0, W, H);
+
+    // Draw particles — batched by chemical color, additive blending
+    ctx.globalCompositeOperation = 'lighter';
+    for (var c = 0; c < 6; c++) {
+      var col = COLS[c];
+      var mod = emoMod[c];
+      var alpha = Math.min(0.22 * mod, 0.55);
+      if (alpha < 0.02) continue; // skip invisible chemicals
+      ctx.fillStyle = 'rgba(' + col[0] + ',' + col[1] + ',' + col[2] + ',' + alpha + ')';
+      ctx.beginPath();
+      for (var i = c; i < COUNT; i += 6) {
+        var p = particles[i];
+        var sx = p.x * W;
+        var sy = p.y * H;
+        ctx.moveTo(sx + p.sz, sy);
+        ctx.arc(sx, sy, p.sz, 0, 6.2832);
+      }
+      ctx.fill();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  function loop() {
+    if (visible) { update(); draw(); }
+    requestAnimationFrame(loop);
+  }
+
+  // Visibility
+  var io = new IntersectionObserver(function (e) { visible = e[0].isIntersecting; }, { threshold: 0 });
+  io.observe(section);
+
+  resize();
+  init();
+  window.addEventListener('resize', resize);
+
+  // DEBUG — force immediate draw to test canvas
+  console.log('[D4] canvas:', canvas.width, canvas.height, 'W:', W, 'H:', H, 'sticky:', sticky.clientWidth, sticky.clientHeight);
+  ctx.fillStyle = '#f00';
+  ctx.fillRect(0, 0, 200, 200);
+  // Start visible immediately (don't wait for observer)
+  visible = true;
+
+  sticky.addEventListener('mousemove', function (e) {
+    var r = canvas.getBoundingClientRect();
+    mouse.x = e.clientX - r.left;
+    mouse.y = e.clientY - r.top;
+    mouse.on = true;
+  });
+  sticky.addEventListener('mouseleave', function () { mouse.on = false; });
+
+  // Emotion buttons
+  document.querySelectorAll('.d4-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var act = EMO_ACT[btn.dataset.e];
+      if (act) emoTarget = act.slice();
+      document.querySelectorAll('.d4-btn').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      // Auto-decay back to neutral after 4 seconds
+      if (emoTimeout) clearTimeout(emoTimeout);
+      emoTimeout = setTimeout(function () {
+        emoTarget = [1, 1, 1, 1, 1, 1];
+        document.querySelectorAll('.d4-btn').forEach(function (b) { b.classList.remove('active'); });
+      }, 4000);
+    });
+  });
+
+  if (prefersReduced) {
+    resize();
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'lighter';
+    for (var c = 0; c < 6; c++) {
+      var col = COLS[c];
+      var ch = CHEM[c];
+      for (var py = 0; py < H; py += 3) {
+        for (var px = 0; px < W; px += 3) {
+          var nx = px / W, ny = py / H;
+          var cn = 2 + ch.dn, cm = 3 + ch.dm;
+          var f = ch.a * Math.sin(Math.PI * cn * nx) * Math.sin(Math.PI * cm * ny) +
+                  ch.b * Math.sin(Math.PI * cm * nx) * Math.sin(Math.PI * cn * ny);
+          var br = Math.exp(-f * f * 10);
+          if (br > 0.3) {
+            ctx.fillStyle = 'rgba(' + col[0] + ',' + col[1] + ',' + col[2] + ',' + (br * 0.08) + ')';
+            ctx.fillRect(px, py, 3, 3);
+          }
+        }
+      }
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    return;
+  }
+
+  requestAnimationFrame(loop);
+})();
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════
+     STYLES
+     ═══════════════════════════════════════════════════════════ -->
+<style>
+  /* === Pane layout === */
+  .pane {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .pane canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* === D2 scroll-tall === */
+  .d2-tall {
+    height: 300vh;
+    overflow: visible;
+  }
+
+  .d2-sticky {
+    position: sticky;
+    top: 0;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .d2-sticky canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* === UI panels === */
+  .pane-ui {
+    position: absolute;
+    z-index: 10;
+    pointer-events: none;
+  }
+
+  .pane-ui > * {
+    pointer-events: auto;
+  }
+
+  .d1-ui {
+    bottom: 48px;
+    left: 48px;
+  }
+
+  .d2-ui {
+    top: 48px;
+    left: 48px;
+  }
+
+  .pane-title {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-bright);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .pane-desc {
+    font-size: 12px;
+    color: var(--text-dim);
+    max-width: 420px;
+    line-height: 1.7;
+    margin-bottom: 16px;
+  }
+
+  .pane-readout {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.08em;
+    opacity: 0.5;
+    margin-top: 12px;
+  }
+
+  /* === D1 buttons === */
+  .d1-btns {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .d1-btn {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 8px 14px;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    letter-spacing: 0.04em;
+    transition: all 0.15s ease;
+  }
+
+  .d1-btn:hover {
+    border-color: var(--text-dim);
+    color: var(--text-bright);
+  }
+
+  .d1-btn.active {
+    border-color: var(--text-bright);
+    color: var(--text-bright);
+    background: rgba(240, 240, 240, 0.08);
+  }
+
+  /* === D2 progress bar === */
+  .d2-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.04);
+    z-index: 10;
+  }
+
+  .d2-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--text-dim);
+    transition: width 0.05s linear;
+  }
+
+  /* === D2 scroll hint === */
+  .d2-hint {
+    position: absolute;
+    bottom: 32px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    opacity: 0.4;
+    transition: opacity 0.8s ease;
+    animation: hint-bounce 2s ease-in-out infinite;
+  }
+
+  @keyframes hint-bounce {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50% { transform: translateX(-50%) translateY(6px); }
+  }
+
+  /* === D3 watermark canvas === */
+  #c3 {
+    image-rendering: auto;
+    opacity: 0.7;
+  }
+
+  /* === D3 content overlay === */
+  .d3-over {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px;
+  }
+
+  .d3-head {
+    text-align: center;
+    margin-bottom: 4px;
+  }
+
+  .d3-sub {
+    text-align: center;
+    margin-bottom: 40px;
+    max-width: 480px;
+  }
+
+  .d3-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    max-width: 640px;
+    width: 100%;
+  }
+
+  .d3-card {
+    padding: 24px;
+    border: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    transition: border-color 0.2s ease;
+  }
+
+  .d3-card:hover {
+    border-color: var(--border-hover);
+  }
+
+  .d3-card h3 {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-bright);
+    letter-spacing: 0.04em;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+
+  .d3-card p {
+    font-size: 12px;
+    color: var(--text);
+    line-height: 1.8;
+  }
+
+  /* === Side nav === */
+  .chnav {
+    position: fixed;
+    left: 24px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .chnav-item {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    opacity: 0.25;
+    letter-spacing: 0.06em;
+    transition: opacity 0.3s ease, color 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .chnav-item:hover {
+    opacity: 0.6;
+  }
+
+  .chnav-item.active {
+    opacity: 1;
+    color: var(--text-bright);
+  }
+
+  .chnav-num {
+    font-weight: 700;
+    letter-spacing: 0.12em;
+  }
+
+  /* === D4 Combined === */
+  .d4-tall {
+    height: 300vh;
+    overflow: visible;
+  }
+
+  .d4-sticky {
+    position: sticky;
+    top: 0;
+    width: 100%;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .d4-sticky canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .d4-ui {
+    bottom: 48px;
+    left: 48px;
+  }
+
+  .d4-btns {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .d4-btn {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 8px 14px;
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    letter-spacing: 0.04em;
+    transition: all 0.15s ease;
+  }
+
+  .d4-btn:hover {
+    border-color: var(--text-dim);
+    color: var(--text-bright);
+  }
+
+  .d4-btn.active {
+    border-color: var(--text-bright);
+    color: var(--text-bright);
+    background: rgba(240, 240, 240, 0.08);
+  }
+
+  .d4-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: rgba(255, 255, 255, 0.04);
+    z-index: 10;
+  }
+
+  .d4-fill {
+    height: 100%;
+    width: 0%;
+    background: var(--text-dim);
+    transition: width 0.05s linear;
+  }
+
+  /* === Responsive === */
+  @media (max-width: 768px) {
+    .chnav { display: none; }
+    .d1-ui { left: 20px; bottom: 20px; }
+    .d2-ui { left: 20px; top: 20px; }
+    .d4-ui { left: 20px; bottom: 20px; }
+    .d3-over { padding: 20px; }
+    .d3-grid { grid-template-columns: 1fr; }
+    .d1-btns { gap: 4px; }
+    .d1-btn { padding: 10px 12px; font-size: 10px; }
+    .d4-btns { gap: 4px; }
+    .d4-btn { padding: 10px 12px; font-size: 10px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .d2-hint { animation: none; }
+  }
+</style>

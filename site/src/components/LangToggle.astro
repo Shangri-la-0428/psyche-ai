@@ -1,0 +1,57 @@
+---
+---
+
+<button class="lang-toggle" aria-label="Switch to English">
+  <span class="lang-zh">EN</span>
+  <span class="lang-en">中</span>
+</button>
+
+<script is:inline>
+  (function() {
+    var btn = document.querySelector('.lang-toggle');
+    if (!btn) return;
+    function updateLabel(lang) {
+      btn.setAttribute('aria-label', lang === 'zh' ? 'Switch to English' : '切换到中文');
+    }
+    updateLabel(document.documentElement.getAttribute('data-lang') || 'zh');
+    btn.addEventListener('click', function() {
+      var current = document.documentElement.getAttribute('data-lang') || 'zh';
+      var next = current === 'zh' ? 'en' : 'zh';
+      document.documentElement.setAttribute('data-lang', next);
+      document.documentElement.lang = next === 'en' ? 'en' : 'zh-CN';
+      localStorage.setItem('lang', next);
+      updateLabel(next);
+    });
+  })();
+</script>
+
+<style>
+  .lang-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 4px 10px;
+    border: none;
+    border-radius: var(--radius);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    color: var(--text-dim);
+    transition: color var(--transition);
+  }
+
+  .lang-toggle:hover {
+    color: var(--text-bright);
+  }
+
+  .lang-toggle:active {
+    transform: scale(0.92);
+  }
+
+  .lang-zh, .lang-en { display: none; }
+  :global([data-lang="zh"]) .lang-zh { display: inline; }
+  :global([data-lang="en"]) .lang-en { display: inline; }
+</style>

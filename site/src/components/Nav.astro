@@ -1,0 +1,113 @@
+---
+import LangToggle from './LangToggle.astro';
+
+interface Props {
+  page?: string;
+}
+
+const { page = "home" } = Astro.props;
+const isHome = page === "home";
+---
+
+<nav class="nav" transition:name="nav">
+  <div class="nav-inner">
+    <div class="nav-left">
+      {isHome ? (
+        <a href="/" class="nav-brand">
+          <span class="nav-prompt">></span>
+          <span>psyche</span>
+          <span class="nav-cursor"></span>
+        </a>
+      ) : (
+        <a href="/" class="nav-back">
+          <span class="nav-prompt">></span>
+          <span>cd ..</span>
+          <span class="nav-slash">/</span>
+          <span class="nav-page-name">{page}</span>
+        </a>
+      )}
+    </div>
+    <div class="nav-right">
+      <a href="https://www.npmjs.com/package/psyche-ai" target="_blank" rel="noopener noreferrer" class="nav-link">npm</a>
+      <a href="https://github.com/Shangri-la-0428/psyche-ai" target="_blank" rel="noopener noreferrer" class="nav-link">github</a>
+      <LangToggle />
+    </div>
+  </div>
+</nav>
+
+<style>
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--nav-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .nav-inner {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 0 32px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .nav-left { display: flex; align-items: center; }
+
+  .nav-brand, .nav-back {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text);
+    transition: color var(--transition);
+  }
+
+  .nav-brand:hover, .nav-back:hover { color: var(--text-bright); }
+
+  .nav-prompt {
+    color: var(--text-bright);
+    font-weight: 700;
+  }
+
+  .nav-cursor::after {
+    content: '\25CA';
+    animation: blink 1s step-end infinite;
+    color: var(--text-dim);
+    font-size: 12px;
+  }
+
+  .nav-slash { color: var(--text-dim); }
+
+  .nav-page-name {
+    color: var(--text-bright);
+    font-weight: 600;
+  }
+
+  .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .nav-link {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-dim);
+    padding: 4px 8px;
+    transition: color var(--transition);
+    text-transform: lowercase;
+  }
+
+  .nav-link:hover { color: var(--text-bright); }
+
+  @media (max-width: 640px) {
+    .nav-inner { padding: 0 20px; }
+    .nav-link { display: none; }
+  }
+</style>

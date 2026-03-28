@@ -1,0 +1,52 @@
+---
+interface Props {
+  href: string;
+  zh: string;
+  en: string;
+}
+
+const { href, zh, en } = Astro.props;
+---
+
+<a href={href} class="depth-link">
+  <span class="depth-prompt">&gt;</span>
+  <span class="cn">深入阅读：{zh}</span>
+  <span class="en">read further: {en}</span>
+  <span class="depth-arrow">&rarr;</span>
+</a>
+
+<style>
+  .depth-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--text-dim);
+    transition: color var(--transition), transform var(--transition);
+    margin-top: 24px;
+  }
+
+  .depth-link:hover {
+    color: var(--text-bright);
+    transform: translate(-1px, -1px);
+  }
+
+  .depth-prompt {
+    font-weight: 700;
+    color: var(--text-dim);
+    transition: color var(--transition);
+  }
+
+  .depth-link:hover .depth-prompt {
+    color: var(--text-bright);
+  }
+
+  .depth-arrow {
+    transition: transform var(--transition);
+  }
+
+  .depth-link:hover .depth-arrow {
+    transform: translateX(3px);
+  }
+</style>
