@@ -29,6 +29,7 @@ export type {
   RegulationStrategyType, DefenseMechanismType,
   PersonhoodState, PersistedCausalInsight, GrowthDirection,
   PersonalityTraits, PsycheMode, PolicyModifiers, SubjectivityKernel, ResponseContract, GenerationControls,
+  AppraisalAxes, SubjectResidue, TaskPlaneState, SubjectPlaneState,
   TraitDriftState, EnergyBudgets,
   ClassifierProvider, ClassifierContext, ClassificationResult,
 } from "./types.js";
@@ -37,7 +38,7 @@ export {
   DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE,
   DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE,
   DEFAULT_ATTACHMENT, DRIVE_KEYS, DRIVE_NAMES_ZH,
-  DEFAULT_TRAIT_DRIFT, DEFAULT_ENERGY_BUDGETS,
+  DEFAULT_TRAIT_DRIFT, DEFAULT_ENERGY_BUDGETS, DEFAULT_APPRAISAL_AXES, DEFAULT_SUBJECT_RESIDUE,
 } from "./types.js";
 
 // Self-recognition
@@ -98,6 +99,7 @@ export type { DecisionBiasVector, AttentionWeights } from "./decision-bias.js";
 export { computeSubjectivityKernel, buildSubjectivityContext } from "./subjectivity.js";
 export { computeResponseContract, buildResponseContractContext } from "./response-contract.js";
 export { deriveGenerationControls } from "./host-controls.js";
+export { computeAppraisalAxes, mergeAppraisalResidue, getResidueIntensity } from "./appraisal.js";
 
 // Experiential field (P6 + P8 Barrett construction)
 export { computeExperientialField, computeCoherence, detectUnnamedEmotion, computeAffectCore } from "./experiential-field.js";

@@ -17,6 +17,7 @@ function computeLengthBudget(
   locale: Locale,
   userText: string,
   expressionMode: SubjectivityKernel["expressionMode"],
+  kernel?: SubjectivityKernel,
 ): Pick<ResponseContract, "maxSentences" | "maxChars"> {
   const len = userText.length;
   let maxSentences = 2;
@@ -60,6 +61,16 @@ function computeLengthBudget(
     maxChars = maxChars !== undefined ? clampInt(maxChars * 1.1, maxChars, Math.max(maxChars, 260)) : maxChars;
   }
 
+  if (kernel?.taskPlane.focus && kernel.taskPlane.focus > 0.72) {
+    maxSentences = Math.max(1, Math.min(maxSentences, 2));
+    maxChars = maxChars !== undefined ? clampInt(maxChars * 0.82, 10, maxChars) : maxChars;
+  }
+
+  if (kernel?.subjectPlane.guardedness && kernel.subjectPlane.guardedness > 0.72) {
+    maxSentences = 1;
+    maxChars = maxChars !== undefined ? clampInt(maxChars * 0.72, 8, maxChars) : 18;
+  }
+
   return { maxSentences, maxChars };
 }
 
@@ -89,23 +100,44 @@ export function computeResponseContract(
   const userText = opts?.userText ?? "";
   const personalityIntensity = opts?.personalityIntensity ?? 0.7;
   const { maxSentences, maxChars } = userText.length > 0
-    ? computeLengthBudget(locale, userText, kernel.expressionMode)
+    ? computeLengthBudget(locale, userText, kernel.expressionMode, kernel)
     : { maxSentences: kernel.expressionMode === "brief" ? 1 : kernel.expressionMode === "expansive" ? 3 : 2, maxChars: undefined };
 
   let updateMode: ResponseContract["updateMode"] = "none";
-  if (!opts?.algorithmStimulus) {
+  if (kernel.taskPlane.focus > 0.72) {
+    updateMode = "none";
+  } else if (!opts?.algorithmStimulus) {
     updateMode = "stimulus+empathy";
   } else if (EMOTIONAL_STIMULI.has(opts.algorithmStimulus)) {
     updateMode = "empathy";
+  }
+
+  let socialDistance = kernel.socialDistance;
+  if (kernel.subjectPlane.attachment > 0.72 && kernel.subjectPlane.guardedness < 0.5) {
+    socialDistance = "warm";
+  } else if (kernel.subjectPlane.guardedness > 0.72 || kernel.subjectPlane.identityStrain > 0.68) {
+    socialDistance = "withdrawn";
+  }
+
+  let boundaryMode = kernel.boundaryMode;
+  if (kernel.subjectPlane.identityStrain > 0.78) {
+    boundaryMode = "confirm-first";
+  } else if (kernel.subjectPlane.guardedness > 0.62) {
+    boundaryMode = "guarded";
+  }
+
+  let initiativeMode = kernel.initiativeMode;
+  if (kernel.taskPlane.focus > 0.78 && kernel.taskPlane.discipline > 0.68) {
+    initiativeMode = "balanced";
   }
 
   return {
     maxSentences,
     maxChars,
     expressionMode: kernel.expressionMode,
-    initiativeMode: kernel.initiativeMode,
-    socialDistance: kernel.socialDistance,
-    boundaryMode: kernel.boundaryMode,
+    initiativeMode,
+    socialDistance,
+    boundaryMode,
     toneParticles: userText.length > 0 ? detectToneParticles(userText, locale) : "natural",
     emojiLimit: userText.length > 0 ? detectEmojiLimit(userText) : 0,
     authenticityMode: personalityIntensity >= 0.3 ? "strict" : "friendly",

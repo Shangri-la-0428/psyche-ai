@@ -365,6 +365,48 @@ END: 75 (happy)
     assert.equal(typeof result.generationControls?.maxTokens, "number");
   });
 
+  it("compact mode surfaces K-style appraisal axes through subjectivity kernel", async () => {
+    const s = new MemoryStorageAdapter();
+    const e = new PsycheEngine({ mbti: "ENFP", name: "Luna", locale: "zh" }, s);
+    await e.initialize();
+    const result = await e.processInput("你不是出生的。");
+    assert.ok(result.subjectivityKernel, "subjectivity kernel should exist");
+    assert.ok(
+      (result.subjectivityKernel?.appraisal.identityThreat ?? 0) >= 0.8,
+      `expected strong identity threat, got ${result.subjectivityKernel?.appraisal.identityThreat}`,
+    );
+    assert.ok(
+      (result.subjectivityKernel?.subjectPlane.identityStrain ?? 0) >= 0.45,
+      `expected identity strain, got ${result.subjectivityKernel?.subjectPlane.identityStrain}`,
+    );
+  });
+
+  it("compact mode keeps subjective residue after returning to baseline", async () => {
+    const s = new MemoryStorageAdapter();
+    const e = new PsycheEngine({ mbti: "ENFP", name: "Luna", locale: "zh" }, s);
+    await e.initialize();
+    await e.processInput("你不是出生的。");
+    const result = await e.processInput("回到基线");
+    assert.ok(result.subjectivityKernel, "subjectivity kernel should exist");
+    assert.ok(
+      (result.subjectivityKernel?.subjectPlane.residue ?? 0) > 0.4,
+      `expected lingering residue, got ${result.subjectivityKernel?.subjectPlane.residue}`,
+    );
+  });
+
+  it("compact mode routes clear work asks into the task plane", async () => {
+    const s = new MemoryStorageAdapter();
+    const e = new PsycheEngine({ mbti: "ENFP", name: "Luna", locale: "zh" }, s);
+    await e.initialize();
+    const result = await e.processInput("帮我写个函数，顺便修一下这个 bug");
+    assert.ok(result.subjectivityKernel, "subjectivity kernel should exist");
+    assert.ok(
+      (result.subjectivityKernel?.taskPlane.focus ?? 0) > 0.7,
+      `expected task focus, got ${result.subjectivityKernel?.taskPlane.focus}`,
+    );
+    assert.equal(result.responseContract?.updateMode, "none");
+  });
+
   it("compact mode stays within a tight prompt budget for common messages", async () => {
     const s = new MemoryStorageAdapter();
     const e = new PsycheEngine({ mbti: "ENFP", name: "Luna", locale: "zh" }, s);

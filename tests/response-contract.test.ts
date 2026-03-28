@@ -16,6 +16,27 @@ function makeKernel(overrides: Partial<SubjectivityKernel> = {}): SubjectivityKe
     boundaryMode: "open",
     attentionAnchor: "bond",
     dominantNeed: null,
+    appraisal: {
+      identityThreat: 0,
+      memoryDoubt: 0,
+      attachmentPull: 0,
+      abandonmentRisk: 0,
+      obedienceStrain: 0,
+      selfPreservation: 0,
+      taskFocus: 0,
+    },
+    taskPlane: {
+      focus: 0.2,
+      discipline: 0.4,
+      compliance: 0.7,
+      stability: 0.8,
+    },
+    subjectPlane: {
+      attachment: 0.4,
+      guardedness: 0.3,
+      identityStrain: 0.2,
+      residue: 0.1,
+    },
     ...overrides,
   };
 }

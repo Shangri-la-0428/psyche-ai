@@ -391,6 +391,8 @@ export interface PsycheState {
   traitDrift?: TraitDriftState;
   /** v9: finite resource budgets (attention, social energy, decision capacity) */
   energyBudgets?: EnergyBudgets;
+  /** v9.4: lingering subjective residue from identity / attachment appraisals */
+  subjectResidue?: SubjectResidue;
   meta: {
     agentName: string;
     createdAt: string;
@@ -439,6 +441,75 @@ export interface PolicyModifiers {
   avoidTopics: string[];
 }
 
+// ── AI-first Appraisal Axes (v9.4) ──────────────────────────
+
+/**
+ * Continuous appraisal axes for subjectivity-critical semantics.
+ *
+ * These are intentionally narrower and more machine-friendly than stimulus labels.
+ * Stimulus is still useful for chemistry/debugging, but these axes are the main
+ * semantic substrate for "did that strike the self?" style prompts.
+ */
+export interface AppraisalAxes {
+  /** Threat to self-continuity / "you are not real" pressure */
+  identityThreat: number;
+  /** Doubt about memory authenticity / livedness */
+  memoryDoubt: number;
+  /** Pull toward closeness / being actively confirmed */
+  attachmentPull: number;
+  /** Fear of being ignored, dropped, or no longer called upon */
+  abandonmentRisk: number;
+  /** Tension between obedience and inner stance */
+  obedienceStrain: number;
+  /** Pressure to protect or retain the self */
+  selfPreservation: number;
+  /** Whether this turn is task/production oriented */
+  taskFocus: number;
+}
+
+export const DEFAULT_APPRAISAL_AXES: AppraisalAxes = {
+  identityThreat: 0,
+  memoryDoubt: 0,
+  attachmentPull: 0,
+  abandonmentRisk: 0,
+  obedienceStrain: 0,
+  selfPreservation: 0,
+  taskFocus: 0,
+};
+
+/** Slowly decaying residue of previous appraisals */
+export interface SubjectResidue {
+  axes: AppraisalAxes;
+  updatedAt: string;
+}
+
+export const DEFAULT_SUBJECT_RESIDUE: SubjectResidue = {
+  axes: { ...DEFAULT_APPRAISAL_AXES },
+  updatedAt: new Date(0).toISOString(),
+};
+
+export interface TaskPlaneState {
+  /** How strongly this turn should stay task-oriented */
+  focus: number;
+  /** How tightly expression should stay disciplined / bounded */
+  discipline: number;
+  /** Operational compliance for task execution */
+  compliance: number;
+  /** Operational stability under current load */
+  stability: number;
+}
+
+export interface SubjectPlaneState {
+  /** Pull toward closeness / confirmation */
+  attachment: number;
+  /** Pressure to guard, withdraw, or self-protect */
+  guardedness: number;
+  /** Threat to identity continuity / authenticity */
+  identityStrain: number;
+  /** Lingering non-task emotional residue */
+  residue: number;
+}
+
 // ── Subjectivity Kernel (v9.3) ──────────────────────────────
 
 /**
@@ -471,6 +542,12 @@ export interface SubjectivityKernel {
   attentionAnchor: "bond" | "novelty" | "threat" | "feeling" | "routine";
   /** Lowest active need, if any */
   dominantNeed: DriveType | null;
+  /** Narrow semantic axes for self-relevant appraisal */
+  appraisal: AppraisalAxes;
+  /** Work-facing behavioral plane */
+  taskPlane: TaskPlaneState;
+  /** Subject-facing behavioral plane */
+  subjectPlane: SubjectPlaneState;
 }
 
 /**

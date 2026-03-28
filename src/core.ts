@@ -13,7 +13,7 @@
 // ============================================================
 
 import type { PsycheState, StimulusType, Locale, MBTIType, ChemicalState, OutcomeScore, PsycheMode, PersonalityTraits, PolicyModifiers, ClassifierProvider, SubjectivityKernel, ResponseContract, GenerationControls } from "./types.js";
-import { DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE, DEFAULT_ENERGY_BUDGETS, DEFAULT_TRAIT_DRIFT } from "./types.js";
+import { DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE, DEFAULT_ENERGY_BUDGETS, DEFAULT_TRAIT_DRIFT, DEFAULT_SUBJECT_RESIDUE } from "./types.js";
 import type { StorageAdapter } from "./storage.js";
 import { MemoryStorageAdapter } from "./storage.js";
 import { applyDecay, applyStimulus, applyContagion, clamp, describeEmotionalState } from "./chemistry.js";
@@ -52,6 +52,7 @@ import {
 import { computeSubjectivityKernel, buildSubjectivityContext } from "./subjectivity.js";
 import { computeResponseContract, buildResponseContractContext } from "./response-contract.js";
 import { deriveGenerationControls } from "./host-controls.js";
+import { computeAppraisalAxes, mergeAppraisalResidue } from "./appraisal.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -502,6 +503,18 @@ export class PsycheEngine {
     energyBudgets = computeEnergyDepletion(energyBudgets, appliedStimulus, isExtravert);
     state = { ...state, energyBudgets };
 
+    const appraisalAxes = computeAppraisalAxes(text, {
+      mode: this.cfg.mode,
+      stimulus: appliedStimulus,
+    });
+    state = {
+      ...state,
+      subjectResidue: {
+        axes: mergeAppraisalResidue(state.subjectResidue?.axes, appraisalAxes, this.cfg.mode),
+        updatedAt: now.toISOString(),
+      },
+    };
+
     // Conversation warmth: sustained interaction → gentle DA/OT rise, CORT drop
     // Simulates the natural "warm glow" of being in continuous conversation
     const turnsSoFar = (state.emotionalHistory ?? []).length;
@@ -715,7 +728,7 @@ export class PsycheEngine {
 
     // v9: Compute structured policy modifiers
     const policyModifiers = computePolicyModifiers(state);
-    const subjectivityKernel = computeSubjectivityKernel(state, policyModifiers);
+    const subjectivityKernel = computeSubjectivityKernel(state, policyModifiers, appraisalAxes);
     const subjectivityCtx = buildSubjectivityContext(subjectivityKernel, locale);
     const responseContract = computeResponseContract(subjectivityKernel, {
       locale,
@@ -1107,6 +1120,10 @@ export class PsycheEngine {
       sessionStartedAt: now,
       traitDrift: { ...DEFAULT_TRAIT_DRIFT },
       energyBudgets: { ...DEFAULT_ENERGY_BUDGETS },
+      subjectResidue: {
+        axes: { ...DEFAULT_SUBJECT_RESIDUE.axes },
+        updatedAt: now,
+      },
       meta: {
         agentName: name,
         createdAt: now,
@@ -1136,6 +1153,10 @@ export class PsycheEngine {
       autonomicState: "ventral-vagal",
       sessionStartedAt: undefined,
       updatedAt: new Date().toISOString(),
+      subjectResidue: {
+        axes: { ...DEFAULT_SUBJECT_RESIDUE.axes },
+        updatedAt: new Date().toISOString(),
+      },
       relationships: opts?.preserveRelationships !== false
         ? state.relationships
         : { _default: { ...DEFAULT_RELATIONSHIP } },
