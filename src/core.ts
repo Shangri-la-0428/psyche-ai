@@ -38,7 +38,7 @@ import {
   predictChemistry, recordPrediction,
 } from "./learning.js";
 import { assessMetacognition, updateMetacognitiveState } from "./metacognition.js";
-import { buildDecisionContext, computePolicyModifiers, buildPolicyContext } from "./decision-bias.js";
+import { buildDecisionContext } from "./decision-bias.js";
 import { computeExperientialField, type ConstructionContext } from "./experiential-field.js";
 import { computeGenerativeSelf } from "./generative-self.js";
 import { updateSharedIntentionality, buildSharedIntentionalityContext } from "./shared-intentionality.js";
@@ -49,11 +49,8 @@ import {
   computePrimarySystems, computeSystemInteractions,
   gatePrimarySystemsByAutonomic, describeBehavioralTendencies,
 } from "./primary-systems.js";
-import { computeSubjectivityKernel, buildSubjectivityContext } from "./subjectivity.js";
-import { computeResponseContract, buildResponseContractContext } from "./response-contract.js";
-import { deriveGenerationControls } from "./host-controls.js";
-import { computeAppraisalAxes, mergeAppraisalResidue } from "./appraisal.js";
-import { computeRelationMove, evolveDyadicField, evolvePendingRelationSignals } from "./relation-dynamics.js";
+import { applyRelationalTurn } from "./relation-dynamics.js";
+import { deriveReplyEnvelope } from "./reply-envelope.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -516,52 +513,18 @@ export class PsycheEngine {
     energyBudgets = computeEnergyDepletion(energyBudgets, appliedStimulus, isExtravert);
     state = { ...state, energyBudgets };
 
-    const appraisalAxes = computeAppraisalAxes(text, {
-      mode: this.cfg.mode,
-      stimulus: appliedStimulus,
-      previous: state.subjectResidue?.axes,
-    });
-    state = {
-      ...state,
-      subjectResidue: {
-        axes: mergeAppraisalResidue(state.subjectResidue?.axes, appraisalAxes, this.cfg.mode),
-        updatedAt: now.toISOString(),
+    const relationalTurn = applyRelationalTurn(
+      state,
+      text,
+      {
+        mode: this.cfg.mode,
+        now: now.toISOString(),
+        stimulus: appliedStimulus,
+        userId: opts?.userId,
       },
-    };
-    const dyadKey = opts?.userId ?? "_default";
-    const relationMove = computeRelationMove(text, {
-      appraisal: appraisalAxes,
-      stimulus: appliedStimulus,
-      mode: this.cfg.mode,
-      field: state.dyadicFields?.[dyadKey],
-      relationship: state.relationships[dyadKey] ?? state.relationships._default,
-    });
-    const delayedRelation = evolvePendingRelationSignals(
-      state.pendingRelationSignals?.[dyadKey],
-      relationMove,
-      appraisalAxes,
-      { mode: this.cfg.mode },
     );
-    state = {
-      ...state,
-      dyadicFields: {
-        ...(state.dyadicFields ?? {}),
-        [dyadKey]: evolveDyadicField(
-          state.dyadicFields?.[dyadKey],
-          relationMove,
-          appraisalAxes,
-          {
-            mode: this.cfg.mode,
-            now: now.toISOString(),
-            delayedPressure: delayedRelation.delayedPressure,
-          },
-        ),
-      },
-      pendingRelationSignals: {
-        ...(state.pendingRelationSignals ?? {}),
-        [dyadKey]: delayedRelation.signals,
-      },
-    };
+    state = relationalTurn.state;
+    const appraisalAxes = relationalTurn.appraisalAxes;
 
     // Conversation warmth: sustained interaction → gentle DA/OT rise, CORT drop
     // Simulates the natural "warm glow" of being in continuous conversation
@@ -690,7 +653,7 @@ export class PsycheEngine {
     const constructionContext: ConstructionContext = {
       autonomicState: autonomicResult.state,
       stimulus: appliedStimulus,
-      relationshipPhase: (state.relationships._default ?? state.relationships[Object.keys(state.relationships)[0]])?.phase,
+      relationshipPhase: relationalTurn.relationContext.relationship.phase,
       predictionError: state.learning.predictionHistory.length > 0
         ? state.learning.predictionHistory[state.learning.predictionHistory.length - 1].predictionError
         : undefined,
@@ -790,20 +753,12 @@ export class PsycheEngine {
     const experientialNarrative = experientialField?.narrative || undefined;
 
     // v9: Compute structured policy modifiers
-    const policyModifiers = computePolicyModifiers(state);
-    const subjectivityKernel = computeSubjectivityKernel(state, policyModifiers, appraisalAxes, opts?.userId);
-    const subjectivityCtx = buildSubjectivityContext(subjectivityKernel, locale);
-    const responseContract = computeResponseContract(subjectivityKernel, {
+    const replyEnvelope = deriveReplyEnvelope(state, appraisalAxes, {
       locale,
       userText: text || undefined,
       algorithmStimulus: appliedStimulus,
       personalityIntensity: this.cfg.personalityIntensity,
-    });
-    const responseContractCtx = buildResponseContractContext(responseContract, locale);
-    const policyCtx = buildPolicyContext(policyModifiers, locale, state.drives);
-    const generationControls = deriveGenerationControls({
-      responseContract,
-      policyModifiers,
+      relationContext: relationalTurn.relationContext,
     });
 
     // P10: Append processing depth info to autonomic description when depth is low
@@ -833,16 +788,16 @@ export class PsycheEngine {
           autonomicDescription: autonomicDesc,
           autonomicState: autonomicResult.state,
           primarySystemsDescription: primarySystemsDescription || undefined,
-          subjectivityContext: subjectivityCtx,
-          responseContractContext: responseContractCtx,
-          policyContext: policyCtx || undefined,
+          subjectivityContext: replyEnvelope.subjectivityContext,
+          responseContractContext: replyEnvelope.responseContractContext,
+          policyContext: replyEnvelope.policyContext || undefined,
         }),
         stimulus: appliedStimulus,
-        policyModifiers,
-        subjectivityKernel,
-        responseContract,
-        generationControls,
-        policyContext: policyCtx,
+        policyModifiers: replyEnvelope.policyModifiers,
+        subjectivityKernel: replyEnvelope.subjectivityKernel,
+        responseContract: replyEnvelope.responseContract,
+        generationControls: replyEnvelope.generationControls,
+        policyContext: replyEnvelope.policyContext,
       };
     }
 
@@ -857,14 +812,14 @@ export class PsycheEngine {
         autonomicDescription: autonomicDesc,
         autonomicState: autonomicResult.state,
         primarySystemsDescription: primarySystemsDescription || undefined,
-        policyContext: policyCtx || undefined,
+        policyContext: replyEnvelope.policyContext || undefined,
       }),
       stimulus: appliedStimulus,
-      policyModifiers,
-      subjectivityKernel,
-      responseContract,
-      generationControls,
-      policyContext: policyCtx,
+      policyModifiers: replyEnvelope.policyModifiers,
+      subjectivityKernel: replyEnvelope.subjectivityKernel,
+      responseContract: replyEnvelope.responseContract,
+      generationControls: replyEnvelope.generationControls,
+      policyContext: replyEnvelope.policyContext,
     };
   }
 

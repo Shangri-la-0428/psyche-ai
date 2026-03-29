@@ -1,5 +1,14 @@
 # 更新日志 / Changelog
 
+## Unreleased — 热路径收口
+
+- **关系视角统一解析**：新增 `ResolvedRelationContext`，每轮只解析一次当前关系、dyadic field 和 pending signals。
+- **关系态跃迁节点**：`applyRelationalTurn()` 把 appraisal carry、relation move、dyadic field 和 delayed signal 更新收成一个纯函数步骤。
+- **统一回复控制面**：新增 `ReplyEnvelope`，把 `SubjectivityKernel`、`ResponseContract`、`GenerationControls` 的导出收口到一个地方。
+- **不损失性能**：本地 quick benchmark 维持毫秒级热路径，`processInput()` 约 `p50 0.191ms / p95 1.05ms`。
+
+---
+
 ## v9.2.5 — 自适应回应闭环 + 清理
 
 - **双回应 profile**：`ResponseContract` 现在区分 `work` / `private`，工作面不再被私人模式的短句克制误伤。

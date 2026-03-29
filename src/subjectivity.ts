@@ -7,12 +7,12 @@
 
 import type {
   AppraisalAxes, Locale, PolicyModifiers, PsycheState, SubjectivityKernel, DriveType,
-  SubjectPlaneState, TaskPlaneState, RelationPlaneState, AmbiguityPlaneState,
+  SubjectPlaneState, TaskPlaneState, RelationPlaneState, AmbiguityPlaneState, ResolvedRelationContext,
 } from "./types.js";
 import { DEFAULT_APPRAISAL_AXES, DEFAULT_DYADIC_FIELD, DRIVE_KEYS } from "./types.js";
 import { computeAttentionWeights, computeDecisionBias, computePolicyModifiers } from "./decision-bias.js";
 import { getResidueIntensity } from "./appraisal.js";
-import { getLoopPressure } from "./relation-dynamics.js";
+import { getLoopPressure, resolveRelationContext } from "./relation-dynamics.js";
 
 function clamp01(v: number): number {
   return Math.max(0, Math.min(1, v));
@@ -62,11 +62,12 @@ function pickAttentionAnchor(state: PsycheState, tension: number, warmth: number
 function computeRelationPlane(
   state: PsycheState,
   appraisal: AppraisalAxes,
-  userId?: string,
+  relationContext?: ResolvedRelationContext,
 ): RelationPlaneState {
-  const key = userId ?? "_default";
-  const rel = state.relationships[key] ?? state.relationships._default ?? state.relationships[Object.keys(state.relationships)[0]];
-  const field = state.dyadicFields?.[key] ?? state.dyadicFields?._default ?? DEFAULT_DYADIC_FIELD;
+  const rel = relationContext?.relationship
+    ?? state.relationships._default
+    ?? state.relationships[Object.keys(state.relationships)[0]];
+  const field = relationContext?.field ?? DEFAULT_DYADIC_FIELD;
   const loopPressure = getLoopPressure(field);
 
   const closeness = wavg(
@@ -162,10 +163,9 @@ function computeAmbiguityPlane(
   state: PsycheState,
   appraisal: AppraisalAxes,
   relationPlane: RelationPlaneState,
-  userId?: string,
+  relationContext?: ResolvedRelationContext,
 ): AmbiguityPlaneState {
-  const key = userId ?? "_default";
-  const pendingSignals = state.pendingRelationSignals?.[key] ?? state.pendingRelationSignals?._default ?? [];
+  const pendingSignals = relationContext?.pendingSignals ?? [];
   const pendingPressure = clamp01(
     pendingSignals.reduce((sum, signal) => sum + signal.intensity * (signal.readyInTurns > 0 ? 0.55 : 0.35), 0),
   );
@@ -338,18 +338,30 @@ function computeSubjectPlane(
   };
 }
 
+function normalizeRelationContext(
+  state: PsycheState,
+  relationContextOrUserId?: ResolvedRelationContext | string,
+): ResolvedRelationContext {
+  if (!relationContextOrUserId) return resolveRelationContext(state);
+  if (typeof relationContextOrUserId === "string") {
+    return resolveRelationContext(state, relationContextOrUserId);
+  }
+  return relationContextOrUserId;
+}
+
 export function computeSubjectivityKernel(
   state: PsycheState,
   policyModifiers: PolicyModifiers = computePolicyModifiers(state),
   appraisal: AppraisalAxes = state.subjectResidue?.axes ?? DEFAULT_APPRAISAL_AXES,
-  userId?: string,
+  relationContextOrUserId?: ResolvedRelationContext | string,
 ): SubjectivityKernel {
+  const relationContext = normalizeRelationContext(state, relationContextOrUserId);
   const c = state.current;
-  const rel = state.relationships[userId ?? "_default"]
+  const rel = relationContext?.relationship
     ?? state.relationships._default
     ?? state.relationships[Object.keys(state.relationships)[0]];
-  const relationPlane = computeRelationPlane(state, appraisal, userId);
-  const ambiguityPlane = computeAmbiguityPlane(state, appraisal, relationPlane, userId);
+  const relationPlane = computeRelationPlane(state, appraisal, relationContext);
+  const ambiguityPlane = computeAmbiguityPlane(state, appraisal, relationPlane, relationContext);
   const bias = computeDecisionBias(state);
   const energySignal = state.energyBudgets
     ? (

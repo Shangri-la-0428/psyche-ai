@@ -164,6 +164,13 @@ On top of persistent subjective bias, Psyche now adds a more usable regulation l
 
 This moves Psyche closer to an adaptive system: not just an engine with inner state, but one that can separate work from intimacy, regulate itself, and assess whether that regulation is actually helping.
 
+Internally, the hot path is now compressed into two clearer nodes:
+
+- **ResolvedRelationContext**: resolve the active dyadic view once per turn instead of repeating lookups across `core`, `subjectivity`, and relation logic
+- **ReplyEnvelope**: export `SubjectivityKernel`, `ResponseContract`, and `GenerationControls` through one stable host-facing surface
+
+The point is not extra abstraction. It is less scattered orchestration and a more stable behavioral ABI for hosts.
+
 ---
 
 ## MCP — Any AI Can Discover Psyche

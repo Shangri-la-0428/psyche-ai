@@ -599,6 +599,14 @@ export interface DyadicFieldState {
   updatedAt: string;
 }
 
+/** Resolved per-partner view used across the hot path */
+export interface ResolvedRelationContext {
+  key: string;
+  relationship: RelationshipState;
+  field: DyadicFieldState;
+  pendingSignals: PendingRelationSignalState[];
+}
+
 export const DEFAULT_DYADIC_FIELD: DyadicFieldState = {
   perceivedCloseness: 0.42,
   feltSafety: 0.56,

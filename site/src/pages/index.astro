@@ -403,11 +403,11 @@ import DepthLink from '../components/DepthLink.astro';
     <section class="stats-section">
       <div class="stat-grid">
         <div class="stat-cell">
-          <span class="stat-value">1,256</span>
+          <span class="stat-value">1,291</span>
           <span class="stat-label">tests</span>
         </div>
         <div class="stat-cell">
-          <span class="stat-value">v9.2.3</span>
+          <span class="stat-value">v9.2.5</span>
           <span class="stat-label">
             <span class="cn">当前版本</span>
             <span class="en">current</span>
@@ -787,7 +787,7 @@ import DepthLink from '../components/DepthLink.astro';
 
   function countUp(el) {
     var raw = el.textContent.trim();
-    // Parse: "1,256" → 1256, "v9.2.3" → skip, "0" → 0, "14" → 14
+    // Parse: "1,291" → 1291, "v9.2.5" → skip, "0" → 0, "14" → 14
     if (raw.indexOf('v') !== -1) return; // skip version strings
     var target = parseInt(raw.replace(/,/g, ''), 10);
     if (isNaN(target)) return;

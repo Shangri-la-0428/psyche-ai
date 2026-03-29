@@ -9,7 +9,9 @@ import type {
   PendingRelationSignalState,
   AppraisalAxes,
   DyadicFieldState,
+  PsycheState,
   RelationshipState,
+  ResolvedRelationContext,
   OpenLoopState,
   OpenLoopType,
   PsycheMode,
@@ -17,7 +19,8 @@ import type {
   RelationMoveType,
   StimulusType,
 } from "./types.js";
-import { DEFAULT_DYADIC_FIELD } from "./types.js";
+import { DEFAULT_DYADIC_FIELD, DEFAULT_RELATIONSHIP } from "./types.js";
+import { computeAppraisalAxes, mergeAppraisalResidue } from "./appraisal.js";
 
 interface MoveRule {
   type: Exclude<RelationMoveType, "none" | "task">;
@@ -312,6 +315,104 @@ export function computeRelationMove(
   }
 
   return { type, intensity: score };
+}
+
+export function resolveRelationContext(
+  state: PsycheState,
+  userId?: string,
+): ResolvedRelationContext {
+  const key = userId ?? "_default";
+  const relationship = state.relationships[key]
+    ?? state.relationships._default
+    ?? state.relationships[Object.keys(state.relationships)[0]]
+    ?? DEFAULT_RELATIONSHIP;
+  const field = state.dyadicFields?.[key]
+    ?? state.dyadicFields?._default
+    ?? DEFAULT_DYADIC_FIELD;
+  const pendingSignals = state.pendingRelationSignals?.[key]
+    ?? state.pendingRelationSignals?._default
+    ?? [];
+
+  return {
+    key,
+    relationship,
+    field,
+    pendingSignals,
+  };
+}
+
+export function applyRelationalTurn(
+  state: PsycheState,
+  text: string,
+  opts: {
+    mode?: PsycheMode;
+    now?: string;
+    stimulus?: StimulusType | null;
+    userId?: string;
+  },
+): {
+  state: PsycheState;
+  appraisalAxes: AppraisalAxes;
+  relationMove: RelationMove;
+  delayedPressure: number;
+  relationContext: ResolvedRelationContext;
+} {
+  const now = opts.now ?? new Date().toISOString();
+  const relationContext = resolveRelationContext(state, opts.userId);
+  const appraisalAxes = computeAppraisalAxes(text, {
+    mode: opts.mode,
+    stimulus: opts.stimulus,
+    previous: state.subjectResidue?.axes,
+  });
+  const relationMove = computeRelationMove(text, {
+    appraisal: appraisalAxes,
+    stimulus: opts.stimulus,
+    mode: opts.mode,
+    field: relationContext.field,
+    relationship: relationContext.relationship,
+  });
+  const delayedRelation = evolvePendingRelationSignals(
+    relationContext.pendingSignals,
+    relationMove,
+    appraisalAxes,
+    { mode: opts.mode },
+  );
+  const field = evolveDyadicField(
+    relationContext.field,
+    relationMove,
+    appraisalAxes,
+    {
+      mode: opts.mode,
+      now,
+      delayedPressure: delayedRelation.delayedPressure,
+    },
+  );
+
+  return {
+    state: {
+      ...state,
+      subjectResidue: {
+        axes: mergeAppraisalResidue(state.subjectResidue?.axes, appraisalAxes, opts.mode),
+        updatedAt: now,
+      },
+      dyadicFields: {
+        ...(state.dyadicFields ?? {}),
+        [relationContext.key]: field,
+      },
+      pendingRelationSignals: {
+        ...(state.pendingRelationSignals ?? {}),
+        [relationContext.key]: delayedRelation.signals,
+      },
+    },
+    appraisalAxes,
+    relationMove,
+    delayedPressure: delayedRelation.delayedPressure,
+    relationContext: {
+      ...relationContext,
+      field,
+      pendingSignals: delayedRelation.signals,
+    },
+  };
 }
 
 export function evolveDyadicField(
