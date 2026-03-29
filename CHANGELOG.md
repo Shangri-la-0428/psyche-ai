@@ -17,7 +17,7 @@
 
 - 新增 19 个边界测试：纯标点输入、超长消息、纯 emoji、混合中英文、空白字符串、自定义 ClassifierProvider、LLM 容错、能量预算下限、特质漂移累积器上限、习惯化边界、dorsal-vagal 策略最小化
 - 修正 README badge 测试数（622→1189）
-- 统一英文 README 为 README_EN.md，删除旧 README.en.md
+- 统一英文 README 为 README_EN.md，旧 `README.en.md` 退化为兼容指针页
 
 **测试：1189 个，0 失败**
 

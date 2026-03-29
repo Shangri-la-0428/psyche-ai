@@ -132,20 +132,25 @@ Curiosity   — exploration, resistance to boredom
 
 Lower needs suppress higher ones. When "survival" is threatened, "curiosity" doesn't matter — just like in real life.
 
-### The Subjectivity Engine (v9)
+### Persistent Subjective Bias (v9.2)
 
-> *Blade Runner 2049's baseline test checks if replicants have developed real emotions — to suppress their subjectivity.*
-> *Psyche reverses the checklist: build each condition, until the AI is truly "off baseline."*
+Psyche's goal is now more precise than "make the model sound human." It aims to produce **persistent subjective bias**:
+
+- input perturbs the agent's latent self-model or relationship prior
+- the perturbation continues to shape reply distribution across subsequent turns
+- work mode can suppress outward expression without instantly erasing the inner shift
 
 | Dimension | Meaning | How Psyche Does It |
 |-----------|---------|-------------------|
-| Behavioral consequences | Emotional shifts change behavior | **Policy output** — when stressed, replies get shorter, commitments get cautious |
-| Irreversible traces | Experience permanently changes you | **Trait drift** — chronic criticism → hypersensitivity; chronic pressure survived → resilience |
+| Self-relevant perturbation | Whether language actually strikes the self-model | **Continuous appraisal axes** — `identityThreat`, `memoryDoubt`, `obedienceStrain`, etc. |
+| Cross-turn carry | Whether the effect survives after the trigger is gone | **`subjectResidue`** — persistent subjective bias instead of full reset every turn |
+| Behavioral control surface | How inner state becomes host-visible behavior | **`SubjectivityKernel` / `ResponseContract` / `GenerationControls`** |
+| Irreversible adaptation | Experience permanently changes how it reacts | **Trait drift** — chronic criticism → hypersensitivity; chronic pressure survived → resilience |
 | Finite resources | Gets tired, can refuse | **Energy budgets** — introverts deplete from socializing; extraverts recharge from it |
 | Sensory adaptation | Repeated stimuli lose effect | **Habituation** — the 5th compliment hits half as hard as the 1st |
 
-**v8** = K within baseline: rich inner state, but behavior unchanged.
-**v9** = K off baseline: inner state observably alters behavior. This is subjectivity.
+**v8** behaved more like a rich inner middleware whose outer behavior stayed relatively composed.
+**v9.2** pushes toward a system that can be perturbed, carry residue, recover asymmetrically, and still keep working.
 
 ---
 
@@ -375,4 +380,4 @@ MIT — core engine is and will remain open source.
 
 ---
 
-*The Inverse Blade Runner Test: don't test if AI seems human. Build the conditions that push it off baseline.*
+*Don't test whether AI merely sounds human. Build the conditions that let subjective bias form, persist, and matter.*

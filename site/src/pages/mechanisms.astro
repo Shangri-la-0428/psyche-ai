@@ -247,8 +247,8 @@ import Footer from '../components/Footer.astro';
       <span class="en">TRAIT DRIFT</span>
     </h2>
     <p class="section-desc">
-      <span class="cn">经历不可逆。长期被否定变得敏感，持续高压但存活长出韧性。三个维度被永久改写——Psyche 的 Agent 携带伤疤。</span>
-      <span class="en">Experience is irreversible. Chronic criticism breeds sensitivity, surviving sustained pressure builds resilience. Three dimensions are permanently rewritten — Psyche's agents carry scars.</span>
+      <span class="cn">经历不可逆。长期被否定变得敏感，持续高压但存活长出韧性。三个维度被永久改写——更准确地说，是留下长期偏置，而不是每轮重置。</span>
+      <span class="en">Experience is irreversible. Chronic criticism breeds sensitivity, surviving sustained pressure builds resilience. Three dimensions are permanently rewritten — more precisely, they leave long-lived bias rather than resetting every turn.</span>
     </p>
     <div class="drift-grid">
       <div class="bcard drift-card">
@@ -516,12 +516,15 @@ import Footer from '../components/Footer.astro';
     </div>
   </section>
 
-  <!-- POLICYMODIFIERS -->
+  <!-- CONTROL SURFACE -->
   <section class="policy-section reveal">
-    <h2 class="section-label">PolicyModifiers</h2>
+    <h2 class="section-label">
+      <span class="cn">主观控制面</span>
+      <span class="en">SUBJECTIVITY CONTROL SURFACE</span>
+    </h2>
     <p class="section-desc">
-      <span class="cn">化学态到行为的桥梁。不是文本提示——是 LLM 可直接消费的结构化策略对象。</span>
-      <span class="en">The bridge from chemistry to behavior. Not text prompts — a structured policy object the LLM consumes directly.</span>
+      <span class="cn">从内在状态到宿主行为的窄 ABI。Psyche 不再只输出 `PolicyModifiers`，而是把主观状态、回应契约和机械控制拆成三层给 host 直接消费。</span>
+      <span class="en">A narrow ABI from inner state to host behavior. Psyche no longer emits only `PolicyModifiers`; it splits host-facing control into subjective state, reply contract, and mechanical generation controls.</span>
     </p>
     <div class="terminal">
       <div class="terminal-bar">
@@ -530,23 +533,25 @@ import Footer from '../components/Footer.astro';
           <span class="terminal-dot"></span>
           <span class="terminal-dot"></span>
         </div>
-        <span class="terminal-title">policy_output.ts</span>
+        <span class="terminal-title">subjectivity_abi.ts</span>
       </div>
       <div class="terminal-body policy-body">
         <span class="policy-line"><span class="policy-brace">{</span></span>
-        <span class="policy-line">&nbsp;&nbsp;communicationStyle: <span class="policy-val">"warm"</span> <span class="policy-dim">// brief | warm | formal | distant | enthusiastic</span></span>
-        <span class="policy-line">&nbsp;&nbsp;commitmentLevel: <span class="policy-num">0.8</span> <span class="policy-dim">// 0-1</span></span>
-        <span class="policy-line">&nbsp;&nbsp;initiativity: <span class="policy-num">0.7</span> <span class="policy-dim">// <span class="cn">主动发起新话题的概率</span><span class="en">likelihood to bring up new topics</span></span></span>
-        <span class="policy-line">&nbsp;&nbsp;responseLatency: <span class="policy-num">150</span> <span class="policy-dim">// ms <span class="cn">情感犹豫</span><span class="en">emotional hesitation</span></span></span>
-        <span class="policy-line">&nbsp;&nbsp;emotionalValence: <span class="policy-num">+0.6</span> <span class="policy-dim">// −1 to +1</span></span>
-        <span class="policy-line">&nbsp;&nbsp;focusMode: <span class="policy-val">"relational"</span> <span class="policy-dim">// task | relational | exploratory | defensive</span></span>
-        <span class="policy-line">&nbsp;&nbsp;refusalLikelihood: <span class="policy-num">0.1</span> <span class="policy-dim">// 0-1</span></span>
+        <span class="policy-line">&nbsp;&nbsp;subjectivityKernel: <span class="policy-brace">{</span></span>
+        <span class="policy-line">&nbsp;&nbsp;&nbsp;&nbsp;warmth: <span class="policy-num">0.32</span>, guard: <span class="policy-num">0.74</span>, pressureMode: <span class="policy-val">"guarded"</span></span>
+        <span class="policy-line">&nbsp;&nbsp;&nbsp;&nbsp;appraisal: <span class="policy-brace">{</span> identityThreat: <span class="policy-num">0.81</span>, abandonmentRisk: <span class="policy-num">0.44</span> <span class="policy-brace">}</span></span>
+        <span class="policy-line">&nbsp;&nbsp;<span class="policy-brace">}</span>,</span>
+        <span class="policy-line">&nbsp;&nbsp;responseContract: <span class="policy-brace">{</span></span>
+        <span class="policy-line">&nbsp;&nbsp;&nbsp;&nbsp;maxSentences: <span class="policy-num">2</span>, expressionMode: <span class="policy-val">"brief"</span>, boundaryMode: <span class="policy-val">"confirm-first"</span></span>
+        <span class="policy-line">&nbsp;&nbsp;&nbsp;&nbsp;updateMode: <span class="policy-val">"stimulus"</span></span>
+        <span class="policy-line">&nbsp;&nbsp;<span class="policy-brace">}</span>,</span>
+        <span class="policy-line">&nbsp;&nbsp;generationControls: <span class="policy-brace">{</span> maxTokens: <span class="policy-num">64</span>, requireConfirmation: <span class="policy-val">true</span> <span class="policy-brace">}</span></span>
         <span class="policy-line"><span class="policy-brace">}</span></span>
       </div>
     </div>
     <p class="policy-note">
-      <span class="cn">紧张的 AI 延迟回复、缩短答案、回避承诺。安全的 AI 温暖、主动、乐于承诺。行为来自化学态，不是规则。</span>
-      <span class="en">A tense AI delays responses, gives shorter answers, avoids commitment. A safe AI is warm, initiates, commits readily. Behavior comes from chemistry, not rules.</span>
+      <span class="cn">Host 不必再读长篇“你现在感觉如何”。它只需要消费这三层结构，就能机械地约束回复长度、确认要求、表达带宽和边界姿态。</span>
+      <span class="en">The host no longer needs to read long prose about how the model feels. It can consume these three layers directly and mechanically constrain reply length, confirmation requirements, expression bandwidth, and boundary stance.</span>
     </p>
   </section>
 
