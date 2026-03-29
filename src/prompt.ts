@@ -883,18 +883,21 @@ export function buildCompactContext(
   }
 
   // 5. Agency (compact)
-  const agencyParts: string[] = [];
-  if (selfModel.values.length > 0) {
-    agencyParts.push(locale === "zh"
-      ? `你在乎: ${selfModel.values.slice(0, 2).join("、")}`
-      : `You care about: ${selfModel.values.slice(0, 2).join(", ")}`);
+  const shouldInjectAgency = !opts?.responseContractContext || agreementStreak >= 3 || meta.totalInteractions <= 1;
+  if (shouldInjectAgency) {
+    const agencyParts: string[] = [];
+    if (selfModel.values.length > 0) {
+      agencyParts.push(locale === "zh"
+        ? `你在乎: ${selfModel.values.slice(0, 2).join("、")}`
+        : `You care about: ${selfModel.values.slice(0, 2).join(", ")}`);
+    }
+    if (selfModel.boundaries.length > 0) {
+      agencyParts.push(locale === "zh"
+        ? `底线: ${selfModel.boundaries[0]}`
+        : `Line: ${selfModel.boundaries[0]}`);
+    }
+    if (agencyParts.length > 0) parts.push(agencyParts.join(" | "));
   }
-  if (selfModel.boundaries.length > 0) {
-    agencyParts.push(locale === "zh"
-      ? `底线: ${selfModel.boundaries[0]}`
-      : `Line: ${selfModel.boundaries[0]}`);
-  }
-  if (agencyParts.length > 0) parts.push(agencyParts.join(" | "));
 
   // 6. Sycophancy streak warning
   if (agreementStreak >= 3) {

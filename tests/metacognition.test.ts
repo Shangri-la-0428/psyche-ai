@@ -235,6 +235,8 @@ describe("generateRegulationSuggestions", () => {
       (soothing!.chemistryAdjustment!.CORT ?? 0) < 0,
       "CORT adjustment should be negative to pull toward baseline",
     );
+    assert.match(soothing!.description, /normal 20-55/);
+    assert.match(soothing!.action, /Next 3 turns:/);
   });
 
   it("reappraisal suggested when stimulus has historically been misinterpreted", () => {
@@ -286,6 +288,18 @@ describe("generateRegulationSuggestions", () => {
       hasStrategic,
       "should suggest strategic expression when confidence is very low",
     );
+  });
+
+  it("reappraisal and strategic suggestions expose concrete actions", () => {
+    const outcomes = [
+      makeOutcome("criticism", -0.5, 1),
+      makeOutcome("criticism", -0.6, 2),
+      makeOutcome("criticism", -0.4, 3),
+    ];
+    const state = makeState();
+    const suggestions = generateRegulationSuggestions(state, "criticism", 0.2, outcomes);
+    assert.ok(suggestions.every((suggestion) => suggestion.action.length > 0));
+    assert.ok(suggestions.every((suggestion) => (suggestion.horizonTurns ?? 0) >= 2));
   });
 
   it("no suggestions when state is near baseline and confidence is normal", () => {

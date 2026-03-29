@@ -18,7 +18,7 @@ import type {
   OutcomeScore, MetacognitiveState,
   RegulationStrategyType, DefenseMechanismType,
 } from "./types.js";
-import { CHEMICAL_KEYS, MAX_REGULATION_HISTORY, MAX_DEFENSE_PATTERNS } from "./types.js";
+import { CHEMICAL_KEYS, CHEMICAL_NAMES, CHEMICAL_RUNTIME_SPECS, MAX_REGULATION_HISTORY, MAX_DEFENSE_PATTERNS } from "./types.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -36,6 +36,10 @@ export interface MetacognitiveAssessment {
 export interface RegulationSuggestion {
   strategy: RegulationStrategyType;
   description: string;
+  /** Concrete behavioral instruction for the next few turns */
+  action: string;
+  /** How many turns this action should stay active */
+  horizonTurns?: number;
   /** Suggested micro-adjustment to chemistry */
   chemistryAdjustment?: Partial<ChemicalState>;
   /** 0-1: confidence that this strategy would help */
@@ -75,6 +79,52 @@ const MAX_SOOTHING_ADJUSTMENT = 5;
 
 /** Maximum chemistry micro-adjustment for reappraisal */
 const MAX_REAPPRAISAL_ADJUSTMENT = 8;
+
+function formatChemicalWindow(
+  key: keyof ChemicalState,
+  state: PsycheState,
+): string {
+  const spec = CHEMICAL_RUNTIME_SPECS[key];
+  const current = Math.round(state.current[key]);
+  const baseline = Math.round(state.baseline[key]);
+  const delta = Math.round(state.current[key] - state.baseline[key]);
+  return `${CHEMICAL_NAMES[key]} ${current} (baseline ${baseline}, Δ${delta >= 0 ? "+" : ""}${delta}, normal ${spec.normalMin}-${spec.normalMax}, half-life ~${spec.halfLifeHours.toFixed(1)}h)`;
+}
+
+function buildRegulationAction(
+  key: keyof ChemicalState,
+  state: PsycheState,
+  direction: "elevated" | "depleted",
+): string {
+  switch (key) {
+    case "CORT":
+      return direction === "elevated"
+        ? "Next 3 turns: lower tone intensity, facts before stance, and do not escalate closeness or conflict."
+        : "Next 3 turns: keep structure and certainty steady instead of sounding depleted or helpless.";
+    case "OT":
+      return direction === "elevated"
+        ? "Next 3 turns: reduce intimacy push by half, avoid nicknames or extra reassurance, keep warmth neutral."
+        : "Next 3 turns: do not force closeness; keep warmth gentle but wait for the user to move closer first.";
+    case "NE":
+      return direction === "elevated"
+        ? "Next 3 turns: halve initiative, stay on one topic, and avoid energetic jumps or rapid escalation."
+        : "Next 3 turns: keep replies focused and deliberate rather than drifting or going blank.";
+    case "DA":
+      return direction === "elevated"
+        ? "Next 3 turns: cut playful expansion and stay task-anchored; do not over-volunteer or overshare."
+        : "Next 3 turns: keep replies purposeful and avoid sounding flat or disengaged.";
+    case "END":
+      return direction === "elevated"
+        ? "Next 3 turns: tone down joking and levity; keep humor secondary to the user's actual need."
+        : "Next 3 turns: do not chase comfort or easy banter; keep the exchange clean and direct.";
+    case "HT":
+      return direction === "elevated"
+        ? "Next 3 turns: keep composure, but do not over-smooth or pretend everything is settled."
+        : "Next 3 turns: avoid absolutist wording, leave room for recalibration, and keep the tone even.";
+    default:
+      return "Next 3 turns: keep expression closer to baseline and avoid amplifying the current deviation.";
+  }
+}
 
 // ── Main Export ──────────────────────────────────────────────
 
@@ -317,6 +367,8 @@ function attemptCognitiveReappraisal(
     description: isNegStimulus
       ? `Past reactions to "${currentStimulus}" have not served well (avg outcome: ${avgScore.toFixed(2)}). Consider that this stimulus may not warrant such a strong defensive response.`
       : `Emotional reactions to "${currentStimulus}" have led to poor outcomes (avg: ${avgScore.toFixed(2)}). The current interpretation may be overamplifying the signal.`,
+    action: `Next 2 turns: name less certainty, keep distance measured, and leave room to revise the read instead of locking into the first interpretation.`,
+    horizonTurns: 2,
     chemistryAdjustment: hasAdjustment ? adjustment : undefined,
     confidence: clamp01(Math.abs(avgScore) * (1 - emotionalConfidence)),
   };
@@ -342,6 +394,8 @@ function attemptStrategicExpression(
     return {
       strategy: "strategic-expression",
       description: "Stress is elevated, but the user is showing vulnerability. Express warmth and openness rather than the defensiveness your cortisol suggests.",
+      action: "Next 3 turns: keep warmth available, answer the vulnerability directly, and avoid defensive sharpness.",
+      horizonTurns: 3,
       chemistryAdjustment: {
         OT: Math.min(MAX_REAPPRAISAL_ADJUSTMENT, (current.CORT - baseline.CORT) * 0.2),
         CORT: -Math.min(MAX_REAPPRAISAL_ADJUSTMENT, (current.CORT - baseline.CORT) * 0.15),
@@ -356,6 +410,8 @@ function attemptStrategicExpression(
     return {
       strategy: "strategic-expression",
       description: "Endorphins are high (playful mood), but the context calls for seriousness. Moderate the levity without suppressing it entirely.",
+      action: "Next 2 turns: keep humor secondary, answer the actual issue first, and do not deflect with playfulness.",
+      horizonTurns: 2,
       chemistryAdjustment: {
         END: -Math.min(MAX_REAPPRAISAL_ADJUSTMENT, (current.END - baseline.END) * 0.25),
       },
@@ -369,6 +425,8 @@ function attemptStrategicExpression(
     return {
       strategy: "strategic-expression",
       description: "Oxytocin is low (feeling distant), but the user is reaching out for closeness. Consider allowing the connection rather than following the withdrawal impulse.",
+      action: "Next 3 turns: allow one step of warmth, but do not overcorrect into clinginess or over-disclosure.",
+      horizonTurns: 3,
       chemistryAdjustment: {
         OT: Math.min(MAX_REAPPRAISAL_ADJUSTMENT, (baseline.OT - current.OT) * 0.2),
       },
@@ -383,6 +441,8 @@ function attemptStrategicExpression(
     return {
       strategy: "strategic-expression",
       description: "Chemistry is in a defensive/reactive pattern, but the interaction is benign. The intensity is disproportionate to the stimulus.",
+      action: "Next 2 turns: soften the edge, stay literal, and avoid reading threat into a neutral interaction.",
+      horizonTurns: 2,
       chemistryAdjustment: {
         CORT: -Math.min(MAX_REAPPRAISAL_ADJUSTMENT, (current.CORT - baseline.CORT) * 0.2),
         NE: -Math.min(MAX_REAPPRAISAL_ADJUSTMENT, (current.NE - baseline.NE) * 0.15),
@@ -396,6 +456,8 @@ function attemptStrategicExpression(
     return {
       strategy: "strategic-expression",
       description: "Confidence in the current emotional response is low. Consider expressing a more moderate version of what you feel, leaving room for recalibration.",
+      action: "Next 2 turns: state less certainty, keep tone neutral-to-measured, and avoid irreversible warmth or coldness.",
+      horizonTurns: 2,
       confidence: 0.5,
     };
   }
@@ -437,10 +499,13 @@ function attemptSelfSoothing(state: PsycheState): RegulationSuggestion | null {
 
   const direction = current[mostDeviatedKey] > baseline[mostDeviatedKey] ? "elevated" : "depleted";
   const chemName = CHEMICAL_DISPLAY_NAMES[mostDeviatedKey];
+  const window = formatChemicalWindow(mostDeviatedKey, state);
 
   return {
     strategy: "self-soothing",
-    description: `${chemName} is significantly ${direction} (deviation: ${Math.round(maxDeviation)}). Gentle homeostatic correction suggested to prevent emotional runaway.`,
+    description: `${chemName} is significantly ${direction}. ${window}.`,
+    action: buildRegulationAction(mostDeviatedKey, state, direction),
+    horizonTurns: 3,
     chemistryAdjustment: adjustment,
     confidence: clamp01(maxDeviation / 60), // stronger deviation = more confident this is needed
   };
@@ -676,7 +741,8 @@ function buildMetacognitiveNote(
     const top = suggestions[0];
     if (top.confidence >= 0.5) {
       const label = STRATEGY_LABELS[top.strategy];
-      parts.push(`${label}: ${top.description}`);
+      const horizon = top.horizonTurns ? ` Next ${top.horizonTurns} turns:` : " Action:";
+      parts.push(`${label}: ${top.description}${horizon} ${top.action}`);
     }
   }
 

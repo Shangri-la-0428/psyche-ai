@@ -23,7 +23,7 @@ import { getSensitivity, getBaseline, getDefaultSelfModel, traitsToBaseline } fr
 import { isStimulusType } from "./guards.js";
 import {
   parsePsycheUpdate, mergeUpdates, updateAgreementStreak, pushSnapshot,
-  compressSession,
+  compressSession, summarizeTurnSemantic,
   type Logger,
 } from "./psyche-file.js";
 import {
@@ -635,7 +635,11 @@ export class PsycheEngine {
     }
 
     // Push snapshot to emotional history
-    state = pushSnapshot(state, appliedStimulus);
+    state = pushSnapshot(
+      state,
+      appliedStimulus,
+      text ? summarizeTurnSemantic(text, locale) : undefined,
+    );
 
     // Increment interaction count
     state = {

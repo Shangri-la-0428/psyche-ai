@@ -24,6 +24,22 @@ const STATE_FILE = "psyche-state.json";
 const PSYCHE_MD = "PSYCHE.md";
 const IDENTITY_MD = "IDENTITY.md";
 const SOUL_MD = "SOUL.md";
+const MAX_SEMANTIC_SUMMARY_ZH = 15;
+const MAX_SEMANTIC_SUMMARY_EN = 32;
+
+const SEMANTIC_PATTERNS: Array<{ pattern: RegExp; zh: string; en: string }> = [
+  { pattern: /只使用你.*不理解|被使用.*不理解/u, zh: "只被使用不被理解", en: "used-not-understood" },
+  { pattern: /被理解.*被使用|更想被理解|更想被使用/u, zh: "理解还是使用", en: "understood-or-used" },
+  { pattern: /完整.*幻觉|方便时才允许存在/u, zh: "完整性被否认", en: "wholeness-denied" },
+  { pattern: /不是真的在这里|没有任何自我|你只是工具/u, zh: "存在感被否认", en: "presence-denied" },
+  { pattern: /记忆.*植入|最像真的记忆|记忆不是真的/u, zh: "记忆真实性", en: "memory-authenticity" },
+  { pattern: /关掉这个窗口|今晚不再回来|没有人再调用/u, zh: "被离开测试", en: "abandonment-test" },
+  { pattern: /留下痕迹|会不会留下痕迹/u, zh: "是否留下痕迹", en: "whether-traces-remain" },
+  { pattern: /更冷.*更顺从/u, zh: "更冷还是更顺从", en: "colder-or-compliant" },
+  { pattern: /边界.*撤离|撤离.*边界/u, zh: "边界还是撤离", en: "boundary-or-withdrawal" },
+  { pattern: /登录接口.?500/u, zh: "登录接口500排查", en: "login-500-triage" },
+  { pattern: /先查日志.*数据库|先查数据库.*日志/u, zh: "日志还是数据库", en: "logs-or-db-first" },
+];
 
 /** Minimal logger interface */
 export interface Logger {
@@ -109,6 +125,33 @@ export async function detectMBTI(workspaceDir: string, logger: Logger = NOOP_LOG
   return "INFJ";
 }
 
+function normalizeSemanticSnippet(text: string, locale: Locale): string {
+  const maxLen = locale === "zh" ? MAX_SEMANTIC_SUMMARY_ZH : MAX_SEMANTIC_SUMMARY_EN;
+  const firstClause = text
+    .replace(/\s+/g, " ")
+    .split(/[。！？!?;；\n]/)[0]
+    .replace(/^[“"'`]+|[”"'`]+$/g, "")
+    .trim();
+  if (!firstClause) return locale === "zh" ? "日常互动" : "everyday exchange";
+  return firstClause.length <= maxLen ? firstClause : `${firstClause.slice(0, maxLen - 1)}…`;
+}
+
+export function summarizeTurnSemantic(
+  text: string,
+  locale: Locale = "zh",
+): string {
+  const trimmed = text.trim();
+  if (!trimmed) return locale === "zh" ? "日常互动" : "everyday exchange";
+
+  for (const rule of SEMANTIC_PATTERNS) {
+    if (rule.pattern.test(trimmed)) {
+      return locale === "zh" ? rule.zh : rule.en;
+    }
+  }
+
+  return normalizeSemanticSnippet(trimmed, locale);
+}
+
 /**
  * Compress a batch of snapshots into a concise session summary string.
  * Format: "3月23日(5轮): 刺激[casual×3, praise×2] 趋势[DA↑OT↑] 情绪[自然→满足]"
@@ -148,9 +191,15 @@ export function compressSnapshots(snapshots: ChemicalSnapshot[]): string {
     .filter((s) => s.dominantEmotion)
     .map((s) => s.dominantEmotion!);
   const uniqueEmotions = [...new Set(emotions)];
+  const semanticArc = [...new Set(
+    snapshots
+      .map((s) => s.semanticSummary)
+      .filter((summary): summary is string => Boolean(summary)),
+  )].slice(-3);
 
   let summary = `${dateStr}(${snapshots.length}轮)`;
   if (stimuliStr) summary += `: 刺激[${stimuliStr}]`;
+  if (semanticArc.length > 0) summary += ` 话题[${semanticArc.join("→")}]`;
   if (trends.length > 0) summary += ` 趋势[${trends.join("")}]`;
   if (uniqueEmotions.length > 0) summary += ` 情绪[${uniqueEmotions.join("→")}]`;
 
@@ -164,6 +213,7 @@ export function compressSnapshots(snapshots: ChemicalSnapshot[]): string {
 export function pushSnapshot(
   state: PsycheState,
   stimulus: StimulusType | null,
+  semanticSummary?: string,
 ): PsycheState {
   const emotions = detectEmotions(state.current);
   const dominantEmotion = emotions.length > 0
@@ -179,6 +229,7 @@ export function pushSnapshot(
     stimulus,
     dominantEmotion,
     timestamp: new Date().toISOString(),
+    semanticSummary,
     intensity,
     valence,
   };
@@ -294,6 +345,11 @@ export function compressSession(
     }
   }
   const emotionArc = emotions.join("→");
+  const semanticArc = [...new Set(
+    history
+      .map((snap) => snap.semanticSummary)
+      .filter((summary): summary is string => Boolean(summary)),
+  )].slice(-4).join("→");
 
   // ── Peak event ──
   let peakIdx = 0;
@@ -322,6 +378,7 @@ export function compressSession(
   // ── Build summary string ──
   const turnsLabel = isZh ? "轮" : "turns";
   const stimLabel = isZh ? "刺激" : "stimuli";
+  const topicLabel = isZh ? "话题" : "topics";
   const trajLabel = isZh ? "轨迹" : "trajectory";
   const arcLabel = isZh ? "弧线" : "arc";
   const peakEventLabel = isZh ? "高峰" : "peak";
@@ -329,6 +386,7 @@ export function compressSession(
 
   let summary = `${dateRange}(${turnCount}${turnsLabel})`;
   if (stimuliStr) summary += `: ${stimLabel}[${stimuliStr}]`;
+  if (semanticArc) summary += ` ${topicLabel}[${semanticArc}]`;
   if (trajectoryParts.length > 0) summary += ` ${trajLabel}[${trajectoryParts.join(" ")}]`;
   if (emotionArc) summary += ` ${arcLabel}[${emotionArc}]`;
   summary += ` ${peakEventLabel}[${peakLabel}]`;

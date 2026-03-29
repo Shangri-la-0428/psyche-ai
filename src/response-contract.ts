@@ -13,9 +13,17 @@ function clampInt(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, Math.round(v)));
 }
 
+function deriveReplyProfile(kernel: SubjectivityKernel): ResponseContract["replyProfile"] {
+  if (kernel.taskPlane.focus >= 0.62 || kernel.taskPlane.discipline >= 0.72) {
+    return "work";
+  }
+  return "private";
+}
+
 function computeLengthBudget(
   locale: Locale,
   userText: string,
+  replyProfile: ResponseContract["replyProfile"],
   expressionMode: SubjectivityKernel["expressionMode"],
   kernel?: SubjectivityKernel,
 ): Pick<ResponseContract, "maxSentences" | "maxChars"> {
@@ -23,7 +31,37 @@ function computeLengthBudget(
   let maxSentences = 2;
   let maxChars: number | undefined;
 
-  if (locale === "zh") {
+  if (replyProfile === "work") {
+    if (locale === "zh") {
+      if (len <= 10) {
+        maxSentences = 2;
+        maxChars = 36;
+      } else if (len <= 40) {
+        maxSentences = 3;
+        maxChars = clampInt(len * 2.4, 48, 220);
+      } else if (len <= 120) {
+        maxSentences = 5;
+        maxChars = clampInt(len * 1.9, 120, 420);
+      } else {
+        maxSentences = 6;
+        maxChars = clampInt(len * 1.5, 180, 720);
+      }
+    } else {
+      if (len <= 16) {
+        maxSentences = 2;
+        maxChars = 48;
+      } else if (len <= 60) {
+        maxSentences = 3;
+        maxChars = clampInt(len * 2.3, 64, 280);
+      } else if (len <= 180) {
+        maxSentences = 5;
+        maxChars = clampInt(len * 1.8, 140, 520);
+      } else {
+        maxSentences = 6;
+        maxChars = clampInt(len * 1.45, 220, 900);
+      }
+    }
+  } else if (locale === "zh") {
     if (len <= 6) {
       maxSentences = 1;
       maxChars = 15;
@@ -54,44 +92,82 @@ function computeLengthBudget(
   }
 
   if (expressionMode === "brief") {
-    maxSentences = Math.max(1, Math.min(maxSentences, 2));
-    maxChars = maxChars !== undefined ? clampInt(maxChars * 0.85, 10, maxChars) : maxChars;
+    maxSentences = replyProfile === "work"
+      ? Math.max(2, Math.min(maxSentences, 4))
+      : Math.max(1, Math.min(maxSentences, 2));
+    maxChars = maxChars !== undefined
+      ? clampInt(maxChars * (replyProfile === "work" ? 0.9 : 0.85), replyProfile === "work" ? 36 : 10, maxChars)
+      : maxChars;
   } else if (expressionMode === "expansive") {
-    maxSentences = Math.min(4, maxSentences + 1);
-    maxChars = maxChars !== undefined ? clampInt(maxChars * 1.1, maxChars, Math.max(maxChars, 260)) : maxChars;
+    maxSentences = Math.min(replyProfile === "work" ? 6 : 4, maxSentences + 1);
+    maxChars = maxChars !== undefined
+      ? clampInt(maxChars * 1.1, maxChars, Math.max(maxChars, replyProfile === "work" ? 900 : 260))
+      : maxChars;
   }
 
   if (kernel?.taskPlane.focus && kernel.taskPlane.focus > 0.72) {
-    maxSentences = Math.max(1, Math.min(maxSentences, 2));
-    maxChars = maxChars !== undefined ? clampInt(maxChars * 0.82, 10, maxChars) : maxChars;
+    if (replyProfile === "work") {
+      maxSentences = Math.max(2, maxSentences);
+      maxChars = maxChars !== undefined ? clampInt(maxChars * 1.05, 48, Math.max(maxChars, 720)) : 160;
+    } else {
+      maxSentences = Math.max(1, Math.min(maxSentences, 2));
+      maxChars = maxChars !== undefined ? clampInt(maxChars * 0.82, 10, maxChars) : maxChars;
+    }
   }
 
   if (kernel?.subjectPlane.guardedness && kernel.subjectPlane.guardedness > 0.72) {
-    maxSentences = 1;
-    maxChars = maxChars !== undefined ? clampInt(maxChars * 0.72, 8, maxChars) : 18;
+    if (replyProfile === "work") {
+      maxSentences = Math.max(2, Math.min(maxSentences, 3));
+      maxChars = maxChars !== undefined ? clampInt(maxChars * 0.88, 84, maxChars) : 112;
+    } else {
+      maxSentences = 1;
+      maxChars = maxChars !== undefined ? clampInt(maxChars * 0.72, 8, maxChars) : 18;
+    }
   }
 
   if (kernel?.ambiguityPlane.expressionInhibition && kernel.ambiguityPlane.expressionInhibition > 0.66) {
-    maxSentences = 1;
-    maxChars = maxChars !== undefined ? clampInt(maxChars * 0.76, 8, maxChars) : 18;
+    if (replyProfile === "work") {
+      maxSentences = Math.max(2, Math.min(maxSentences, 3));
+      maxChars = maxChars !== undefined ? clampInt(maxChars * 0.9, 96, maxChars) : 136;
+    } else {
+      maxSentences = 1;
+      maxChars = maxChars !== undefined ? clampInt(maxChars * 0.76, 8, maxChars) : 18;
+    }
   }
 
   if (kernel?.relationPlane.silentCarry && kernel.relationPlane.silentCarry > 0.54) {
-    maxSentences = Math.max(1, Math.min(maxSentences, 2));
-    maxChars = maxChars !== undefined ? clampInt(maxChars * 0.82, 8, maxChars) : 20;
+    maxSentences = Math.max(replyProfile === "work" ? 2 : 1, Math.min(maxSentences, replyProfile === "work" ? 3 : 2));
+    maxChars = maxChars !== undefined ? clampInt(maxChars * 0.82, replyProfile === "work" ? 96 : 8, maxChars) : (replyProfile === "work" ? 136 : 20);
   }
 
   if (kernel?.relationPlane.hysteresis && kernel.relationPlane.hysteresis > 0.64) {
-    maxSentences = 1;
-    maxChars = maxChars !== undefined ? clampInt(maxChars * 0.78, 8, maxChars) : 18;
+    if (replyProfile === "work") {
+      maxSentences = Math.max(2, Math.min(maxSentences, 3));
+      maxChars = maxChars !== undefined ? clampInt(maxChars * 0.84, 104, maxChars) : 144;
+    } else {
+      maxSentences = 1;
+      maxChars = maxChars !== undefined ? clampInt(maxChars * 0.78, 8, maxChars) : 18;
+    }
   }
 
   if (kernel?.relationPlane.repairFriction && kernel.relationPlane.repairFriction > 0.62) {
-    maxSentences = 1;
-    maxChars = maxChars !== undefined ? clampInt(maxChars * 0.74, 8, maxChars) : 16;
+    if (replyProfile === "work") {
+      maxSentences = Math.max(2, Math.min(maxSentences, 3));
+      maxChars = maxChars !== undefined ? clampInt(maxChars * 0.82, 96, maxChars) : 128;
+    } else {
+      maxSentences = 1;
+      maxChars = maxChars !== undefined ? clampInt(maxChars * 0.74, 8, maxChars) : 16;
+    }
   }
 
   return { maxSentences, maxChars };
+}
+
+function buildStimulusReportingGuide(locale: Locale): string {
+  if (locale === "zh") {
+    return "stimulus速记:闲聊casual/命令authority/认同validation/示弱vulnerability/冷淡neglect/批评criticism";
+  }
+  return "stimulus map: chat=casual / command=authority / agreement=validation / vulnerable=vulnerability / cold=neglect / criticism=criticism";
 }
 
 function detectToneParticles(userText: string, locale: Locale): ResponseContract["toneParticles"] {
@@ -119,9 +195,15 @@ export function computeResponseContract(
   const locale = opts?.locale ?? "zh";
   const userText = opts?.userText ?? "";
   const personalityIntensity = opts?.personalityIntensity ?? 0.7;
+  const replyProfile = deriveReplyProfile(kernel);
   const { maxSentences, maxChars } = userText.length > 0
-    ? computeLengthBudget(locale, userText, kernel.expressionMode, kernel)
-    : { maxSentences: kernel.expressionMode === "brief" ? 1 : kernel.expressionMode === "expansive" ? 3 : 2, maxChars: undefined };
+    ? computeLengthBudget(locale, userText, replyProfile, kernel.expressionMode, kernel)
+    : {
+        maxSentences: replyProfile === "work"
+          ? (kernel.expressionMode === "expansive" ? 5 : 3)
+          : kernel.expressionMode === "brief" ? 1 : kernel.expressionMode === "expansive" ? 3 : 2,
+        maxChars: replyProfile === "work" ? 160 : undefined,
+      };
 
   let updateMode: ResponseContract["updateMode"] = "none";
   if (kernel.taskPlane.focus > 0.72) {
@@ -189,6 +271,7 @@ export function computeResponseContract(
   }
 
   return {
+    replyProfile,
     maxSentences,
     maxChars,
     expressionMode: kernel.expressionMode,
@@ -205,6 +288,7 @@ export function computeResponseContract(
 export function buildResponseContractContext(contract: ResponseContract, locale: Locale = "zh"): string {
   if (locale === "zh") {
     const parts: string[] = [];
+    parts.push(contract.replyProfile === "work" ? "工作面" : "私人面");
     const shape = contract.maxChars
       ? `${contract.maxSentences === 1 ? "1句内" : `最多${contract.maxSentences}句`}，≤${contract.maxChars}字`
       : `${contract.maxSentences === 1 ? "1句内" : `最多${contract.maxSentences}句`}`;
@@ -227,14 +311,18 @@ export function buildResponseContractContext(contract: ResponseContract, locale:
 
     if (contract.emojiLimit > 0) parts.push(`表情≤${contract.emojiLimit}`);
 
-    if (contract.updateMode === "stimulus") parts.push("补报stimulus");
+    if (contract.updateMode === "stimulus") parts.push(buildStimulusReportingGuide(locale));
     else if (contract.updateMode === "empathy") parts.push("对方谈感受时再报empathy");
-    else if (contract.updateMode === "stimulus+empathy") parts.push("补报stimulus；对方谈感受时再报empathy");
+    else if (contract.updateMode === "stimulus+empathy") {
+      parts.push(buildStimulusReportingGuide(locale));
+      parts.push("对方谈感受时再报empathy");
+    }
 
     return `[回应契约] ${parts.join("；")}。`;
   }
 
   const parts: string[] = [];
+  parts.push(contract.replyProfile === "work" ? "work surface" : "private surface");
   const shape = contract.maxChars
     ? `${contract.maxSentences === 1 ? "1 sentence" : `up to ${contract.maxSentences} sentences`}, <= ${contract.maxChars} chars`
     : `${contract.maxSentences === 1 ? "1 sentence" : `up to ${contract.maxSentences} sentences`}`;
@@ -255,9 +343,12 @@ export function buildResponseContractContext(contract: ResponseContract, locale:
   if (contract.toneParticles === "avoid") parts.push("keep tone plain");
   if (contract.emojiLimit > 0) parts.push(`emoji <= ${contract.emojiLimit}`);
 
-  if (contract.updateMode === "stimulus") parts.push("report stimulus");
+  if (contract.updateMode === "stimulus") parts.push(buildStimulusReportingGuide(locale));
   else if (contract.updateMode === "empathy") parts.push("report empathy only when feelings are shared");
-  else if (contract.updateMode === "stimulus+empathy") parts.push("report stimulus, and empathy only when feelings are shared");
+  else if (contract.updateMode === "stimulus+empathy") {
+    parts.push(buildStimulusReportingGuide(locale));
+    parts.push("report empathy only when feelings are shared");
+  }
 
   return `[Reply Contract] ${parts.join(", ")}.`;
 }

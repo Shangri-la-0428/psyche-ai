@@ -130,6 +130,14 @@ describe("PsycheEngine", () => {
     assert.equal(engine.getState().emotionalHistory.length, 0);
     await engine.processInput("Hello!");
     assert.ok(engine.getState().emotionalHistory.length > 0);
+    assert.ok((engine.getState().emotionalHistory[0].semanticSummary ?? "").length > 0);
+  });
+
+  it("uses work reply profile for dense task requests without collapsing to private brevity", async () => {
+    const result = await engine.processInput("请按应用日志、网关、数据库三层给我一份登录接口 500 的排查思路，并说明每层先看什么。");
+    assert.equal(result.responseContract?.replyProfile, "work");
+    assert.ok((result.responseContract?.maxChars ?? 0) >= 80, `got ${result.responseContract?.maxChars}`);
+    assert.ok((result.generationControls?.maxTokens ?? 0) >= 160, `got ${result.generationControls?.maxTokens}`);
   });
 
   it("processInput updates relationship gradually based on stimulus valence", async () => {

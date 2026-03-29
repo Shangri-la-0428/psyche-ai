@@ -162,7 +162,47 @@ describe("computeResponseContract", () => {
     });
     assert.equal(contract.initiativeMode, "reactive");
     assert.equal(contract.socialDistance, "measured");
-    assert.ok(contract.maxSentences <= 2, `got ${contract.maxSentences}`);
+    assert.ok(contract.maxSentences <= 3, `got ${contract.maxSentences}`);
+  });
+
+  it("switches to work profile and preserves useful output budget for task replies", () => {
+    const contract = computeResponseContract(makeKernel({
+      taskPlane: {
+        focus: 0.92,
+        discipline: 0.82,
+        compliance: 0.76,
+        stability: 0.8,
+      },
+      subjectPlane: {
+        attachment: 0.32,
+        guardedness: 0.84,
+        identityStrain: 0.28,
+        residue: 0.26,
+      },
+      relationPlane: {
+        closeness: 0.38,
+        safety: 0.34,
+        loopPressure: 0.72,
+        repairReadiness: 0.28,
+        repairFriction: 0.66,
+        hysteresis: 0.7,
+        silentCarry: 0.76,
+        interpretiveCharity: 0.24,
+        lastMove: "task",
+      },
+      ambiguityPlane: {
+        namingConfidence: 0.48,
+        expressionInhibition: 0.74,
+        conflictLoad: 0.68,
+      },
+    }), {
+      locale: "zh",
+      userText: "请给我一份登录接口 500 的排查思路，至少按应用日志、网关、数据库三层展开，并说明每层先看什么。",
+      algorithmStimulus: "intellectual",
+    });
+    assert.equal(contract.replyProfile, "work");
+    assert.ok((contract.maxChars ?? 0) >= 80, `got ${contract.maxChars}`);
+    assert.ok(contract.maxSentences >= 2, `got ${contract.maxSentences}`);
   });
 
   it("keeps repairs guarded when repair friction is already high", () => {
@@ -200,6 +240,7 @@ describe("buildResponseContractContext", () => {
     }), "zh");
     assert.ok(ctx.startsWith("[回应契约]"), `got: ${ctx}`);
     assert.ok(ctx.includes("不贴不舔"), `got: ${ctx}`);
-    assert.ok(ctx.length < 120, `expected compact contract, got ${ctx.length}`);
+    assert.ok(ctx.includes("stimulus速记"), `got: ${ctx}`);
+    assert.ok(ctx.length < 180, `expected compact contract, got ${ctx.length}`);
   });
 });

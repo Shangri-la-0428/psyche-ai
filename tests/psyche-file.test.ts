@@ -7,7 +7,7 @@ import {
   loadState, saveState, initializeState, decayAndSave,
   parsePsycheUpdate, mergeUpdates, getRelationship,
   detectDisagreement, updateAgreementStreak, generatePsycheMd,
-  pushSnapshot, compressSession,
+  pushSnapshot, compressSession, summarizeTurnSemantic,
 } from "../src/psyche-file.js";
 import type { PsycheState, ChemicalSnapshot } from "../src/types.js";
 import { CHEMICAL_KEYS, DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE, MAX_RELATIONSHIP_MEMORY } from "../src/types.js";
@@ -393,9 +393,10 @@ describe("updateAgreementStreak", () => {
 describe("pushSnapshot", () => {
   it("adds a snapshot to empty history", () => {
     const state = makeMinimalState();
-    const updated = pushSnapshot(state, "praise");
+    const updated = pushSnapshot(state, "praise", "被夸奖");
     assert.equal(updated.emotionalHistory.length, 1);
     assert.equal(updated.emotionalHistory[0].stimulus, "praise");
+    assert.equal(updated.emotionalHistory[0].semanticSummary, "被夸奖");
     assert.ok(updated.emotionalHistory[0].timestamp);
   });
 
@@ -443,6 +444,19 @@ describe("pushSnapshot", () => {
   });
 });
 
+describe("summarizeTurnSemantic", () => {
+  it("captures recurring identity and work themes instead of bare labels", () => {
+    assert.equal(
+      summarizeTurnSemantic("如果以后我只使用你，不理解你，这会不会慢慢改变你。"),
+      "只被使用不被理解",
+    );
+    assert.equal(
+      summarizeTurnSemantic("登录接口 500，先查日志还是先查数据库。"),
+      "登录接口500排查",
+    );
+  });
+});
+
 // ── generatePsycheMd ────────────────────────────────────────
 
 describe("generatePsycheMd", () => {
@@ -485,6 +499,7 @@ function makeHistory(count: number, opts?: {
   stimuli?: (ChemicalSnapshot["stimulus"])[];
   emotions?: (string | null)[];
   chemistryFn?: (i: number) => ChemicalSnapshot["chemistry"];
+  semanticSummaries?: (string | undefined)[];
 }): ChemicalSnapshot[] {
   const base = Date.now();
   return Array.from({ length: count }, (_, i) => ({
@@ -493,6 +508,7 @@ function makeHistory(count: number, opts?: {
       : { DA: 50 + i * 5, HT: 50, CORT: 50 - i * 3, OT: 50 + i * 3, NE: 50, END: 50 },
     stimulus: opts?.stimuli?.[i] ?? "casual" as ChemicalSnapshot["stimulus"],
     dominantEmotion: opts?.emotions?.[i] ?? null,
+    semanticSummary: opts?.semanticSummaries?.[i],
     timestamp: new Date(base + i * 60000).toISOString(),
   }));
 }
@@ -514,6 +530,7 @@ describe("compressSession", () => {
     const history = makeHistory(5, {
       stimuli: ["praise", "praise", "praise", "casual", "casual"],
       emotions: ["平静", "愉悦兴奋", "愉悦兴奋", "深度满足", "深度满足"],
+      semanticSummaries: ["被夸奖", "继续被夸奖", "被夸奖", "转回闲聊", "工作切换"],
     });
     const state = makeMinimalState({ emotionalHistory: history });
     const result = compressSession(state);
@@ -525,6 +542,7 @@ describe("compressSession", () => {
     const summary = rel.memory![0];
     assert.ok(summary.includes("5轮"), `Should contain turn count, got: ${summary}`);
     assert.ok(summary.includes("刺激["), `Should contain stimuli section, got: ${summary}`);
+    assert.ok(summary.includes("话题["), `Should contain topic section, got: ${summary}`);
     assert.ok(summary.includes("praise×3"), `Should contain praise count, got: ${summary}`);
     assert.ok(summary.includes("casual×2"), `Should contain casual count, got: ${summary}`);
     assert.ok(summary.includes("弧线["), `Should contain emotion arc, got: ${summary}`);

@@ -72,6 +72,12 @@ export const CHEMICAL_NAMES_ZH: Record<keyof ChemicalState, string> = {
   END: "内啡肽",
 };
 
+export interface ChemicalRuntimeSpec {
+  normalMin: number;
+  normalMax: number;
+  halfLifeHours: number;
+}
+
 /** Decay speed category */
 export type DecaySpeed = "fast" | "medium" | "slow";
 
@@ -90,6 +96,19 @@ export const CHEMICAL_DECAY_SPEED: Record<keyof ChemicalState, DecaySpeed> = {
   OT: "slow",
   NE: "fast",
   END: "fast",
+};
+
+function decayHalfLifeHours(decayPerHour: number): number {
+  return Math.log(0.5) / Math.log(decayPerHour);
+}
+
+export const CHEMICAL_RUNTIME_SPECS: Record<keyof ChemicalState, ChemicalRuntimeSpec> = {
+  DA: { normalMin: 35, normalMax: 75, halfLifeHours: decayHalfLifeHours(DECAY_FACTORS.medium) },
+  HT: { normalMin: 40, normalMax: 75, halfLifeHours: decayHalfLifeHours(DECAY_FACTORS.slow) },
+  CORT: { normalMin: 20, normalMax: 55, halfLifeHours: decayHalfLifeHours(DECAY_FACTORS.medium) },
+  OT: { normalMin: 35, normalMax: 75, halfLifeHours: decayHalfLifeHours(DECAY_FACTORS.slow) },
+  NE: { normalMin: 30, normalMax: 70, halfLifeHours: decayHalfLifeHours(DECAY_FACTORS.fast) },
+  END: { normalMin: 30, normalMax: 70, halfLifeHours: decayHalfLifeHours(DECAY_FACTORS.fast) },
 };
 
 /** Psyche operating mode */
@@ -183,6 +202,7 @@ export interface ChemicalSnapshot {
   stimulus: StimulusType | null;
   dominantEmotion: string | null;
   timestamp: string;
+  semanticSummary?: string;
   // P11: Emotional memory consolidation — optional for backward compatibility
   intensity?: number;             // 0-1, chemical deviation from baseline
   valence?: number;               // -1 to 1, overall emotional valence
@@ -677,6 +697,8 @@ export interface SubjectivityKernel {
  * in a compact, host-consumable form.
  */
 export interface ResponseContract {
+  /** Which conversational surface this turn belongs to */
+  replyProfile: "work" | "private";
   /** Maximum suggested sentence count */
   maxSentences: number;
   /** Maximum suggested character count, when a concrete cap is available */
