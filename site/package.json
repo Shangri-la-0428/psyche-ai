@@ -6,6 +6,9 @@
     "node": ">=22.12.0"
   },
   "scripts": {
+    "prepare:assets": "node scripts/prepare-static-assets.mjs",
+    "predev": "npm run prepare:assets",
+    "prebuild": "npm run prepare:assets",
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
@@ -13,5 +16,8 @@
   },
   "dependencies": {
     "astro": "^6.0.8"
+  },
+  "devDependencies": {
+    "esbuild": "^0.27.4"
   }
 }
