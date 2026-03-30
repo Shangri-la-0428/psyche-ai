@@ -332,7 +332,7 @@ openclaw logs -f 2>&1 | grep Psyche
 cat workspace-yu/psyche-state.json | python3 -m json.tool
 
 # 诊断脚本
-cd openclaw-plugin-psyche && node scripts/diagnose.js
+cd oasyce_psyche && node scripts/diagnose.js
 ```
 
 ---
