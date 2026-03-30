@@ -38,6 +38,7 @@ export function deriveReplyEnvelope(
     locale: Locale;
     userText?: string;
     algorithmStimulus?: StimulusType | null;
+    classificationConfidence?: number;
     personalityIntensity?: number;
     relationContext?: ResolvedRelationContext;
   },
@@ -53,6 +54,7 @@ export function deriveReplyEnvelope(
     locale: opts.locale,
     userText: opts.userText,
     algorithmStimulus: opts.algorithmStimulus,
+    classificationConfidence: opts.classificationConfidence,
     personalityIntensity: opts.personalityIntensity,
   });
   const generationControls = deriveGenerationControls({

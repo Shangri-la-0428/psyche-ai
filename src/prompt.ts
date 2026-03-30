@@ -541,8 +541,8 @@ function buildCompactSensingContext(
 ): string {
   if (locale === "zh") {
     return algorithmStimulus
-      ? `[情绪感知] 算法初判:${algorithmStimulus}，仅供参考；按真实感受终判语气。`
-      : `[情绪感知] 这句的情绪基调由你终判。`;
+      ? `[情绪感知] 算法初判:${algorithmStimulus}；你终判。`
+      : `[情绪感知] 情绪由你终判。`;
   }
   return algorithmStimulus
     ? `[Emotional Sensing] Algorithm hint: ${algorithmStimulus}; final tonal read is yours.`

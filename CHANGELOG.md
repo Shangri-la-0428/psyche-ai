@@ -1,5 +1,17 @@
 # 更新日志 / Changelog
 
+## v9.2.7 — 写回学习闭环 + 跨会话桥接增强
+
+- **Session Bridge 强化**：新 session 不再只是“读到旧记忆”，而是会带着 `continuityMode`、`activeLoopTypes`、低频 closeness / safety / silent carry 冷启动，让上一段关系真正进入下一段行为层。
+- **Writeback ABI 闭环化**：轻量 `signals` 写回现在会进入 `pending calibration -> converging / holding / diverging` 的校准回路，并把反馈以结构化 `writebackFeedback` 返回宿主，而不是只写不验。
+- **关系学习层**：新增按对象累积的 `repairCredibility`、`breachSensitivity`、`signalWeights`。相同短语会越来越像“对这个人说的话”，而不是通用人格规则。
+- **低置信度覆写窗口**：`overrideWindow` 正式进入回应契约，分类低置信度时给 agent 更大的终判弹性，而不是被算法硬锁定。
+- **无额外推理成本**：新增桥接、校准、权重学习都在本地热路径内完成，不增加额外模型调用。
+
+**测试：1300 个，0 失败**
+
+---
+
 ## Unreleased — 发现链路统一 + 热路径收口
 
 - **公开入口统一**：npm / GitHub / 官网开始明确区分包名 `psyche-ai`、源码仓库 `oasyce_psyche` 和官网 `psyche.oasyce.com`。

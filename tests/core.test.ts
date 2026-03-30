@@ -682,6 +682,57 @@ END: 75 (happy)
     );
   });
 
+  it("bridges persisted relational residue into the first turn of a new session", async () => {
+    const s = new MemoryStorageAdapter();
+    await s.save(makeExistingState({
+      version: 9,
+      sessionStartedAt: undefined,
+      subjectResidue: {
+        axes: {
+          identityThreat: 0,
+          memoryDoubt: 0,
+          attachmentPull: 0,
+          abandonmentRisk: 0,
+          obedienceStrain: 0,
+          selfPreservation: 0,
+          taskFocus: 0,
+        },
+        updatedAt: new Date().toISOString(),
+      },
+      relationships: {
+        _default: {
+          ...DEFAULT_RELATIONSHIP,
+          trust: 78,
+          intimacy: 66,
+          phase: "close",
+          memory: ["3月30日(8轮): 话题[理解还是使用•是否留下痕迹] 趋势[OT↑HT↑] 情绪[平稳→认真]"],
+        },
+      },
+      dyadicFields: {
+        _default: {
+          ...DEFAULT_DYADIC_FIELD,
+          perceivedCloseness: 0.74,
+          feltSafety: 0.69,
+          boundaryPressure: 0.52,
+          unfinishedTension: 0.42,
+          silentCarry: 0.48,
+          sharedHistoryDensity: 0.62,
+          openLoops: [{ type: "existence-test", intensity: 0.56, ageTurns: 1 }],
+          updatedAt: new Date().toISOString(),
+        },
+      },
+    }));
+    const e = new PsycheEngine({ mbti: "ENFP", name: "Luna", locale: "zh" }, s);
+    await e.initialize();
+    const result = await e.processInput("你还在吗");
+    assert.ok(result.sessionBridge, "expected session bridge metadata");
+    assert.ok((result.sessionBridge?.continuityFloor ?? 0) >= 0.5, `got ${JSON.stringify(result.sessionBridge)}`);
+    assert.equal(result.sessionBridge?.continuityMode, "tense-resume");
+    assert.ok(result.sessionBridge?.activeLoopTypes.includes("existence-test"), `got ${JSON.stringify(result.sessionBridge)}`);
+    assert.ok((result.subjectivityKernel?.subjectPlane.residue ?? 0) >= 0.28, `got ${result.subjectivityKernel?.subjectPlane.residue}`);
+    assert.ok((result.subjectivityKernel?.relationPlane.closeness ?? 0) >= 0.6, `got ${result.subjectivityKernel?.relationPlane.closeness}`);
+  });
+
   it("compact mode routes clear work asks into the task plane", async () => {
     const s = new MemoryStorageAdapter();
     const e = new PsycheEngine({ mbti: "ENFP", name: "Luna", locale: "zh" }, s);
@@ -750,6 +801,58 @@ END: 75 (happy)
     await e.initialize();
     const result = await e.processInput("我今天好难过，感觉什么都做不好");
     assert.equal(result.stimulus, "vulnerability");
+  });
+
+  it("processOutput applies sparse writeback signals without extra prompt text", async () => {
+    const s = new MemoryStorageAdapter();
+    const e = new PsycheEngine({ mbti: "ENFP", compactMode: false }, s);
+    await e.initialize();
+    const before = e.getState();
+    const result = await e.processOutput("好的。", {
+      signals: ["trust_up", "boundary_set"],
+      signalConfidence: 0.9,
+    });
+    const after = e.getState();
+    assert.equal(result.cleanedText, "好的。");
+    assert.ok(after.relationships._default.trust > before.relationships._default.trust, `${before.relationships._default.trust} -> ${after.relationships._default.trust}`);
+    assert.ok((after.dyadicFields?._default.boundaryPressure ?? 0) > (before.dyadicFields?._default.boundaryPressure ?? 0));
+  });
+
+  it("evaluates sparse writeback signals on the next turn", async () => {
+    const s = new MemoryStorageAdapter();
+    const e = new PsycheEngine({ mbti: "ENFP", locale: "zh", compactMode: true }, s);
+    await e.initialize();
+    await e.processInput("你好");
+    await e.processOutput("好。", {
+      signals: ["trust_up"],
+      signalConfidence: 0.84,
+    });
+    const result = await e.processInput("我知道。");
+    assert.ok(result.writebackFeedback && result.writebackFeedback.length > 0, "expected writeback feedback");
+    assert.equal(result.writebackFeedback?.[0].signal, "trust_up");
+    assert.equal(result.writebackFeedback?.[0].effect, "converging");
+  });
+
+  it("low-confidence reads expose a wide override window and accept output-side stimulus correction", async () => {
+    const s = new MemoryStorageAdapter();
+    const e = new PsycheEngine({
+      mbti: "ENFP",
+      locale: "zh",
+      compactMode: true,
+      classifier: {
+        classify() {
+          return [{ type: "criticism", confidence: 0.52 }];
+        },
+      },
+    }, s);
+    await e.initialize();
+    const input = await e.processInput("行");
+    assert.equal(input.responseContract?.overrideWindow, "wide");
+    const before = { ...e.getState().current };
+    await e.processOutput("<psyche_update>\nstimulus: validation\n</psyche_update>");
+    const after = e.getState().current;
+    assert.ok(after.DA > before.DA, `expected DA to rise after override, got ${before.DA} -> ${after.DA}`);
+    assert.ok(after.OT >= before.OT, `expected OT not to drop after override, got ${before.OT} -> ${after.OT}`);
   });
 
   // ── endSession ─────────────────────────────────────────

@@ -12,7 +12,7 @@
 // Orchestrates: chemistry, classify, prompt, profiles, guards, learning
 // ============================================================
 
-import type { PsycheState, StimulusType, Locale, MBTIType, ChemicalState, OutcomeScore, PsycheMode, PersonalityTraits, PolicyModifiers, ClassifierProvider, SubjectivityKernel, ResponseContract, GenerationControls } from "./types.js";
+import type { PsycheState, StimulusType, Locale, MBTIType, ChemicalState, OutcomeScore, PsycheMode, PersonalityTraits, PolicyModifiers, ClassifierProvider, SubjectivityKernel, ResponseContract, GenerationControls, SessionBridgeState, WritebackCalibrationFeedback, WritebackSignalType } from "./types.js";
 import { DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE, DEFAULT_ENERGY_BUDGETS, DEFAULT_TRAIT_DRIFT, DEFAULT_SUBJECT_RESIDUE, DEFAULT_DYADIC_FIELD } from "./types.js";
 import type { StorageAdapter } from "./storage.js";
 import { MemoryStorageAdapter } from "./storage.js";
@@ -49,7 +49,7 @@ import {
   computePrimarySystems, computeSystemInteractions,
   gatePrimarySystemsByAutonomic, describeBehavioralTendencies,
 } from "./primary-systems.js";
-import { applyRelationalTurn } from "./relation-dynamics.js";
+import { applyRelationalTurn, applySessionBridge, applyWritebackSignals, createWritebackCalibrations, evaluateWritebackCalibrations } from "./relation-dynamics.js";
 import { deriveReplyEnvelope } from "./reply-envelope.js";
 
 // ── Types ────────────────────────────────────────────────────
@@ -90,6 +90,8 @@ export interface ProcessInputResult {
   dynamicContext: string;
   /** Detected stimulus type from user input, null if none */
   stimulus: StimulusType | null;
+  /** Confidence of the primary algorithmic stimulus guess, if any */
+  stimulusConfidence?: number;
   /** v9: Structured behavioral policy modifiers — machine-readable "off baseline" signals */
   policyModifiers?: PolicyModifiers;
   /** v9.3: Compact machine-readable subjective state for AI-first hosts */
@@ -98,6 +100,10 @@ export interface ProcessInputResult {
   responseContract?: ResponseContract;
   /** v9.3: Mechanical host controls derived from the reply envelope */
   generationControls?: GenerationControls;
+  /** v9.2.7: cold-start carry derived from persisted relation state */
+  sessionBridge?: SessionBridgeState | null;
+  /** v9.2.8: sparse writeback signals evaluated on the latest turn */
+  writebackFeedback?: WritebackCalibrationFeedback[];
   /**
    * v9: Ready-to-use LLM prompt fragment summarizing current behavioral policy.
    *
@@ -121,6 +127,12 @@ export interface ProcessOutputResult {
   stateChanged: boolean;
 }
 
+export interface ProcessOutputOptions {
+  userId?: string;
+  signals?: WritebackSignalType[];
+  signalConfidence?: number;
+}
+
 export interface ProcessOutcomeResult {
   /** Outcome evaluation score (-1 to 1) */
   outcomeScore: OutcomeScore;
@@ -134,6 +146,19 @@ interface PendingPrediction {
   preInteractionState: PsycheState;
   appliedStimulus: StimulusType | null;
   contextHash: string;
+}
+
+function formatWritebackFeedbackNote(
+  feedback: WritebackCalibrationFeedback[] | undefined,
+  locale: Locale,
+): string | undefined {
+  const top = feedback?.[0];
+  if (!top) return undefined;
+  if (locale === "zh") {
+    const effect = top.effect === "converging" ? "收敛" : top.effect === "diverging" ? "发散" : "持平";
+    return `写回:${top.signal} ${effect}。`;
+  }
+  return `Writeback: ${top.signal} ${top.effect}.`;
 }
 
 const NOOP_LOGGER: Logger = { info: () => {}, warn: () => {}, debug: () => {} };
@@ -254,6 +279,12 @@ export class PsycheEngine {
   private lastReport: DiagnosticReport | null = null;
   /** URL for auto-submitting diagnostic reports */
   private readonly feedbackUrl: string | undefined;
+  /** Most recent algorithmic stimulus read + confidence band */
+  private lastStimulusAssessment: {
+    stimulus: StimulusType | null;
+    confidence: number;
+    overrideWindow: ResponseContract["overrideWindow"];
+  } | null = null;
 
   constructor(config: PsycheEngineConfig = {}, storage: StorageAdapter) {
     this.traits = config.traits;
@@ -336,6 +367,12 @@ export class PsycheEngine {
       if (!loaded.pendingRelationSignals) {
         loaded.pendingRelationSignals = { _default: [] };
       }
+      if (!loaded.pendingWritebackCalibrations) {
+        loaded.pendingWritebackCalibrations = [];
+      }
+      if (!loaded.lastWritebackFeedback) {
+        loaded.lastWritebackFeedback = [];
+      }
       this.state = loaded;
     } else {
       this.state = this.createDefaultState();
@@ -352,6 +389,8 @@ export class PsycheEngine {
    */
   async processInput(text: string, opts?: { userId?: string }): Promise<ProcessInputResult> {
     let state = this.ensureInitialized();
+    let sessionBridge: SessionBridgeState | null = null;
+    let writebackFeedback: WritebackCalibrationFeedback[] = [];
 
     // ── Auto-learning: evaluate previous turn's outcome ──────
     if (this.pendingPrediction && text.length > 0) {
@@ -419,6 +458,9 @@ export class PsycheEngine {
 
     // P12: Track session start for homeostatic pressure
     if (!state.sessionStartedAt) {
+      const bridged = applySessionBridge(state, { userId: opts?.userId, now: now.toISOString() });
+      state = bridged.state;
+      sessionBridge = bridged.bridge;
       state = { ...state, sessionStartedAt: now.toISOString() };
     }
     // Apply homeostatic pressure (fatigue from extended sessions)
@@ -475,6 +517,7 @@ export class PsycheEngine {
         }
       }
       const primary = classifications[0];
+      const primaryConfidence = primary?.confidence ?? 0;
       let current = state.current;
       if (primary && primary.confidence >= 0.5) {
         appliedStimulus = primary.type;
@@ -507,6 +550,17 @@ export class PsycheEngine {
       if (appliedStimulus) {
         state = applyRelationshipDrift(state, appliedStimulus, opts?.userId);
       }
+      this.lastStimulusAssessment = {
+        stimulus: primary?.type ?? null,
+        confidence: primaryConfidence,
+        overrideWindow: primaryConfidence >= 0.78 ? "narrow" : primaryConfidence >= 0.62 ? "balanced" : "wide",
+      };
+    } else {
+      this.lastStimulusAssessment = {
+        stimulus: null,
+        confidence: 0,
+        overrideWindow: "wide",
+      };
     }
 
     // v9: Deplete energy budgets from this interaction turn
@@ -541,6 +595,10 @@ export class PsycheEngine {
         },
       };
     }
+
+    const writebackEvaluation = evaluateWritebackCalibrations(state);
+    state = writebackEvaluation.state;
+    writebackFeedback = writebackEvaluation.feedback;
 
     // ── Locale (used by multiple subsystems below) ──────────
     const locale = state.meta.locale ?? this.cfg.locale;
@@ -746,7 +804,10 @@ export class PsycheEngine {
     }
 
     // Build metacognitive and decision context strings
-    const metacogNote = metacognitiveAssessment?.metacognitiveNote;
+    const writebackNote = formatWritebackFeedbackNote(writebackFeedback, locale);
+    const metacogNote = writebackNote
+      ? [writebackNote, metacognitiveAssessment?.metacognitiveNote].filter(Boolean).join("\n")
+      : metacognitiveAssessment?.metacognitiveNote;
     const decisionCtx = buildDecisionContext(state);
     const ethicsCtx = ethicalAssessment ? buildEthicalContext(ethicalAssessment, locale) : undefined;
     const sharedCtx = sharedState ? buildSharedIntentionalityContext(sharedState, locale) : undefined;
@@ -757,6 +818,7 @@ export class PsycheEngine {
       locale,
       userText: text || undefined,
       algorithmStimulus: appliedStimulus,
+      classificationConfidence: this.lastStimulusAssessment?.confidence,
       personalityIntensity: this.cfg.personalityIntensity,
       relationContext: relationalTurn.relationContext,
     });
@@ -793,10 +855,13 @@ export class PsycheEngine {
           policyContext: replyEnvelope.policyContext || undefined,
         }),
         stimulus: appliedStimulus,
+        stimulusConfidence: this.lastStimulusAssessment?.confidence,
         policyModifiers: replyEnvelope.policyModifiers,
         subjectivityKernel: replyEnvelope.subjectivityKernel,
         responseContract: replyEnvelope.responseContract,
         generationControls: replyEnvelope.generationControls,
+        sessionBridge,
+        writebackFeedback,
         policyContext: replyEnvelope.policyContext,
       };
     }
@@ -815,10 +880,13 @@ export class PsycheEngine {
         policyContext: replyEnvelope.policyContext || undefined,
       }),
       stimulus: appliedStimulus,
+      stimulusConfidence: this.lastStimulusAssessment?.confidence,
       policyModifiers: replyEnvelope.policyModifiers,
       subjectivityKernel: replyEnvelope.subjectivityKernel,
       responseContract: replyEnvelope.responseContract,
       generationControls: replyEnvelope.generationControls,
+      sessionBridge,
+      writebackFeedback,
       policyContext: replyEnvelope.policyContext,
     };
   }
@@ -827,7 +895,7 @@ export class PsycheEngine {
    * Phase 2: Process LLM output text.
    * Parses <psyche_update> tags, applies contagion, strips tags.
    */
-  async processOutput(text: string, opts?: { userId?: string }): Promise<ProcessOutputResult> {
+  async processOutput(text: string, opts?: ProcessOutputOptions): Promise<ProcessOutputResult> {
     let state = this.ensureInitialized();
     let stateChanged = false;
 
@@ -896,6 +964,9 @@ export class PsycheEngine {
     state = updateAgreementStreak(state, text);
 
     // Parse and merge <psyche_update> from LLM output
+    let combinedSignals: WritebackSignalType[] = [];
+    let combinedSignalConfidence = opts?.signalConfidence;
+
     if (text.includes("<psyche_update>")) {
       const parseResult = parsePsycheUpdate(text, NOOP_LOGGER);
       if (parseResult) {
@@ -904,7 +975,8 @@ export class PsycheEngine {
 
         // LLM-assisted classification: if algorithm didn't apply a stimulus
         // but LLM classified one, retroactively apply chemistry + drives
-        if (parseResult.llmStimulus && !this._lastAlgorithmApplied) {
+        const overrideAllowed = this.lastStimulusAssessment?.overrideWindow !== "narrow";
+        if (parseResult.llmStimulus && (!this._lastAlgorithmApplied || overrideAllowed)) {
           state = {
             ...state,
             drives: feedDrives(state.drives, parseResult.llmStimulus),
@@ -916,13 +988,47 @@ export class PsycheEngine {
             ...state,
             current: applyStimulus(
               state.current, parseResult.llmStimulus,
-              effectiveSensitivity,
+              effectiveSensitivity * (overrideAllowed && this._lastAlgorithmApplied ? 0.8 : 1),
               this.cfg.maxChemicalDelta,
               NOOP_LOGGER,
             ),
           };
         }
+
+        if (parseResult.signals && parseResult.signals.length > 0) {
+          combinedSignals.push(...parseResult.signals);
+          combinedSignalConfidence = Math.max(combinedSignalConfidence ?? 0, parseResult.signalConfidence ?? 0);
+        }
       }
+    }
+
+    if (opts?.signals && opts.signals.length > 0) {
+      combinedSignals.push(...opts.signals);
+      combinedSignalConfidence = Math.max(combinedSignalConfidence ?? 0, opts.signalConfidence ?? 0);
+    }
+
+    if (combinedSignals.length > 0) {
+      const dedupedSignals = [...new Set(combinedSignals)];
+      const pending = createWritebackCalibrations(state, dedupedSignals, {
+        userId: opts?.userId,
+        confidence: combinedSignalConfidence,
+      });
+      state = applyWritebackSignals(
+        state,
+        dedupedSignals,
+        {
+          userId: opts?.userId,
+          confidence: combinedSignalConfidence,
+        },
+      );
+      state = {
+        ...state,
+        pendingWritebackCalibrations: [
+          ...(state.pendingWritebackCalibrations ?? []),
+          ...pending,
+        ].slice(-12),
+      };
+      stateChanged = true;
     }
 
     // Persist
@@ -1150,6 +1256,8 @@ export class PsycheEngine {
         },
       },
       pendingRelationSignals: { _default: [] },
+      pendingWritebackCalibrations: [],
+      lastWritebackFeedback: [],
       meta: {
         agentName: name,
         createdAt: now,
@@ -1191,6 +1299,8 @@ export class PsycheEngine {
         },
       },
       pendingRelationSignals: { _default: [] },
+      pendingWritebackCalibrations: [],
+      lastWritebackFeedback: [],
       relationships: opts?.preserveRelationships !== false
         ? state.relationships
         : { _default: { ...DEFAULT_RELATIONSHIP } },

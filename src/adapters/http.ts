@@ -8,7 +8,7 @@
 //
 // Endpoints:
 //   POST /process-input  { text, userId? }  → { systemContext, dynamicContext, stimulus, policyModifiers?, subjectivityKernel?, responseContract?, generationControls?, policyContext }
-//   POST /process-output { text, userId? }  → { cleanedText, stateChanged }
+//   POST /process-output { text, userId?, signals?, signalConfidence? }  → { cleanedText, stateChanged }
 //   GET  /state                             → PsycheState
 //   GET  /protocol?locale=zh                → { protocol }
 //
@@ -17,12 +17,34 @@
 
 import { createServer, type Server, type IncomingMessage, type ServerResponse } from "node:http";
 import type { PsycheEngine } from "../core.js";
+import type { WritebackSignalType } from "../types.js";
 
 // ── Types ────────────────────────────────────────────────────
 
 export interface HttpAdapterOptions {
   port?: number;
   host?: string;
+}
+
+const VALID_WRITEBACK_SIGNALS = new Set<WritebackSignalType>([
+  "trust_up",
+  "trust_down",
+  "boundary_set",
+  "boundary_soften",
+  "repair_attempt",
+  "repair_landed",
+  "closeness_invite",
+  "withdrawal_mark",
+  "self_assertion",
+  "task_recenter",
+]);
+
+function parseSignals(value: unknown): WritebackSignalType[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const parsed = value.filter((item): item is WritebackSignalType => (
+    typeof item === "string" && VALID_WRITEBACK_SIGNALS.has(item as WritebackSignalType)
+  ));
+  return parsed.length > 0 ? [...new Set(parsed)] : undefined;
 }
 
 // ── Server ───────────────────────────────────────────────────
@@ -91,7 +113,11 @@ export function createPsycheServer(engine: PsycheEngine, opts?: HttpAdapterOptio
         const body = await readBody(req);
         const result = await engine.processOutput(
           (body.text as string) ?? "",
-          { userId: body.userId as string | undefined },
+          {
+            userId: body.userId as string | undefined,
+            signals: parseSignals(body.signals),
+            signalConfidence: typeof body.signalConfidence === "number" ? body.signalConfidence : undefined,
+          },
         );
         json(res, 200, result);
         return;

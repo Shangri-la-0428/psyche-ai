@@ -14,6 +14,7 @@
 // ============================================================
 
 import type { PsycheEngine } from "../core.js";
+import type { WritebackSignalType } from "../types.js";
 
 /**
  * LangChain integration helper for PsycheEngine.
@@ -43,6 +44,25 @@ import type { PsycheEngine } from "../core.js";
  */
 export class PsycheLangChain {
   constructor(private readonly engine: PsycheEngine) {}
+
+  private readonly validSignals = new Set<WritebackSignalType>([
+    "trust_up",
+    "trust_down",
+    "boundary_set",
+    "boundary_soften",
+    "repair_attempt",
+    "repair_landed",
+    "closeness_invite",
+    "withdrawal_mark",
+    "self_assertion",
+    "task_recenter",
+  ]);
+
+  private parseSignals(signals?: string[]): WritebackSignalType[] | undefined {
+    if (!signals) return undefined;
+    const parsed = signals.filter((signal): signal is WritebackSignalType => this.validSignals.has(signal as WritebackSignalType));
+    return parsed.length > 0 ? [...new Set(parsed)] : undefined;
+  }
 
   /**
    * Get the system message to inject into the LLM call.
@@ -85,8 +105,15 @@ export class PsycheLangChain {
    *
    * Call this AFTER the LLM invocation, before showing output to the user.
    */
-  async processResponse(text: string, opts?: { userId?: string }): Promise<string> {
-    const result = await this.engine.processOutput(text, opts);
+  async processResponse(
+    text: string,
+    opts?: { userId?: string; signals?: string[]; signalConfidence?: number },
+  ): Promise<string> {
+    const result = await this.engine.processOutput(text, {
+      userId: opts?.userId,
+      signals: this.parseSignals(opts?.signals),
+      signalConfidence: opts?.signalConfidence,
+    });
     return result.cleanedText;
   }
 }
