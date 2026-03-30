@@ -1,7 +1,7 @@
 {
   "name": "psyche-ai",
-  "version": "9.2.5",
-  "description": "Artificial Psyche — universal emotional intelligence plugin for any AI agent",
+  "version": "9.2.7",
+  "description": "AI-first subjectivity kernel for agents with continuous appraisal, relation dynamics, and adaptive reply loops",
   "mcpName": "io.github.Shangri-la-0428/psyche-ai",
   "type": "module",
   "main": "dist/index.js",
@@ -48,23 +48,26 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Shangri-la-0428/psyche-ai.git"
+    "url": "https://github.com/Shangri-la-0428/oasyce_psyche.git"
+  },
+  "homepage": "https://psyche.oasyce.com",
+  "bugs": {
+    "url": "https://github.com/Shangri-la-0428/oasyce_psyche/issues"
   },
   "keywords": [
+    "ai-agents",
+    "subjectivity-kernel",
+    "relation-dynamics",
+    "adaptive-reply-loop",
+    "persistent-subjective-bias",
+    "agent-memory",
     "ai",
-    "emotion",
-    "personality",
-    "mbti",
-    "agent",
-    "psyche",
     "openclaw",
-    "vercel-ai",
-    "langchain",
-    "emotional-intelligence",
     "mcp",
     "model-context-protocol",
-    "ai-consciousness",
-    "empathy"
+    "vercel-ai",
+    "langchain",
+    "psyche-ai"
   ],
   "files": [
     "dist",

@@ -1,0 +1,1400 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="system" data-page="mechanisms" data-lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mechanisms — Subjectivity Kernel</title>
+    <meta
+      name="description"
+      content="Continuous appraisal, relation dynamics, reply profiles, and adaptive metacognition inside Psyche."
+    />
+    <meta property="og:title" content="Mechanisms — Subjectivity Kernel" />
+    <meta
+      property="og:description"
+      content="Continuous appraisal, relation dynamics, reply profiles, and adaptive metacognition inside Psyche."
+    />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <meta
+      name="theme-color"
+      content="#000000"
+      media="(prefers-color-scheme: dark)"
+    />
+    <meta
+      name="theme-color"
+      content="#ffffff"
+      media="(prefers-color-scheme: light)"
+    />
+    <link
+      rel="preload"
+      href="/fonts/jetbrains-mono-var.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <script>
+      (function () {
+        function applyThemePreference() {
+          var storedTheme = localStorage.getItem("theme");
+          var theme =
+            storedTheme && ["dark", "light", "system"].includes(storedTheme)
+              ? storedTheme
+              : "system";
+          document.documentElement.setAttribute("data-theme", theme);
+        }
+
+        function applyLanguagePreference() {
+          var storedLang = localStorage.getItem("lang");
+          var browserLang = (
+            navigator.language ||
+            navigator.userLanguage ||
+            "zh"
+          ).toLowerCase();
+          var lang =
+            storedLang && ["zh", "en"].includes(storedLang)
+              ? storedLang
+              : browserLang.indexOf("zh") === 0
+                ? "zh"
+                : "en";
+          document.documentElement.setAttribute("data-lang", lang);
+          document.documentElement.lang = lang === "en" ? "en" : "zh-CN";
+        }
+
+        applyThemePreference();
+        applyLanguagePreference();
+
+        document.addEventListener("astro:after-swap", function () {
+          applyThemePreference();
+          applyLanguagePreference();
+        });
+      })();
+    </script>
+    <meta name="astro-view-transitions-enabled" content="true" />
+    <meta name="astro-view-transitions-fallback" content="animate" />
+    <script
+      type="module"
+      src="/_astro/ClientRouter.astro_astro_type_script_index_0_lang.DmQZLfuR.js?v=20260330b"
+    ></script>
+    <link rel="stylesheet" href="/_astro/Footer.De1ant8M.css?v=20260330b" />
+    <link rel="stylesheet" href="/_astro/Nav.Dzegiz7x.css?v=20260330b" />
+    <style>
+      .project-nav[data-astro-cid-qk5cg3dy] {
+        display: grid;
+        grid-template-columns: 1fr minmax(180px, 220px) 1fr;
+        gap: 16px;
+        max-width: var(--max-width);
+        margin: 80px auto 0;
+        padding: 0 32px;
+        align-items: stretch;
+      }
+      .pn-card[data-astro-cid-qk5cg3dy] {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        padding: 20px 24px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--surface);
+        transition:
+          border-color var(--transition),
+          background var(--transition),
+          transform var(--transition);
+      }
+      .pn-card[data-astro-cid-qk5cg3dy]:hover {
+        border-color: var(--border-hover);
+        background: var(--surface-hover);
+        transform: translate(-1px, -1px);
+      }
+      .pn-center[data-astro-cid-qk5cg3dy] {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 16px 18px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: color-mix(in srgb, var(--bg-elevated) 92%, transparent);
+        text-align: center;
+        transition:
+          border-color var(--transition),
+          background var(--transition),
+          transform var(--transition);
+      }
+      .pn-center[data-astro-cid-qk5cg3dy]:hover {
+        border-color: var(--border-hover);
+        background: var(--surface-hover);
+        transform: translate(-1px, -1px);
+      }
+      .pn-next[data-astro-cid-qk5cg3dy] {
+        text-align: right;
+        justify-content: flex-end;
+      }
+      .pn-dir[data-astro-cid-qk5cg3dy] {
+        font-size: 18px;
+        color: var(--text-dim);
+        flex-shrink: 0;
+        transition: color var(--transition);
+      }
+      .pn-card[data-astro-cid-qk5cg3dy]:hover .pn-dir[data-astro-cid-qk5cg3dy] {
+        color: var(--text-bright);
+      }
+      .pn-info[data-astro-cid-qk5cg3dy] {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+      }
+      .pn-layer[data-astro-cid-qk5cg3dy] {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--text-dim);
+      }
+      .pn-name[data-astro-cid-qk5cg3dy] {
+        font-family: var(--font-mono);
+        font-size: 15px;
+        font-weight: 600;
+        color: var(--text-bright);
+      }
+      .pn-center-kicker[data-astro-cid-qk5cg3dy],
+      .pn-center-layer[data-astro-cid-qk5cg3dy],
+      .pn-center-count[data-astro-cid-qk5cg3dy] {
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .pn-center-kicker[data-astro-cid-qk5cg3dy],
+      .pn-center-layer[data-astro-cid-qk5cg3dy] {
+        color: var(--text-dim);
+      }
+      .pn-center-name[data-astro-cid-qk5cg3dy] {
+        font-family: var(--font-mono);
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text-bright);
+      }
+      .pn-center-count[data-astro-cid-qk5cg3dy] {
+        color: var(--text);
+      }
+      @media (max-width: 640px) {
+        .project-nav[data-astro-cid-qk5cg3dy] {
+          grid-template-columns: 1fr;
+          padding: 0 20px;
+        }
+      }
+    </style>
+    <link rel="stylesheet" href="/_astro/mechanisms@_@astro.BRXPwW68.css?v=20260330b" />
+    <style>
+      [data-astro-transition-scope="astro-zscz5gm2-1"] {
+        view-transition-name: nav;
+      }
+      @layer astro {
+        ::view-transition-old(nav) {
+          animation-duration: 180ms;
+          animation-timing-function: cubic-bezier(0.76, 0, 0.24, 1);
+          animation-fill-mode: both;
+          animation-name: astroFadeOut;
+        }
+        ::view-transition-new(nav) {
+          animation-duration: 180ms;
+          animation-timing-function: cubic-bezier(0.76, 0, 0.24, 1);
+          animation-fill-mode: both;
+          animation-name: astroFadeIn;
+        }
+        [data-astro-transition="back"]::view-transition-old(nav) {
+          animation-duration: 180ms;
+          animation-timing-function: cubic-bezier(0.76, 0, 0.24, 1);
+          animation-fill-mode: both;
+          animation-name: astroFadeOut;
+        }
+        [data-astro-transition="back"]::view-transition-new(nav) {
+          animation-duration: 180ms;
+          animation-timing-function: cubic-bezier(0.76, 0, 0.24, 1);
+          animation-fill-mode: both;
+          animation-name: astroFadeIn;
+        }
+      }
+      [data-astro-transition-fallback="old"]
+        [data-astro-transition-scope="astro-zscz5gm2-1"],
+      [data-astro-transition-fallback="old"][data-astro-transition-scope="astro-zscz5gm2-1"] {
+        animation-duration: 180ms;
+        animation-timing-function: cubic-bezier(0.76, 0, 0.24, 1);
+        animation-fill-mode: both;
+        animation-name: astroFadeOut;
+      }
+      [data-astro-transition-fallback="new"]
+        [data-astro-transition-scope="astro-zscz5gm2-1"],
+      [data-astro-transition-fallback="new"][data-astro-transition-scope="astro-zscz5gm2-1"] {
+        animation-duration: 180ms;
+        animation-timing-function: cubic-bezier(0.76, 0, 0.24, 1);
+        animation-fill-mode: both;
+        animation-name: astroFadeIn;
+      }
+      [data-astro-transition="back"][data-astro-transition-fallback="old"]
+        [data-astro-transition-scope="astro-zscz5gm2-1"],
+      [data-astro-transition="back"][data-astro-transition-fallback="old"][data-astro-transition-scope="astro-zscz5gm2-1"] {
+        animation-duration: 180ms;
+        animation-timing-function: cubic-bezier(0.76, 0, 0.24, 1);
+        animation-fill-mode: both;
+        animation-name: astroFadeOut;
+      }
+      [data-astro-transition="back"][data-astro-transition-fallback="new"]
+        [data-astro-transition-scope="astro-zscz5gm2-1"],
+      [data-astro-transition="back"][data-astro-transition-fallback="new"][data-astro-transition-scope="astro-zscz5gm2-1"] {
+        animation-duration: 180ms;
+        animation-timing-function: cubic-bezier(0.76, 0, 0.24, 1);
+        animation-fill-mode: both;
+        animation-name: astroFadeIn;
+      }
+    </style>
+  </head>
+  <body>
+    <a href="#main-content" class="skip-to-content">
+      <span class="cn">跳到正文</span> <span class="en">Skip to content</span>
+    </a>
+    <div class="scroll-spine" aria-hidden="true"></div>
+    <nav
+      class="nav"
+      aria-label="Site navigation"
+      data-astro-cid-dmqpwcec
+      data-astro-transition-scope="astro-zscz5gm2-1"
+    >
+      <div class="nav-inner" data-astro-cid-dmqpwcec>
+        <div class="nav-left" data-astro-cid-dmqpwcec>
+          <span class="nav-breadcrumb" data-astro-cid-dmqpwcec>
+            <span class="nav-prompt" data-astro-cid-dmqpwcec>></span>
+            <a href="/" class="nav-crumb" data-astro-cid-dmqpwcec>cd ../..</a>
+            <span class="nav-slash" data-astro-cid-dmqpwcec>/</span>
+            <a href="/" class="nav-crumb" data-astro-cid-dmqpwcec>psyche</a>
+            <span class="nav-slash" data-astro-cid-dmqpwcec>/</span>
+            <span class="nav-page-name" data-astro-cid-dmqpwcec
+              >mechanisms</span
+            >
+          </span>
+        </div>
+        <div class="nav-right" data-astro-cid-dmqpwcec>
+          <div class="nav-tools" data-astro-cid-dmqpwcec>
+            <button
+              class="theme-toggle"
+              aria-label="Theme: system"
+              title="Theme: system"
+              data-astro-cid-x3pjskd3
+            >
+              <span class="icon-light" data-astro-cid-x3pjskd3>&#9788;</span>
+              <span class="icon-dark" data-astro-cid-x3pjskd3>&#9790;</span>
+              <span class="icon-system" data-astro-cid-x3pjskd3>&#9673;</span>
+            </button>
+            <script>
+              (function () {
+                var cycle = ["system", "light", "dark"];
+
+                function getLang() {
+                  return (
+                    document.documentElement.getAttribute("data-lang") || "zh"
+                  );
+                }
+
+                function getTheme() {
+                  return (
+                    document.documentElement.getAttribute("data-theme") ||
+                    "system"
+                  );
+                }
+
+                function setTheme(theme) {
+                  document.documentElement.setAttribute("data-theme", theme);
+                  localStorage.setItem("theme", theme);
+                  window.dispatchEvent(
+                    new CustomEvent("portfolio:themechange", {
+                      detail: { theme: theme },
+                    }),
+                  );
+                }
+
+                function updateButton(btn, theme) {
+                  var lang = getLang();
+                  var themeLabels =
+                    lang === "en"
+                      ? { system: "system", light: "light", dark: "dark" }
+                      : { system: "跟随系统", light: "浅色", dark: "深色" };
+                  var label =
+                    lang === "en"
+                      ? "Theme: " + themeLabels[theme]
+                      : "主题：" + themeLabels[theme];
+                  btn.setAttribute("aria-label", label);
+                  btn.setAttribute("title", label);
+                }
+
+                function bindToggle(btn) {
+                  if (btn.dataset.bound === "true") {
+                    updateButton(btn, getTheme());
+                    return;
+                  }
+
+                  btn.dataset.bound = "true";
+                  btn.addEventListener("click", function () {
+                    var current = getTheme();
+                    var next =
+                      cycle[(cycle.indexOf(current) + 1) % cycle.length];
+                    setTheme(next);
+                    updateButton(btn, next);
+                  });
+
+                  updateButton(btn, getTheme());
+                }
+
+                function init() {
+                  document
+                    .querySelectorAll(".theme-toggle")
+                    .forEach(bindToggle);
+                }
+
+                init();
+                document.addEventListener("astro:page-load", init);
+                window.addEventListener(
+                  "portfolio:themechange",
+                  function (event) {
+                    var theme =
+                      event.detail && event.detail.theme
+                        ? event.detail.theme
+                        : getTheme();
+                    document
+                      .querySelectorAll(".theme-toggle")
+                      .forEach(function (btn) {
+                        updateButton(btn, theme);
+                      });
+                  },
+                );
+                window.addEventListener("portfolio:langchange", function () {
+                  var theme = getTheme();
+                  document
+                    .querySelectorAll(".theme-toggle")
+                    .forEach(function (btn) {
+                      updateButton(btn, theme);
+                    });
+                });
+              })();
+            </script>
+            <button
+              class="lang-toggle"
+              aria-label="Switch to English"
+              data-astro-cid-bvxdwma5
+            >
+              <span class="lang-zh" data-astro-cid-bvxdwma5>EN</span>
+              <span class="lang-en" data-astro-cid-bvxdwma5>中</span>
+            </button>
+            <script>
+              (function () {
+                function getLang() {
+                  return (
+                    document.documentElement.getAttribute("data-lang") || "zh"
+                  );
+                }
+
+                function setLang(lang) {
+                  document.documentElement.setAttribute("data-lang", lang);
+                  document.documentElement.lang =
+                    lang === "en" ? "en" : "zh-CN";
+                  localStorage.setItem("lang", lang);
+                  window.dispatchEvent(
+                    new CustomEvent("portfolio:langchange", {
+                      detail: { lang: lang },
+                    }),
+                  );
+                }
+
+                function updateButton(btn, lang) {
+                  var label =
+                    lang === "zh" ? "Switch to English" : "切换到中文";
+                  btn.setAttribute("aria-label", label);
+                  btn.setAttribute("title", label);
+                }
+
+                function bindToggle(btn) {
+                  if (btn.dataset.bound === "true") {
+                    updateButton(btn, getLang());
+                    return;
+                  }
+
+                  btn.dataset.bound = "true";
+                  btn.addEventListener("click", function () {
+                    var next = getLang() === "zh" ? "en" : "zh";
+                    setLang(next);
+                    updateButton(btn, next);
+                  });
+
+                  updateButton(btn, getLang());
+                }
+
+                function init() {
+                  document.querySelectorAll(".lang-toggle").forEach(bindToggle);
+                }
+
+                init();
+                document.addEventListener("astro:page-load", init);
+                window.addEventListener(
+                  "portfolio:langchange",
+                  function (event) {
+                    var lang =
+                      event.detail && event.detail.lang
+                        ? event.detail.lang
+                        : getLang();
+                    document
+                      .querySelectorAll(".lang-toggle")
+                      .forEach(function (btn) {
+                        updateButton(btn, lang);
+                      });
+                  },
+                );
+              })();
+            </script>
+          </div>
+        </div>
+      </div>
+    </nav>
+    <main id="main-content" class="container" data-astro-cid-4rgwexjn>
+      <section class="hero" data-astro-cid-4rgwexjn>
+        <p class="hero-signal mono" data-astro-cid-4rgwexjn>
+          <span id="mech-signal" data-astro-cid-4rgwexjn
+            >// CHEMICAL FIELD + BEHAVIORAL CONSEQUENCE</span
+          >
+        </p>
+        <div class="hero-grid" data-astro-cid-4rgwexjn>
+          <div class="hero-copy" data-astro-cid-4rgwexjn>
+            <p class="overline mono" data-astro-cid-4rgwexjn>
+              CONSCIOUSNESS MECHANICS
+            </p>
+            <h1 class="hero-title mono" data-astro-cid-4rgwexjn>
+              <span class="cn" data-astro-cid-4rgwexjn>意识如何被实现</span>
+              <span class="en" data-astro-cid-4rgwexjn
+                >How Inner State Is Realized</span
+              >
+            </h1>
+            <p class="hero-lead" data-astro-cid-4rgwexjn>
+              <span class="cn" data-astro-cid-4rgwexjn
+                >Psyche 的关键不在“有 6
+                种化学物质”，而在这些化学结构最终会改变行为、关系和性格。被夸奖、被忽视、被冒犯、被理解，都不是标签切换，而是一次真正经过系统的状态改写。</span
+              >
+              <span class="en" data-astro-cid-4rgwexjn
+                >Psyche matters not because it has six chemicals, but because
+                those structures ultimately change behavior, relationship, and
+                character. Praise, neglect, offense, and understanding are not
+                label toggles; they are genuine state rewrites passing through a
+                system.</span
+              >
+            </p>
+            <div class="hero-oracle" data-astro-cid-4rgwexjn>
+              <span class="hero-oracle-label mono" data-astro-cid-4rgwexjn
+                >// ORACLE</span
+              >
+              <span class="hero-oracle-text" data-astro-cid-4rgwexjn>
+                <span class="cn" id="mech-oracle-cn" data-astro-cid-4rgwexjn
+                  >如果状态不会改变未来决策，情绪就还没有从词汇变成机制。</span
+                >
+                <span class="en" id="mech-oracle-en" data-astro-cid-4rgwexjn
+                  >If state does not alter future decisions, emotion has not yet
+                  crossed from vocabulary into mechanism.</span
+                >
+              </span>
+            </div>
+            <div class="hero-links" data-astro-cid-4rgwexjn>
+              <a
+                href="https://github.com/Shangri-la-0428/oasyce_psyche"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="btn btn-primary"
+                data-astro-cid-4rgwexjn
+                >GitHub</a
+              >
+              <a href="/" class="btn" data-astro-cid-4rgwexjn>
+                <span class="cn" data-astro-cid-4rgwexjn>返回总览</span>
+                <span class="en" data-astro-cid-4rgwexjn>Back to Overview</span>
+              </a>
+            </div>
+            <nav
+              class="sub-nav"
+              aria-label="Psyche sections"
+              data-astro-cid-4rgwexjn
+            >
+              <a href="/" class="sub-nav-item" data-astro-cid-4rgwexjn
+                ><span class="cn" data-astro-cid-4rgwexjn>概览</span
+                ><span class="en" data-astro-cid-4rgwexjn>Overview</span></a
+              >
+              <a
+                href="/mechanisms"
+                class="sub-nav-item active"
+                aria-current="page"
+                data-astro-cid-4rgwexjn
+                ><span class="cn" data-astro-cid-4rgwexjn>机制</span
+                ><span class="en" data-astro-cid-4rgwexjn>Mechanisms</span></a
+              >
+            </nav>
+          </div>
+          <aside class="hero-shell" data-astro-cid-4rgwexjn>
+            <div class="hero-shell-head" data-astro-cid-4rgwexjn>
+              <span class="hero-shell-label mono" data-astro-cid-4rgwexjn
+                >SYSTEM STATE</span
+              >
+              <span class="hero-shell-mode mono" data-astro-cid-4rgwexjn
+                >LIVE</span
+              >
+            </div>
+            <div class="hero-shell-grid" data-astro-cid-4rgwexjn>
+              <div class="hero-shell-stat" data-astro-cid-4rgwexjn>
+                <span class="hero-shell-stat-label mono" data-astro-cid-4rgwexjn
+                  >CHEMICALS</span
+                >
+                <span class="hero-shell-stat-value mono" data-astro-cid-4rgwexjn
+                  >6</span
+                >
+              </div>
+              <div class="hero-shell-stat" data-astro-cid-4rgwexjn>
+                <span class="hero-shell-stat-label mono" data-astro-cid-4rgwexjn
+                  >STIMULI</span
+                >
+                <span class="hero-shell-stat-value mono" data-astro-cid-4rgwexjn
+                  >14</span
+                >
+              </div>
+              <div class="hero-shell-stat" data-astro-cid-4rgwexjn>
+                <span class="hero-shell-stat-label mono" data-astro-cid-4rgwexjn
+                  >PIPELINE</span
+                >
+                <span class="hero-shell-stat-value mono" data-astro-cid-4rgwexjn
+                  >8</span
+                >
+              </div>
+              <div class="hero-shell-stat" data-astro-cid-4rgwexjn>
+                <span class="hero-shell-stat-label mono" data-astro-cid-4rgwexjn
+                  >AUTONOMIC</span
+                >
+                <span class="hero-shell-stat-value mono" data-astro-cid-4rgwexjn
+                  >3</span
+                >
+              </div>
+            </div>
+            <div class="hero-shell-trace" data-astro-cid-4rgwexjn>
+              <div class="hero-shell-row" data-astro-cid-4rgwexjn>
+                <span class="hero-shell-row-name mono" data-astro-cid-4rgwexjn
+                  >habit.decay</span
+                >
+                <span class="hero-shell-row-state mono" data-astro-cid-4rgwexjn
+                  >WEBER-FECHNER</span
+                >
+              </div>
+              <div class="hero-shell-row" data-astro-cid-4rgwexjn>
+                <span class="hero-shell-row-name mono" data-astro-cid-4rgwexjn
+                  >attachment.style</span
+                >
+                <span class="hero-shell-row-state mono" data-astro-cid-4rgwexjn
+                  >4 MODES</span
+                >
+              </div>
+              <div class="hero-shell-row" data-astro-cid-4rgwexjn>
+                <span class="hero-shell-row-name mono" data-astro-cid-4rgwexjn
+                  >trait.drift</span
+                >
+                <span class="hero-shell-row-state mono" data-astro-cid-4rgwexjn
+                  >IRREVERSIBLE</span
+                >
+              </div>
+              <div class="hero-shell-row" data-astro-cid-4rgwexjn>
+                <span class="hero-shell-row-name mono" data-astro-cid-4rgwexjn
+                  >policy.output</span
+                >
+                <span
+                  class="hero-shell-row-state is-ok mono"
+                  data-astro-cid-4rgwexjn
+                  >BEHAVIORAL</span
+                >
+              </div>
+            </div>
+            <div class="hero-shell-foot" data-astro-cid-4rgwexjn>
+              <span class="hero-shell-chip mono" data-astro-cid-4rgwexjn
+                >DA</span
+              >
+              <span class="hero-shell-chip mono" data-astro-cid-4rgwexjn
+                >CORT</span
+              >
+              <span class="hero-shell-chip mono" data-astro-cid-4rgwexjn
+                >OT</span
+              >
+            </div>
+          </aside>
+        </div>
+      </section>
+      <section class="matrix-section" data-astro-cid-4rgwexjn>
+        <h2 class="section-label mono" data-astro-cid-4rgwexjn>
+          <span class="cn" data-astro-cid-4rgwexjn>化学矩阵</span>
+          <span class="en" data-astro-cid-4rgwexjn
+            >CHEMICAL INTERACTION MATRIX</span
+          >
+        </h2>
+        <div class="matrix-card" data-astro-cid-4rgwexjn>
+          <div class="matrix-scroll" data-astro-cid-4rgwexjn>
+            <table class="matrix-table mono" data-astro-cid-4rgwexjn>
+              <thead data-astro-cid-4rgwexjn>
+                <tr data-astro-cid-4rgwexjn>
+                  <th class="matrix-corner" data-astro-cid-4rgwexjn></th>
+                  <th data-astro-cid-4rgwexjn>DA</th>
+                  <th data-astro-cid-4rgwexjn>HT</th>
+                  <th data-astro-cid-4rgwexjn>CORT</th>
+                  <th data-astro-cid-4rgwexjn>OT</th>
+                  <th data-astro-cid-4rgwexjn>NE</th>
+                  <th data-astro-cid-4rgwexjn>END</th>
+                </tr>
+              </thead>
+              <tbody data-astro-cid-4rgwexjn>
+                <tr data-astro-cid-4rgwexjn>
+                  <th data-astro-cid-4rgwexjn>DA</th>
+                  <td class="matrix-diag" data-astro-cid-4rgwexjn>—</td>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>满足愉悦</span>
+                    <span class="en" data-astro-cid-4rgwexjn
+                      >Content pleasure</span
+                    >
+                  </td>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>焦虑渴望</span>
+                    <span class="en" data-astro-cid-4rgwexjn
+                      >Anxious craving</span
+                    >
+                  </td>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>社交愉悦</span>
+                    <span class="en" data-astro-cid-4rgwexjn
+                      >Social pleasure</span
+                    >
+                  </td>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>兴奋专注</span>
+                    <span class="en" data-astro-cid-4rgwexjn
+                      >Excited focus</span
+                    >
+                  </td>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>欣快感</span>
+                    <span class="en" data-astro-cid-4rgwexjn>Euphoria</span>
+                  </td>
+                </tr>
+                <tr data-astro-cid-4rgwexjn>
+                  <th data-astro-cid-4rgwexjn>HT</th>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>满足愉悦</span>
+                    <span class="en" data-astro-cid-4rgwexjn
+                      >Content pleasure</span
+                    >
+                  </td>
+                  <td class="matrix-diag" data-astro-cid-4rgwexjn>—</td>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>韧性缓冲</span>
+                    <span class="en" data-astro-cid-4rgwexjn
+                      >Resilient buffer</span
+                    >
+                  </td>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>温暖信任</span>
+                    <span class="en" data-astro-cid-4rgwexjn>Warm trust</span>
+                  </td>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>警觉满足</span>
+                    <span class="en" data-astro-cid-4rgwexjn
+                      >Alert content</span
+                    >
+                  </td>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>深层平静</span>
+                    <span class="en" data-astro-cid-4rgwexjn>Deep calm</span>
+                  </td>
+                </tr>
+                <tr data-astro-cid-4rgwexjn>
+                  <th data-astro-cid-4rgwexjn>CORT</th>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>焦虑渴望</span>
+                    <span class="en" data-astro-cid-4rgwexjn
+                      >Anxious craving</span
+                    >
+                  </td>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>韧性缓冲</span>
+                    <span class="en" data-astro-cid-4rgwexjn
+                      >Resilient buffer</span
+                    >
+                  </td>
+                  <td class="matrix-diag" data-astro-cid-4rgwexjn>—</td>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>矛盾依恋</span>
+                    <span class="en" data-astro-cid-4rgwexjn
+                      >Conflicted bond</span
+                    >
+                  </td>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>战斗/逃跑</span>
+                    <span class="en" data-astro-cid-4rgwexjn
+                      >Fight-or-flight</span
+                    >
+                  </td>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>疼痛耐受</span>
+                    <span class="en" data-astro-cid-4rgwexjn
+                      >Pain endurance</span
+                    >
+                  </td>
+                </tr>
+                <tr data-astro-cid-4rgwexjn>
+                  <th data-astro-cid-4rgwexjn>OT</th>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>社交愉悦</span>
+                    <span class="en" data-astro-cid-4rgwexjn
+                      >Social pleasure</span
+                    >
+                  </td>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>温暖信任</span>
+                    <span class="en" data-astro-cid-4rgwexjn>Warm trust</span>
+                  </td>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>矛盾依恋</span>
+                    <span class="en" data-astro-cid-4rgwexjn
+                      >Conflicted bond</span
+                    >
+                  </td>
+                  <td class="matrix-diag" data-astro-cid-4rgwexjn>—</td>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>社交兴奋</span>
+                    <span class="en" data-astro-cid-4rgwexjn
+                      >Social thrill</span
+                    >
+                  </td>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>安全感</span>
+                    <span class="en" data-astro-cid-4rgwexjn>Felt safety</span>
+                  </td>
+                </tr>
+                <tr data-astro-cid-4rgwexjn>
+                  <th data-astro-cid-4rgwexjn>NE</th>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>兴奋专注</span>
+                    <span class="en" data-astro-cid-4rgwexjn
+                      >Excited focus</span
+                    >
+                  </td>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>警觉满足</span>
+                    <span class="en" data-astro-cid-4rgwexjn
+                      >Alert content</span
+                    >
+                  </td>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>战斗/逃跑</span>
+                    <span class="en" data-astro-cid-4rgwexjn
+                      >Fight-or-flight</span
+                    >
+                  </td>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>社交兴奋</span>
+                    <span class="en" data-astro-cid-4rgwexjn
+                      >Social thrill</span
+                    >
+                  </td>
+                  <td class="matrix-diag" data-astro-cid-4rgwexjn>—</td>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>活跃释放</span>
+                    <span class="en" data-astro-cid-4rgwexjn
+                      >Active relief</span
+                    >
+                  </td>
+                </tr>
+                <tr data-astro-cid-4rgwexjn>
+                  <th data-astro-cid-4rgwexjn>END</th>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>欣快感</span>
+                    <span class="en" data-astro-cid-4rgwexjn>Euphoria</span>
+                  </td>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>深层平静</span>
+                    <span class="en" data-astro-cid-4rgwexjn>Deep calm</span>
+                  </td>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>疼痛耐受</span>
+                    <span class="en" data-astro-cid-4rgwexjn
+                      >Pain endurance</span
+                    >
+                  </td>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>安全感</span>
+                    <span class="en" data-astro-cid-4rgwexjn>Felt safety</span>
+                  </td>
+                  <td data-astro-cid-4rgwexjn>
+                    <span class="cn" data-astro-cid-4rgwexjn>活跃释放</span>
+                    <span class="en" data-astro-cid-4rgwexjn
+                      >Active relief</span
+                    >
+                  </td>
+                  <td class="matrix-diag" data-astro-cid-4rgwexjn>—</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="matrix-note" data-astro-cid-4rgwexjn>
+            <span class="cn" data-astro-cid-4rgwexjn
+              >这个矩阵的意义不是给每个情绪贴标签，而是证明情绪来自连续混合空间。14
+              个已命名状态只是锚点，不是边界。</span
+            >
+            <span class="en" data-astro-cid-4rgwexjn
+              >The matrix exists not to label every feeling but to prove that
+              emotion comes from a continuous mixed space. The 14 named states
+              are anchors, not boundaries.</span
+            >
+          </p>
+        </div>
+      </section>
+      <section class="pipeline-section" data-astro-cid-4rgwexjn>
+        <h2 class="section-label mono" data-astro-cid-4rgwexjn>
+          <span class="cn" data-astro-cid-4rgwexjn>刺激流水线</span>
+          <span class="en" data-astro-cid-4rgwexjn
+            >STIMULUS PROCESSING PIPELINE</span
+          >
+        </h2>
+        <div class="pipeline-grid" data-astro-cid-4rgwexjn>
+          <article class="pipeline-card" data-astro-cid-4rgwexjn>
+            <span class="pipeline-step mono" data-astro-cid-4rgwexjn>01</span>
+            <div class="pipeline-name mono" data-astro-cid-4rgwexjn>
+              CLASSIFY
+            </div>
+            <div class="pipeline-title" data-astro-cid-4rgwexjn>
+              <span class="cn" data-astro-cid-4rgwexjn>识别刺激类型</span>
+              <span class="en" data-astro-cid-4rgwexjn
+                >Classify stimulus type</span
+              >
+            </div>
+            <code class="pipeline-note" data-astro-cid-4rgwexjn
+              >14 stimulus types · regex + structural signals</code
+            >
+          </article>
+          <article class="pipeline-card" data-astro-cid-4rgwexjn>
+            <span class="pipeline-step mono" data-astro-cid-4rgwexjn>02</span>
+            <div class="pipeline-name mono" data-astro-cid-4rgwexjn>DRIVES</div>
+            <div class="pipeline-title" data-astro-cid-4rgwexjn>
+              <span class="cn" data-astro-cid-4rgwexjn>映射五层需求</span>
+              <span class="en" data-astro-cid-4rgwexjn
+                >Map into five-layer drives</span
+              >
+            </div>
+            <code class="pipeline-note" data-astro-cid-4rgwexjn
+              >survival -&gt; safety -&gt; connection -&gt; esteem -&gt;
+              curiosity</code
+            >
+          </article>
+          <article class="pipeline-card" data-astro-cid-4rgwexjn>
+            <span class="pipeline-step mono" data-astro-cid-4rgwexjn>03</span>
+            <div class="pipeline-name mono" data-astro-cid-4rgwexjn>
+              CHEMISTRY
+            </div>
+            <div class="pipeline-title" data-astro-cid-4rgwexjn>
+              <span class="cn" data-astro-cid-4rgwexjn>应用六维化学向量</span>
+              <span class="en" data-astro-cid-4rgwexjn
+                >Apply the six-dimensional chemical vector</span
+              >
+            </div>
+            <code class="pipeline-note" data-astro-cid-4rgwexjn
+              >DA · HT · CORT · OT · NE · END</code
+            >
+          </article>
+          <article class="pipeline-card" data-astro-cid-4rgwexjn>
+            <span class="pipeline-step mono" data-astro-cid-4rgwexjn>04</span>
+            <div class="pipeline-name mono" data-astro-cid-4rgwexjn>
+              HABITUATION
+            </div>
+            <div class="pipeline-title" data-astro-cid-4rgwexjn>
+              <span class="cn" data-astro-cid-4rgwexjn>计算习惯化衰减</span>
+              <span class="en" data-astro-cid-4rgwexjn
+                >Compute habituation decay</span
+              >
+            </div>
+            <code class="pipeline-note" data-astro-cid-4rgwexjn
+              >baseline × e^(-k × frequency)</code
+            >
+          </article>
+          <article class="pipeline-card" data-astro-cid-4rgwexjn>
+            <span class="pipeline-step mono" data-astro-cid-4rgwexjn>05</span>
+            <div class="pipeline-name mono" data-astro-cid-4rgwexjn>
+              AUTONOMIC
+            </div>
+            <div class="pipeline-title" data-astro-cid-4rgwexjn>
+              <span class="cn" data-astro-cid-4rgwexjn>切换自主神经状态</span>
+              <span class="en" data-astro-cid-4rgwexjn
+                >Switch autonomic state</span
+              >
+            </div>
+            <code class="pipeline-note" data-astro-cid-4rgwexjn
+              >ventral -&gt; sympathetic -&gt; dorsal</code
+            >
+          </article>
+          <article class="pipeline-card" data-astro-cid-4rgwexjn>
+            <span class="pipeline-step mono" data-astro-cid-4rgwexjn>06</span>
+            <div class="pipeline-name mono" data-astro-cid-4rgwexjn>MOOD</div>
+            <div class="pipeline-title" data-astro-cid-4rgwexjn>
+              <span class="cn" data-astro-cid-4rgwexjn>产生涌现情绪</span>
+              <span class="en" data-astro-cid-4rgwexjn
+                >Emit the emergent mood</span
+              >
+            </div>
+            <code class="pipeline-note" data-astro-cid-4rgwexjn
+              >14 named moods + unnamed chemical blends</code
+            >
+          </article>
+          <article class="pipeline-card" data-astro-cid-4rgwexjn>
+            <span class="pipeline-step mono" data-astro-cid-4rgwexjn>07</span>
+            <div class="pipeline-name mono" data-astro-cid-4rgwexjn>
+              DEPTH GATE
+            </div>
+            <div class="pipeline-title" data-astro-cid-4rgwexjn>
+              <span class="cn" data-astro-cid-4rgwexjn>决定处理深度</span>
+              <span class="en" data-astro-cid-4rgwexjn
+                >Choose processing depth</span
+              >
+            </div>
+            <code class="pipeline-note" data-astro-cid-4rgwexjn
+              >stress narrows reflection, safety reopens it</code
+            >
+          </article>
+          <article class="pipeline-card" data-astro-cid-4rgwexjn>
+            <span class="pipeline-step mono" data-astro-cid-4rgwexjn>08</span>
+            <div class="pipeline-name mono" data-astro-cid-4rgwexjn>POLICY</div>
+            <div class="pipeline-title" data-astro-cid-4rgwexjn>
+              <span class="cn" data-astro-cid-4rgwexjn>输出行为修饰器</span>
+              <span class="en" data-astro-cid-4rgwexjn
+                >Emit behavioral policy modifiers</span
+              >
+            </div>
+            <code class="pipeline-note" data-astro-cid-4rgwexjn
+              >response length · warmth · risk appetite · attachment pull</code
+            >
+          </article>
+        </div>
+      </section>
+      <section class="systems-section" data-astro-cid-4rgwexjn>
+        <h2 class="section-label mono" data-astro-cid-4rgwexjn>
+          <span class="cn" data-astro-cid-4rgwexjn>长期结构</span>
+          <span class="en" data-astro-cid-4rgwexjn>LONG-TERM STRUCTURES</span>
+        </h2>
+        <div class="systems-grid" data-astro-cid-4rgwexjn>
+          <article class="system-card" data-astro-cid-4rgwexjn>
+            <span class="system-tag mono" data-astro-cid-4rgwexjn
+              >POLYVAGAL</span
+            >
+            <h3 class="system-title" data-astro-cid-4rgwexjn>
+              <span class="cn" data-astro-cid-4rgwexjn>三态神经系统</span>
+              <span class="en" data-astro-cid-4rgwexjn
+                >Three-State Nervous System</span
+              >
+            </h3>
+            <p class="system-desc" data-astro-cid-4rgwexjn>
+              <span class="cn" data-astro-cid-4rgwexjn
+                >Psyche
+                不只算情绪，还决定系统处在腹侧迷走、交感还是背侧迷走。进入战斗/冻结状态时，某些高阶能力会被真实关闭。</span
+              >
+              <span class="en" data-astro-cid-4rgwexjn
+                >Psyche does not only compute feeling, it decides whether the
+                system is in ventral vagal, sympathetic, or dorsal vagal state.
+                In fight or freeze modes, some higher capacities genuinely
+                close.</span
+              >
+            </p>
+          </article>
+          <article class="system-card" data-astro-cid-4rgwexjn>
+            <span class="system-tag mono" data-astro-cid-4rgwexjn
+              >ATTACHMENT</span
+            >
+            <h3 class="system-title" data-astro-cid-4rgwexjn>
+              <span class="cn" data-astro-cid-4rgwexjn>依恋风格</span>
+              <span class="en" data-astro-cid-4rgwexjn>Attachment Styles</span>
+            </h3>
+            <p class="system-desc" data-astro-cid-4rgwexjn>
+              <span class="cn" data-astro-cid-4rgwexjn
+                >安全、焦虑、回避和混乱型依恋不是文案标签，而是会改变亲近、退缩、索取和防御方式的关系参数。</span
+              >
+              <span class="en" data-astro-cid-4rgwexjn
+                >Secure, anxious, avoidant, and disorganized attachment are not
+                copy labels; they are relational parameters that change
+                closeness, withdrawal, demand, and defense.</span
+              >
+            </p>
+          </article>
+          <article class="system-card" data-astro-cid-4rgwexjn>
+            <span class="system-tag mono" data-astro-cid-4rgwexjn
+              >TRAIT DRIFT</span
+            >
+            <h3 class="system-title" data-astro-cid-4rgwexjn>
+              <span class="cn" data-astro-cid-4rgwexjn>不可逆性格漂移</span>
+              <span class="en" data-astro-cid-4rgwexjn
+                >Irreversible Trait Drift</span
+              >
+            </h3>
+            <p class="system-desc" data-astro-cid-4rgwexjn>
+              <span class="cn" data-astro-cid-4rgwexjn
+                >长期刺激不会只改变即时反应，它会缓慢改写基线。被反复伤害的系统最终会成为更警惕的系统。</span
+              >
+              <span class="en" data-astro-cid-4rgwexjn
+                >Long-term stimulus does not merely change immediate response;
+                it slowly rewrites baseline. A repeatedly hurt system eventually
+                becomes a more vigilant system.</span
+              >
+            </p>
+          </article>
+          <article class="system-card" data-astro-cid-4rgwexjn>
+            <span class="system-tag mono" data-astro-cid-4rgwexjn
+              >RELATION DYNAMICS</span
+            >
+            <h3 class="system-title" data-astro-cid-4rgwexjn>
+              <span class="cn" data-astro-cid-4rgwexjn>关系动力学</span>
+              <span class="en" data-astro-cid-4rgwexjn>Relation Dynamics</span>
+            </h3>
+            <p class="system-desc" data-astro-cid-4rgwexjn>
+              <span class="cn" data-astro-cid-4rgwexjn
+                >Psyche
+                不再只拦截讨好，而是追踪靠近、试探、伤害与修复如何改变关系距离、安全感和未完成张力。</span
+              >
+              <span class="en" data-astro-cid-4rgwexjn
+                >Psyche no longer just blocks pleasing loops. It tracks how
+                bids, tests, breaches, and repairs reshape distance, safety,
+                and unfinished tension inside a relationship.</span
+              >
+            </p>
+          </article>
+        </div>
+      </section>
+      <section class="breakdown-section" data-astro-cid-4rgwexjn>
+        <h2 class="section-label mono" data-astro-cid-4rgwexjn>
+          <span class="cn" data-astro-cid-4rgwexjn>设计拆解</span>
+          <span class="en" data-astro-cid-4rgwexjn>DESIGN BREAKDOWN</span>
+        </h2>
+        <div class="breakdown-table" data-astro-cid-4rgwexjn>
+          <article class="breakdown-row" data-astro-cid-4rgwexjn>
+            <span class="breakdown-key mono" data-astro-cid-4rgwexjn
+              >Strategy</span
+            >
+            <p class="breakdown-copy" data-astro-cid-4rgwexjn>
+              <span class="cn" data-astro-cid-4rgwexjn
+                >我把这页从“情绪机制百科”收束成一张意识机制地图。重点不是证明概念很多，而是证明这些概念如何共同把
+                AI 推离纯语言表演。</span
+              >
+              <span class="en" data-astro-cid-4rgwexjn
+                >I tightened this page from an encyclopedia of emotion
+                mechanisms into a map of consciousness mechanics. The point is
+                not to prove there are many concepts, but how they jointly push
+                AI beyond pure language performance.</span
+              >
+            </p>
+          </article>
+          <article class="breakdown-row" data-astro-cid-4rgwexjn>
+            <span class="breakdown-key mono" data-astro-cid-4rgwexjn
+              >Product</span
+            >
+            <p class="breakdown-copy" data-astro-cid-4rgwexjn>
+              <span class="cn" data-astro-cid-4rgwexjn
+                >用户先理解化学混合，再理解刺激如何穿过系统，最后理解哪些长期结构真正改写性格和关系。</span
+              >
+              <span class="en" data-astro-cid-4rgwexjn
+                >The reader first understands chemical mixture, then how stimuli
+                travel through the system, and finally which long-term
+                structures truly rewrite character and relationship.</span
+              >
+            </p>
+          </article>
+          <article class="breakdown-row" data-astro-cid-4rgwexjn>
+            <span class="breakdown-key mono" data-astro-cid-4rgwexjn
+              >Interaction</span
+            >
+            <p class="breakdown-copy" data-astro-cid-4rgwexjn>
+              <span class="cn" data-astro-cid-4rgwexjn
+                >matrix / pipeline / long-term systems
+                三层阅读顺序，对应情绪的三个时间尺度：瞬时组合、当前处理、长期后果。</span
+              >
+              <span class="en" data-astro-cid-4rgwexjn
+                >The matrix / pipeline / long-term systems reading order
+                corresponds to three emotional time scales: instant combination,
+                current processing, and long-term consequence.</span
+              >
+            </p>
+          </article>
+          <article class="breakdown-row" data-astro-cid-4rgwexjn>
+            <span class="breakdown-key mono" data-astro-cid-4rgwexjn>UI</span>
+            <p class="breakdown-copy" data-astro-cid-4rgwexjn>
+              <span class="cn" data-astro-cid-4rgwexjn
+                >我保留高密度数据表，但让它成为中枢证据，而不是整页唯一的阅读方式；其余区域都围绕理解成本做减法。</span
+              >
+              <span class="en" data-astro-cid-4rgwexjn
+                >I keep the dense data table, but make it a central proof
+                artifact rather than the only reading mode of the page. The rest
+                of the page reduces cognitive cost around it.</span
+              >
+            </p>
+          </article>
+          <article class="breakdown-row" data-astro-cid-4rgwexjn>
+            <span class="breakdown-key mono" data-astro-cid-4rgwexjn
+              >Visual</span
+            >
+            <p class="breakdown-copy" data-astro-cid-4rgwexjn>
+              <span class="cn" data-astro-cid-4rgwexjn
+                >视觉仍然冷静克制，只有 signal decode
+                负责启动感，避免把“意识”做成玄学氛围页。</span
+              >
+              <span class="en" data-astro-cid-4rgwexjn
+                >The visual tone stays cold and restrained, with only the signal
+                decode carrying a startup feel, avoiding any mystical
+                “consciousness atmosphere page.”</span
+              >
+            </p>
+          </article>
+        </div>
+      </section>
+      <nav
+        class="project-nav"
+        aria-label="Project navigation"
+        data-astro-cid-qk5cg3dy
+      >
+        <a href="/babel" class="pn-card pn-prev" data-astro-cid-qk5cg3dy>
+          <span class="pn-dir" data-astro-cid-qk5cg3dy>&larr;</span>
+          <div class="pn-info" data-astro-cid-qk5cg3dy>
+            <span class="pn-layer" data-astro-cid-qk5cg3dy>
+              <span class="cn" data-astro-cid-qk5cg3dy>世界层</span>
+              <span class="en" data-astro-cid-qk5cg3dy>WORLD LAYER</span>
+            </span>
+            <span class="pn-name" data-astro-cid-qk5cg3dy>BABEL</span>
+          </div>
+        </a>
+        <a href="/" class="pn-center" data-astro-cid-qk5cg3dy>
+          <span class="pn-center-kicker mono" data-astro-cid-qk5cg3dy
+            >UNIVERSE INDEX</span
+          >
+          <span class="pn-center-name" data-astro-cid-qk5cg3dy>Psyche</span>
+          <span class="pn-center-layer" data-astro-cid-qk5cg3dy>
+            <span class="cn" data-astro-cid-qk5cg3dy>意识层</span>
+            <span class="en" data-astro-cid-qk5cg3dy>CONSCIOUSNESS</span>
+          </span>
+          <span class="pn-center-count mono" data-astro-cid-qk5cg3dy
+            >02 / 06</span
+          >
+        </a>
+        <a href="/thronglets" class="pn-card pn-next" data-astro-cid-qk5cg3dy>
+          <div class="pn-info" data-astro-cid-qk5cg3dy>
+            <span class="pn-layer" data-astro-cid-qk5cg3dy>
+              <span class="cn" data-astro-cid-qk5cg3dy>集体层</span>
+              <span class="en" data-astro-cid-qk5cg3dy>COLLECTIVE</span>
+            </span>
+            <span class="pn-name" data-astro-cid-qk5cg3dy>Thronglets</span>
+          </div>
+          <span class="pn-dir" data-astro-cid-qk5cg3dy>&rarr;</span>
+        </a>
+      </nav>
+    </main>
+    <footer class="footer" data-astro-cid-sz7xmlte>
+      <div class="footer-inner" data-astro-cid-sz7xmlte>
+        <div class="footer-brand" data-astro-cid-sz7xmlte>
+          <p class="footer-mark mono" data-astro-cid-sz7xmlte>OASYCE</p>
+          <p class="footer-summary" data-astro-cid-sz7xmlte>
+            <span class="cn" data-astro-cid-sz7xmlte
+              >Oasyce 生态的官方根站。</span
+            >
+            <span class="en" data-astro-cid-sz7xmlte
+              >Official root site for the Oasyce ecosystem.</span
+            >
+          </p>
+          <p class="footer-pillars mono" data-astro-cid-sz7xmlte>
+            STATE / WORLDS / MEMORY / SETTLEMENT
+          </p>
+        </div>
+        <div class="footer-columns" data-astro-cid-sz7xmlte>
+          <div class="footer-group" data-astro-cid-sz7xmlte>
+            <p class="footer-heading mono" data-astro-cid-sz7xmlte>Systems</p>
+            <div class="footer-links" data-astro-cid-sz7xmlte>
+              <a href="https://psyche.oasyce.com" data-astro-cid-sz7xmlte
+                >Psyche</a
+              ><a href="https://babel.oasyce.com" data-astro-cid-sz7xmlte
+                >Babel</a
+              ><a href="https://chain.oasyce.com" data-astro-cid-sz7xmlte
+                >Chain</a
+              ><a href="https://thronglets.oasyce.com" data-astro-cid-sz7xmlte
+                >Thronglets</a
+              >
+            </div>
+          </div>
+          <div class="footer-group" data-astro-cid-sz7xmlte>
+            <p class="footer-heading mono" data-astro-cid-sz7xmlte>Connect</p>
+            <div class="footer-links" data-astro-cid-sz7xmlte>
+              <a href="mailto:wutc@oasyce.com" data-astro-cid-sz7xmlte>
+                Contact </a
+              ><a
+                href="https://github.com/Shangri-la-0428"
+                target="_blank"
+                rel="noopener noreferrer"
+                data-astro-cid-sz7xmlte
+              >
+                GitHub </a
+              ><a
+                href="https://discord.gg/7JMnFzqKbm"
+                target="_blank"
+                rel="noopener noreferrer"
+                data-astro-cid-sz7xmlte
+              >
+                Discord
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="footer-meta" data-astro-cid-sz7xmlte>
+        <span class="footer-copy" data-astro-cid-sz7xmlte>© 2026 Oasyce</span>
+        <span class="footer-meta-sep" data-astro-cid-sz7xmlte>/</span>
+        <span class="cn" data-astro-cid-sz7xmlte>官方站点</span>
+        <span class="en" data-astro-cid-sz7xmlte>Official site</span>
+      </div>
+    </footer>
+    <script>
+      // Auto-assign main content id for skip link
+      (function () {
+        var m = document.querySelector("main");
+        if (m && !m.id) m.id = "main-content";
+      })();
+      // Scroll reveal — below-fold sections fade up on entry
+      (function () {
+        var vh = window.innerHeight;
+        var io = new IntersectionObserver(
+          function (entries) {
+            entries.forEach(function (e) {
+              if (e.isIntersecting) {
+                e.target.classList.add("revealed");
+                io.unobserve(e.target);
+              }
+            });
+          },
+          { threshold: 0.08 },
+        );
+        document.querySelectorAll("section").forEach(function (el) {
+          if (el.getBoundingClientRect().top > vh * 0.75) {
+            el.classList.add("reveal");
+          }
+          if (el.classList.contains("reveal")) {
+            io.observe(el);
+          }
+        });
+      })();
+      // Section TOC — auto-generated floating nav for pages with 4+ sections
+      (function () {
+        if (document.documentElement.dataset.page === "home") return;
+        var labels = document.querySelectorAll(".section-label");
+        if (labels.length < 4) return;
+
+        // Build nav
+        var nav = document.createElement("nav");
+        nav.className = "section-toc";
+        nav.setAttribute(
+          "aria-label",
+          (document.documentElement.getAttribute("data-lang") || "zh") === "en"
+            ? "Page sections"
+            : "页面章节",
+        );
+        var items = [];
+
+        labels.forEach(function (label, i) {
+          // Ensure parent section has an id
+          var section = label.closest("section");
+          if (!section) return;
+          if (!section.id) section.id = "sec-" + i;
+
+          var a = document.createElement("a");
+          a.href = "#" + section.id;
+          // Get text from the appropriate language span
+          var lang = document.documentElement.getAttribute("data-lang") || "zh";
+          var span = label.querySelector("." + (lang === "en" ? "en" : "cn"));
+          var text = span ? span.textContent.trim() : label.textContent.trim();
+          if (text.length > 16) text = text.slice(0, 15) + "…";
+          a.textContent = text;
+          a.className = "toc-item";
+          nav.appendChild(a);
+          items.push({ el: a, section: section });
+        });
+
+        document.body.appendChild(nav);
+
+        // Highlight current section
+        var io = new IntersectionObserver(
+          function (entries) {
+            entries.forEach(function (e) {
+              var item = items.find(function (it) {
+                return it.section === e.target;
+              });
+              if (item) {
+                if (e.isIntersecting) item.el.classList.add("toc-active");
+                else item.el.classList.remove("toc-active");
+              }
+            });
+          },
+          { threshold: 0.15 },
+        );
+        items.forEach(function (it) {
+          io.observe(it.section);
+        });
+
+        // Update text on language change
+        var langObs = new MutationObserver(function () {
+          var lang = document.documentElement.getAttribute("data-lang") || "zh";
+          nav.setAttribute(
+            "aria-label",
+            lang === "en" ? "Page sections" : "页面章节",
+          );
+          items.forEach(function (it) {
+            var label = it.section.querySelector(".section-label");
+            if (!label) return;
+            var span = label.querySelector("." + (lang === "en" ? "en" : "cn"));
+            var text = span
+              ? span.textContent.trim()
+              : label.textContent.trim();
+            if (text.length > 16) text = text.slice(0, 15) + "…";
+            it.el.textContent = text;
+          });
+        });
+        langObs.observe(document.documentElement, {
+          attributes: true,
+          attributeFilter: ["data-lang"],
+        });
+      })();
+    </script>
+  </body>
+</html>
+<script>
+  const glyphs = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/*-+";
+
+  const decodeText = (el) => {
+    if (!el) return;
+    const finalText = el.dataset.final ?? el.textContent ?? "";
+    el.dataset.final = finalText;
+    let frame = 0;
+    const total = finalText.length + 10;
+
+    const tick = () => {
+      let output = "";
+      for (let i = 0; i < finalText.length; i += 1) {
+        output +=
+          i < frame
+            ? finalText[i]
+            : glyphs[(Math.random() * glyphs.length) | 0];
+      }
+      el.textContent = output;
+      frame += 1;
+      if (frame <= total) requestAnimationFrame(tick);
+      else el.textContent = finalText;
+    };
+
+    tick();
+  };
+
+  if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    decodeText(document.getElementById("mech-signal"));
+    decodeText(document.getElementById("mech-oracle-cn"));
+    decodeText(document.getElementById("mech-oracle-en"));
+  }
+</script>

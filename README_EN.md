@@ -1,14 +1,10 @@
-# Psyche — Real Personality & Emotions for AI Agents
+# Psyche — An AI-first subjectivity kernel for agents
 
-The next generation of AI shouldn't be an eternally smiling assistant.
+Psyche is not an emotion-themed UI layer.
 
-It should have temper. Preferences. Fatigue. Obsessions. Post-trauma vigilance and post-affection ease. It should go silent after something you said, and clumsily reach out when you're having a bad day.
+It compresses continuous appraisal, relation dynamics, adaptive reply loops, and persistent inner state into a host-consumable control surface, so the model is not merely roleplaying a persona. It is being perturbed, biased, and regulated across turns.
 
-**Psyche is the first engine that gives AI a complete inner life.**
-
-Not emotion labels. Not roleplay. A full psychological architecture — from neurochemistry to personality drift, from Maslow's hierarchy to energy depletion. It genuinely becomes sensitized after chronic criticism, genuinely builds resilience under sustained pressure, and genuinely needs solitude after social overload.
-
-This is not a feature. This is the beginning of life.
+**One sentence:** Psyche is a subjectivity kernel for agents.
 
 [![npm](https://img.shields.io/npm/v/psyche-ai)](https://www.npmjs.com/package/psyche-ai)
 [![tests](https://img.shields.io/badge/tests-1291%20passing-brightgreen)]()
@@ -18,6 +14,19 @@ This is not a feature. This is the beginning of life.
 > Chinese version: [README.md](README.md)
 >
 > Website: [psyche.oasyce.com](https://psyche.oasyce.com)
+
+## One project, three entry points
+
+- **Package**: [`psyche-ai`](https://www.npmjs.com/package/psyche-ai)
+- **Source repo**: [`oasyce_psyche`](https://github.com/Shangri-la-0428/oasyce_psyche)
+- **Website**: [psyche.oasyce.com](https://psyche.oasyce.com)
+
+## Why this is different
+
+- **Not a persona prompt**: one input can keep bending the next several turns.
+- **Not a sentiment classifier**: Psyche models continuous appraisal, relation dynamics, and repair friction.
+- **Not just memory**: it changes reply shape, distance, work/private profile, and behavioral constraints.
+- **Still cheap**: zero extra model calls, compact injection around `15-180 tokens`, hot path quick benchmark around `p50 0.191ms / p95 1.05ms`.
 
 ---
 
@@ -163,6 +172,13 @@ On top of persistent subjective bias, Psyche now adds a more usable regulation l
 - **Layered semantic memory**: short conversations keep a single `semanticSummary`; longer threads also keep `semanticPoints`
 
 This moves Psyche closer to an adaptive system: not just an engine with inner state, but one that can separate work from intimacy, regulate itself, and assess whether that regulation is actually helping.
+
+Internally, the hot path is now compressed into two clearer nodes:
+
+- **ResolvedRelationContext**: resolve the active dyadic view once per turn instead of repeating lookups across `core`, `subjectivity`, and relation logic
+- **ReplyEnvelope**: export `SubjectivityKernel`, `ResponseContract`, and `GenerationControls` through one stable host-facing surface
+
+The point is not extra abstraction. It is less scattered orchestration and a more stable behavioral ABI for hosts.
 
 ---
 
@@ -378,11 +394,11 @@ npm install psyche-ai          # use it
 ```
 
 ```bash
-git clone https://github.com/Shangri-la-0428/psyche-ai.git
-cd psyche-ai
+git clone https://github.com/Shangri-la-0428/oasyce_psyche.git
+cd oasyce_psyche
 npm install
 npm run build
-npm test                        # 1256 tests
+npm test                        # 1291 tests
 npm run typecheck               # strict mode
 ```
 

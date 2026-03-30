@@ -197,10 +197,12 @@ server.tool(
   {
     text: z.string().describe("The LLM's response text"),
     userId: z.string().optional().describe("Optional user ID"),
+    signals: z.array(z.string()).optional().describe("Optional sparse writeback signals from the host"),
+    signalConfidence: z.number().min(0).max(1).optional().describe("Optional confidence for the supplied signals"),
   },
-  async ({ text, userId }: { text: string; userId?: string }) => {
+  async ({ text, userId, signals, signalConfidence }: { text: string; userId?: string; signals?: string[]; signalConfidence?: number }) => {
     const eng = await getEngine();
-    const result = await eng.processOutput(text, { userId });
+    const result = await eng.processOutput(text, { userId, signals: signals as never, signalConfidence });
     return {
       content: [{
         type: "text" as const,

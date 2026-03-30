@@ -7,7 +7,7 @@ import { readFile, writeFile, access, rename, constants, mkdir } from "node:fs/p
 import { dirname, join } from "node:path";
 import type {
   PsycheState, MBTIType, ChemicalState, RelationshipState,
-  SelfModel, Locale, EmpathyEntry, StimulusType, ChemicalSnapshot,
+  SelfModel, Locale, EmpathyEntry, StimulusType, ChemicalSnapshot, WritebackSignalType,
 } from "./types.js";
 import {
   CHEMICAL_KEYS, CHEMICAL_NAMES, CHEMICAL_NAMES_ZH, DEFAULT_RELATIONSHIP,
@@ -789,6 +789,10 @@ export interface PsycheUpdateResult {
   state: Partial<PsycheState>;
   /** LLM-assisted stimulus classification (when algorithm was uncertain) */
   llmStimulus?: StimulusType;
+  /** Sparse agent-authored writeback signals */
+  signals?: WritebackSignalType[];
+  /** Optional writeback confidence */
+  signalConfidence?: number;
 }
 
 /**
@@ -856,11 +860,45 @@ export function parsePsycheUpdate(
     }
   }
 
+  const VALID_WRITEBACK_SIGNALS: Set<WritebackSignalType> = new Set([
+    "trust_up",
+    "trust_down",
+    "boundary_set",
+    "boundary_soften",
+    "repair_attempt",
+    "repair_landed",
+    "closeness_invite",
+    "withdrawal_mark",
+    "self_assertion",
+    "task_recenter",
+  ]);
+  let signals: WritebackSignalType[] | undefined;
+  const signalsMatch = block.match(/signals\s*[:：]\s*([^\n]+)/i);
+  if (signalsMatch) {
+    const parsed = signalsMatch[1]
+      .split(/[,\s|]+/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .filter((item): item is WritebackSignalType => VALID_WRITEBACK_SIGNALS.has(item as WritebackSignalType));
+    if (parsed.length > 0) {
+      signals = [...new Set(parsed)];
+    }
+  }
+
+  let signalConfidence: number | undefined;
+  const signalConfidenceMatch = block.match(/(?:signalConfidence|signalsConfidence|signal_confidence)\s*[:：]\s*([\d.]+)/i);
+  if (signalConfidenceMatch) {
+    const parsed = parseFloat(signalConfidenceMatch[1]);
+    if (isFinite(parsed)) {
+      signalConfidence = Math.max(0, Math.min(1, parsed));
+    }
+  }
+
   // Parse relationship updates
   const trustMatch = block.match(/(?:信任度|trust)\s*[:：]\s*(\d+)/i);
   const intimacyMatch = block.match(/(?:亲密度|intimacy)\s*[:：]\s*(\d+)/i);
 
-  if (Object.keys(updates).length === 0 && !empathyLog && !trustMatch && !llmStimulus) {
+  if (Object.keys(updates).length === 0 && !empathyLog && !trustMatch && !llmStimulus && !signals) {
     logger.debug(t("log.parse_debug", "zh", { snippet: block.slice(0, 100) }));
     return null;
   }
@@ -885,6 +923,12 @@ export function parsePsycheUpdate(
   const result: PsycheUpdateResult = { state: stateUpdates };
   if (llmStimulus) {
     result.llmStimulus = llmStimulus;
+  }
+  if (signals) {
+    result.signals = signals;
+  }
+  if (signalConfidence !== undefined) {
+    result.signalConfidence = signalConfidence;
   }
   return result;
 }

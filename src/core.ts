@@ -12,7 +12,7 @@
 // Orchestrates: chemistry, classify, prompt, profiles, guards, learning
 // ============================================================
 
-import type { PsycheState, StimulusType, Locale, MBTIType, ChemicalState, OutcomeScore, PsycheMode, PersonalityTraits, PolicyModifiers, ClassifierProvider, SubjectivityKernel, ResponseContract, GenerationControls } from "./types.js";
+import type { PsycheState, StimulusType, Locale, MBTIType, ChemicalState, OutcomeScore, PsycheMode, PersonalityTraits, PolicyModifiers, ClassifierProvider, SubjectivityKernel, ResponseContract, GenerationControls, SessionBridgeState, WritebackCalibrationFeedback, WritebackSignalType } from "./types.js";
 import { DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE, DEFAULT_ENERGY_BUDGETS, DEFAULT_TRAIT_DRIFT, DEFAULT_SUBJECT_RESIDUE, DEFAULT_DYADIC_FIELD } from "./types.js";
 import type { StorageAdapter } from "./storage.js";
 import { MemoryStorageAdapter } from "./storage.js";
@@ -38,7 +38,7 @@ import {
   predictChemistry, recordPrediction,
 } from "./learning.js";
 import { assessMetacognition, updateMetacognitiveState } from "./metacognition.js";
-import { buildDecisionContext, computePolicyModifiers, buildPolicyContext } from "./decision-bias.js";
+import { buildDecisionContext } from "./decision-bias.js";
 import { computeExperientialField, type ConstructionContext } from "./experiential-field.js";
 import { computeGenerativeSelf } from "./generative-self.js";
 import { updateSharedIntentionality, buildSharedIntentionalityContext } from "./shared-intentionality.js";
@@ -49,11 +49,8 @@ import {
   computePrimarySystems, computeSystemInteractions,
   gatePrimarySystemsByAutonomic, describeBehavioralTendencies,
 } from "./primary-systems.js";
-import { computeSubjectivityKernel, buildSubjectivityContext } from "./subjectivity.js";
-import { computeResponseContract, buildResponseContractContext } from "./response-contract.js";
-import { deriveGenerationControls } from "./host-controls.js";
-import { computeAppraisalAxes, mergeAppraisalResidue } from "./appraisal.js";
-import { computeRelationMove, evolveDyadicField, evolvePendingRelationSignals } from "./relation-dynamics.js";
+import { applyRelationalTurn, applySessionBridge, applyWritebackSignals, createWritebackCalibrations, evaluateWritebackCalibrations } from "./relation-dynamics.js";
+import { deriveReplyEnvelope } from "./reply-envelope.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -93,6 +90,8 @@ export interface ProcessInputResult {
   dynamicContext: string;
   /** Detected stimulus type from user input, null if none */
   stimulus: StimulusType | null;
+  /** Confidence of the primary algorithmic stimulus guess, if any */
+  stimulusConfidence?: number;
   /** v9: Structured behavioral policy modifiers — machine-readable "off baseline" signals */
   policyModifiers?: PolicyModifiers;
   /** v9.3: Compact machine-readable subjective state for AI-first hosts */
@@ -101,6 +100,10 @@ export interface ProcessInputResult {
   responseContract?: ResponseContract;
   /** v9.3: Mechanical host controls derived from the reply envelope */
   generationControls?: GenerationControls;
+  /** v9.2.7: cold-start carry derived from persisted relation state */
+  sessionBridge?: SessionBridgeState | null;
+  /** v9.2.8: sparse writeback signals evaluated on the latest turn */
+  writebackFeedback?: WritebackCalibrationFeedback[];
   /**
    * v9: Ready-to-use LLM prompt fragment summarizing current behavioral policy.
    *
@@ -124,6 +127,12 @@ export interface ProcessOutputResult {
   stateChanged: boolean;
 }
 
+export interface ProcessOutputOptions {
+  userId?: string;
+  signals?: WritebackSignalType[];
+  signalConfidence?: number;
+}
+
 export interface ProcessOutcomeResult {
   /** Outcome evaluation score (-1 to 1) */
   outcomeScore: OutcomeScore;
@@ -137,6 +146,19 @@ interface PendingPrediction {
   preInteractionState: PsycheState;
   appliedStimulus: StimulusType | null;
   contextHash: string;
+}
+
+function formatWritebackFeedbackNote(
+  feedback: WritebackCalibrationFeedback[] | undefined,
+  locale: Locale,
+): string | undefined {
+  const top = feedback?.[0];
+  if (!top) return undefined;
+  if (locale === "zh") {
+    const effect = top.effect === "converging" ? "收敛" : top.effect === "diverging" ? "发散" : "持平";
+    return `写回:${top.signal} ${effect}。`;
+  }
+  return `Writeback: ${top.signal} ${top.effect}.`;
 }
 
 const NOOP_LOGGER: Logger = { info: () => {}, warn: () => {}, debug: () => {} };
@@ -257,6 +279,12 @@ export class PsycheEngine {
   private lastReport: DiagnosticReport | null = null;
   /** URL for auto-submitting diagnostic reports */
   private readonly feedbackUrl: string | undefined;
+  /** Most recent algorithmic stimulus read + confidence band */
+  private lastStimulusAssessment: {
+    stimulus: StimulusType | null;
+    confidence: number;
+    overrideWindow: ResponseContract["overrideWindow"];
+  } | null = null;
 
   constructor(config: PsycheEngineConfig = {}, storage: StorageAdapter) {
     this.traits = config.traits;
@@ -324,7 +352,7 @@ export class PsycheEngine {
       if (loaded.version < 9) {
         loaded.version = 9;
         console.log(
-          "\x1b[36m[Psyche]\x1b[0m 已从 v8 升级到 v9 — 新增：真实人格漂移、能量预算、习惯化、行为策略输出。详见 https://github.com/Shangri-la-0428/psyche-ai",
+          "\x1b[36m[Psyche]\x1b[0m 已从 v8 升级到 v9 — 新增：真实人格漂移、能量预算、习惯化、行为策略输出。详见 https://github.com/Shangri-la-0428/oasyce_psyche",
         );
       }
       if (!loaded.dyadicFields) {
@@ -338,6 +366,12 @@ export class PsycheEngine {
       }
       if (!loaded.pendingRelationSignals) {
         loaded.pendingRelationSignals = { _default: [] };
+      }
+      if (!loaded.pendingWritebackCalibrations) {
+        loaded.pendingWritebackCalibrations = [];
+      }
+      if (!loaded.lastWritebackFeedback) {
+        loaded.lastWritebackFeedback = [];
       }
       this.state = loaded;
     } else {
@@ -355,6 +389,8 @@ export class PsycheEngine {
    */
   async processInput(text: string, opts?: { userId?: string }): Promise<ProcessInputResult> {
     let state = this.ensureInitialized();
+    let sessionBridge: SessionBridgeState | null = null;
+    let writebackFeedback: WritebackCalibrationFeedback[] = [];
 
     // ── Auto-learning: evaluate previous turn's outcome ──────
     if (this.pendingPrediction && text.length > 0) {
@@ -422,6 +458,9 @@ export class PsycheEngine {
 
     // P12: Track session start for homeostatic pressure
     if (!state.sessionStartedAt) {
+      const bridged = applySessionBridge(state, { userId: opts?.userId, now: now.toISOString() });
+      state = bridged.state;
+      sessionBridge = bridged.bridge;
       state = { ...state, sessionStartedAt: now.toISOString() };
     }
     // Apply homeostatic pressure (fatigue from extended sessions)
@@ -478,6 +517,7 @@ export class PsycheEngine {
         }
       }
       const primary = classifications[0];
+      const primaryConfidence = primary?.confidence ?? 0;
       let current = state.current;
       if (primary && primary.confidence >= 0.5) {
         appliedStimulus = primary.type;
@@ -510,58 +550,35 @@ export class PsycheEngine {
       if (appliedStimulus) {
         state = applyRelationshipDrift(state, appliedStimulus, opts?.userId);
       }
+      this.lastStimulusAssessment = {
+        stimulus: primary?.type ?? null,
+        confidence: primaryConfidence,
+        overrideWindow: primaryConfidence >= 0.78 ? "narrow" : primaryConfidence >= 0.62 ? "balanced" : "wide",
+      };
+    } else {
+      this.lastStimulusAssessment = {
+        stimulus: null,
+        confidence: 0,
+        overrideWindow: "wide",
+      };
     }
 
     // v9: Deplete energy budgets from this interaction turn
     energyBudgets = computeEnergyDepletion(energyBudgets, appliedStimulus, isExtravert);
     state = { ...state, energyBudgets };
 
-    const appraisalAxes = computeAppraisalAxes(text, {
-      mode: this.cfg.mode,
-      stimulus: appliedStimulus,
-      previous: state.subjectResidue?.axes,
-    });
-    state = {
-      ...state,
-      subjectResidue: {
-        axes: mergeAppraisalResidue(state.subjectResidue?.axes, appraisalAxes, this.cfg.mode),
-        updatedAt: now.toISOString(),
+    const relationalTurn = applyRelationalTurn(
+      state,
+      text,
+      {
+        mode: this.cfg.mode,
+        now: now.toISOString(),
+        stimulus: appliedStimulus,
+        userId: opts?.userId,
       },
-    };
-    const dyadKey = opts?.userId ?? "_default";
-    const relationMove = computeRelationMove(text, {
-      appraisal: appraisalAxes,
-      stimulus: appliedStimulus,
-      mode: this.cfg.mode,
-      field: state.dyadicFields?.[dyadKey],
-      relationship: state.relationships[dyadKey] ?? state.relationships._default,
-    });
-    const delayedRelation = evolvePendingRelationSignals(
-      state.pendingRelationSignals?.[dyadKey],
-      relationMove,
-      appraisalAxes,
-      { mode: this.cfg.mode },
     );
-    state = {
-      ...state,
-      dyadicFields: {
-        ...(state.dyadicFields ?? {}),
-        [dyadKey]: evolveDyadicField(
-          state.dyadicFields?.[dyadKey],
-          relationMove,
-          appraisalAxes,
-          {
-            mode: this.cfg.mode,
-            now: now.toISOString(),
-            delayedPressure: delayedRelation.delayedPressure,
-          },
-        ),
-      },
-      pendingRelationSignals: {
-        ...(state.pendingRelationSignals ?? {}),
-        [dyadKey]: delayedRelation.signals,
-      },
-    };
+    state = relationalTurn.state;
+    const appraisalAxes = relationalTurn.appraisalAxes;
 
     // Conversation warmth: sustained interaction → gentle DA/OT rise, CORT drop
     // Simulates the natural "warm glow" of being in continuous conversation
@@ -578,6 +595,10 @@ export class PsycheEngine {
         },
       };
     }
+
+    const writebackEvaluation = evaluateWritebackCalibrations(state);
+    state = writebackEvaluation.state;
+    writebackFeedback = writebackEvaluation.feedback;
 
     // ── Locale (used by multiple subsystems below) ──────────
     const locale = state.meta.locale ?? this.cfg.locale;
@@ -690,7 +711,7 @@ export class PsycheEngine {
     const constructionContext: ConstructionContext = {
       autonomicState: autonomicResult.state,
       stimulus: appliedStimulus,
-      relationshipPhase: (state.relationships._default ?? state.relationships[Object.keys(state.relationships)[0]])?.phase,
+      relationshipPhase: relationalTurn.relationContext.relationship.phase,
       predictionError: state.learning.predictionHistory.length > 0
         ? state.learning.predictionHistory[state.learning.predictionHistory.length - 1].predictionError
         : undefined,
@@ -783,27 +804,23 @@ export class PsycheEngine {
     }
 
     // Build metacognitive and decision context strings
-    const metacogNote = metacognitiveAssessment?.metacognitiveNote;
+    const writebackNote = formatWritebackFeedbackNote(writebackFeedback, locale);
+    const metacogNote = writebackNote
+      ? [writebackNote, metacognitiveAssessment?.metacognitiveNote].filter(Boolean).join("\n")
+      : metacognitiveAssessment?.metacognitiveNote;
     const decisionCtx = buildDecisionContext(state);
     const ethicsCtx = ethicalAssessment ? buildEthicalContext(ethicalAssessment, locale) : undefined;
     const sharedCtx = sharedState ? buildSharedIntentionalityContext(sharedState, locale) : undefined;
     const experientialNarrative = experientialField?.narrative || undefined;
 
     // v9: Compute structured policy modifiers
-    const policyModifiers = computePolicyModifiers(state);
-    const subjectivityKernel = computeSubjectivityKernel(state, policyModifiers, appraisalAxes, opts?.userId);
-    const subjectivityCtx = buildSubjectivityContext(subjectivityKernel, locale);
-    const responseContract = computeResponseContract(subjectivityKernel, {
+    const replyEnvelope = deriveReplyEnvelope(state, appraisalAxes, {
       locale,
       userText: text || undefined,
       algorithmStimulus: appliedStimulus,
+      classificationConfidence: this.lastStimulusAssessment?.confidence,
       personalityIntensity: this.cfg.personalityIntensity,
-    });
-    const responseContractCtx = buildResponseContractContext(responseContract, locale);
-    const policyCtx = buildPolicyContext(policyModifiers, locale, state.drives);
-    const generationControls = deriveGenerationControls({
-      responseContract,
-      policyModifiers,
+      relationContext: relationalTurn.relationContext,
     });
 
     // P10: Append processing depth info to autonomic description when depth is low
@@ -833,16 +850,19 @@ export class PsycheEngine {
           autonomicDescription: autonomicDesc,
           autonomicState: autonomicResult.state,
           primarySystemsDescription: primarySystemsDescription || undefined,
-          subjectivityContext: subjectivityCtx,
-          responseContractContext: responseContractCtx,
-          policyContext: policyCtx || undefined,
+          subjectivityContext: replyEnvelope.subjectivityContext,
+          responseContractContext: replyEnvelope.responseContractContext,
+          policyContext: replyEnvelope.policyContext || undefined,
         }),
         stimulus: appliedStimulus,
-        policyModifiers,
-        subjectivityKernel,
-        responseContract,
-        generationControls,
-        policyContext: policyCtx,
+        stimulusConfidence: this.lastStimulusAssessment?.confidence,
+        policyModifiers: replyEnvelope.policyModifiers,
+        subjectivityKernel: replyEnvelope.subjectivityKernel,
+        responseContract: replyEnvelope.responseContract,
+        generationControls: replyEnvelope.generationControls,
+        sessionBridge,
+        writebackFeedback,
+        policyContext: replyEnvelope.policyContext,
       };
     }
 
@@ -857,14 +877,17 @@ export class PsycheEngine {
         autonomicDescription: autonomicDesc,
         autonomicState: autonomicResult.state,
         primarySystemsDescription: primarySystemsDescription || undefined,
-        policyContext: policyCtx || undefined,
+        policyContext: replyEnvelope.policyContext || undefined,
       }),
       stimulus: appliedStimulus,
-      policyModifiers,
-      subjectivityKernel,
-      responseContract,
-      generationControls,
-      policyContext: policyCtx,
+      stimulusConfidence: this.lastStimulusAssessment?.confidence,
+      policyModifiers: replyEnvelope.policyModifiers,
+      subjectivityKernel: replyEnvelope.subjectivityKernel,
+      responseContract: replyEnvelope.responseContract,
+      generationControls: replyEnvelope.generationControls,
+      sessionBridge,
+      writebackFeedback,
+      policyContext: replyEnvelope.policyContext,
     };
   }
 
@@ -872,7 +895,7 @@ export class PsycheEngine {
    * Phase 2: Process LLM output text.
    * Parses <psyche_update> tags, applies contagion, strips tags.
    */
-  async processOutput(text: string, opts?: { userId?: string }): Promise<ProcessOutputResult> {
+  async processOutput(text: string, opts?: ProcessOutputOptions): Promise<ProcessOutputResult> {
     let state = this.ensureInitialized();
     let stateChanged = false;
 
@@ -941,6 +964,9 @@ export class PsycheEngine {
     state = updateAgreementStreak(state, text);
 
     // Parse and merge <psyche_update> from LLM output
+    let combinedSignals: WritebackSignalType[] = [];
+    let combinedSignalConfidence = opts?.signalConfidence;
+
     if (text.includes("<psyche_update>")) {
       const parseResult = parsePsycheUpdate(text, NOOP_LOGGER);
       if (parseResult) {
@@ -949,7 +975,8 @@ export class PsycheEngine {
 
         // LLM-assisted classification: if algorithm didn't apply a stimulus
         // but LLM classified one, retroactively apply chemistry + drives
-        if (parseResult.llmStimulus && !this._lastAlgorithmApplied) {
+        const overrideAllowed = this.lastStimulusAssessment?.overrideWindow !== "narrow";
+        if (parseResult.llmStimulus && (!this._lastAlgorithmApplied || overrideAllowed)) {
           state = {
             ...state,
             drives: feedDrives(state.drives, parseResult.llmStimulus),
@@ -961,13 +988,47 @@ export class PsycheEngine {
             ...state,
             current: applyStimulus(
               state.current, parseResult.llmStimulus,
-              effectiveSensitivity,
+              effectiveSensitivity * (overrideAllowed && this._lastAlgorithmApplied ? 0.8 : 1),
               this.cfg.maxChemicalDelta,
               NOOP_LOGGER,
             ),
           };
         }
+
+        if (parseResult.signals && parseResult.signals.length > 0) {
+          combinedSignals.push(...parseResult.signals);
+          combinedSignalConfidence = Math.max(combinedSignalConfidence ?? 0, parseResult.signalConfidence ?? 0);
+        }
       }
+    }
+
+    if (opts?.signals && opts.signals.length > 0) {
+      combinedSignals.push(...opts.signals);
+      combinedSignalConfidence = Math.max(combinedSignalConfidence ?? 0, opts.signalConfidence ?? 0);
+    }
+
+    if (combinedSignals.length > 0) {
+      const dedupedSignals = [...new Set(combinedSignals)];
+      const pending = createWritebackCalibrations(state, dedupedSignals, {
+        userId: opts?.userId,
+        confidence: combinedSignalConfidence,
+      });
+      state = applyWritebackSignals(
+        state,
+        dedupedSignals,
+        {
+          userId: opts?.userId,
+          confidence: combinedSignalConfidence,
+        },
+      );
+      state = {
+        ...state,
+        pendingWritebackCalibrations: [
+          ...(state.pendingWritebackCalibrations ?? []),
+          ...pending,
+        ].slice(-12),
+      };
+      stateChanged = true;
     }
 
     // Persist
@@ -1195,6 +1256,8 @@ export class PsycheEngine {
         },
       },
       pendingRelationSignals: { _default: [] },
+      pendingWritebackCalibrations: [],
+      lastWritebackFeedback: [],
       meta: {
         agentName: name,
         createdAt: now,
@@ -1236,6 +1299,8 @@ export class PsycheEngine {
         },
       },
       pendingRelationSignals: { _default: [] },
+      pendingWritebackCalibrations: [],
+      lastWritebackFeedback: [],
       relationships: opts?.preserveRelationships !== false
         ? state.relationships
         : { _default: { ...DEFAULT_RELATIONSHIP } },

@@ -1,0 +1,98 @@
+---
+import DiscoveryPage from '../layouts/DiscoveryPage.astro';
+---
+
+<DiscoveryPage
+  title="MCP — Psyche"
+  description="Expose Psyche through MCP so Claude Desktop, Cursor, Windsurf, or any MCP-capable host can discover subjectivity controls."
+  page="mcp"
+  kicker="mcp / portable subjectivity"
+  titleCn="通过 MCP 暴露 Psyche"
+  titleEn="Expose Psyche through MCP"
+  leadCn="如果 OpenClaw 是最快的 live test，MCP 就是最通用的分发面。Psyche 通过 `psyche-mcp` 暴露输入处理、输出处理、状态查询和会话收尾，让任何支持 MCP 的宿主都能接上同一套主观性内核。"
+  leadEn="If OpenClaw is the fastest live test, MCP is the most portable distribution layer. `psyche-mcp` exposes input processing, output processing, state inspection, and session teardown so any MCP-capable host can plug into the same subjectivity kernel."
+  stats={[
+    { value: '4', labelCn: '核心工具', labelEn: 'core tools', noteCn: 'process_input / process_output / get_state / end_session', noteEn: 'process_input / process_output / get_state / end_session' },
+    { value: '1', labelCn: '统一 ABI', labelEn: 'stable ABI', noteCn: '同一套结构化返回给不同宿主', noteEn: 'one structural surface across hosts' },
+    { value: '0', labelCn: '远程依赖', labelEn: 'remote dependencies', noteCn: '本地状态机，本地推理', noteEn: 'local state machine, local inference' },
+  ]}
+  links={[
+    { href: '/install-modes', labelCn: '安装形态', labelEn: 'install modes', noteCn: '理解 npm / git / local path 差异', noteEn: 'understand npm / git / local-path behavior' },
+    { href: '/benchmarks', labelCn: '性能数据', labelEn: 'benchmarks', noteCn: '确认 MCP 也不会带来额外模型成本', noteEn: 'verify MCP adds no extra model cost' },
+    { href: '/compare', labelCn: '对比其他方案', labelEn: 'compare', noteCn: '看它和 prompt persona / memory layer 的区别', noteEn: 'see how it differs from persona prompts and memory layers' },
+  ]}
+>
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">为什么 MCP 重要</span><span class="en">Why MCP matters</span></h2>
+    <div class="card-grid">
+      <article class="discovery-card">
+        <h3><span class="cn">宿主无关</span><span class="en">Host-agnostic</span></h3>
+        <p><span class="cn">不是只为某个聊天产品定制，而是把同一套主观状态和控制面带到任何支持 MCP 的 AI 宿主。</span><span class="en">Not a plugin for one chat product. The same subjectivity surface travels to any MCP-capable host.</span></p>
+      </article>
+      <article class="discovery-card">
+        <h3><span class="cn">工具边界清晰</span><span class="en">Explicit tool boundary</span></h3>
+        <p><span class="cn">宿主清楚知道什么时候在处理输入、什么时候在更新状态、什么时候在做诊断，不需要猜系统提示。</span><span class="en">The host knows exactly when it is processing input, updating state, or inspecting diagnostics instead of guessing from prompt text.</span></p>
+      </article>
+      <article class="discovery-card">
+        <h3><span class="cn">方便收录</span><span class="en">Easy to catalogue</span></h3>
+        <p><span class="cn">MCP 目录、awesome list、agent 工具站点都更容易收录一个明确的 MCP server，而不是抽象概念。</span><span class="en">Directories and awesome lists catalogue a concrete MCP server more easily than an abstract concept.</span></p>
+      </article>
+    </div>
+  </section>
+
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">最小配置</span><span class="en">Minimal config</span></h2>
+    <div class="code-shell"><pre><code>&#123;
+  "mcpServers": &#123;
+    "psyche": &#123;
+      "command": "npx",
+      "args": ["psyche-mcp"],
+      "env": &#123;
+        "PSYCHE_MBTI": "INTJ",
+        "PSYCHE_NAME": "Kai"
+      &#125;
+    &#125;
+  &#125;
+&#125;</code></pre></div>
+  </section>
+
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">宿主实际拿到什么</span><span class="en">What the host actually gets</span></h2>
+    <div class="split-grid">
+      <div class="split-panel">
+        <h3><span class="cn">输入阶段</span><span class="en">Input phase</span></h3>
+        <ul class="detail-list">
+          <li><span class="cn">`subjectivityKernel`：当前主观态</span><span class="en">`subjectivityKernel`: current inner state</span></li>
+          <li><span class="cn">`responseContract`：这一轮的回应约束</span><span class="en">`responseContract`: reply behavior contract</span></li>
+          <li><span class="cn">`generationControls`：token / confirmation 等机械控制</span><span class="en">`generationControls`: token caps and mechanical controls</span></li>
+        </ul>
+      </div>
+      <div class="split-panel">
+        <h3><span class="cn">输出阶段</span><span class="en">Output phase</span></h3>
+        <ul class="detail-list">
+          <li><span class="cn">更新化学状态和关系场</span><span class="en">update chemistry and dyadic field</span></li>
+          <li><span class="cn">生成 `semanticSummary / semanticPoints`</span><span class="en">record `semanticSummary / semanticPoints`</span></li>
+          <li><span class="cn">回看调节是否 `converging / holding / diverging`</span><span class="en">evaluate whether regulation is `converging / holding / diverging`</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">最适合谁</span><span class="en">Who this is for</span></h2>
+    <div class="card-grid">
+      <article class="discovery-card">
+        <h3>Claude Desktop / Cursor / Windsurf</h3>
+        <p><span class="cn">想给现有助手一层真正的连续主观状态，而不是“更像人”的 prompt 皮肤。</span><span class="en">For hosts that want continuity and subjective carry, not just more human-sounding prompts.</span></p>
+      </article>
+      <article class="discovery-card">
+        <h3>Agent builders</h3>
+        <p><span class="cn">想把工作面、私人面、关系历史和修复迟滞变成 agent 的一等公民。</span><span class="en">For builders who want work/private modes, relation history, and repair hysteresis as first-class agent behavior.</span></p>
+      </article>
+      <article class="discovery-card">
+        <h3>Researchers</h3>
+        <p><span class="cn">想测试关系动作、持续主体偏置、调节闭环，而不是只做情感标签可视化。</span><span class="en">For researchers testing relation moves, persistent subjective bias, and regulation loops instead of sentiment labels.</span></p>
+      </article>
+    </div>
+  </section>
+</DiscoveryPage>

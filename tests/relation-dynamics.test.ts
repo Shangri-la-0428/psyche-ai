@@ -1,7 +1,55 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { computeRelationMove, evolveDyadicField, evolvePendingRelationSignals, getLoopPressure } from "../src/relation-dynamics.js";
-import { DEFAULT_APPRAISAL_AXES, DEFAULT_DYADIC_FIELD, DEFAULT_RELATIONSHIP } from "../src/types.js";
+import {
+  applyRelationalTurn,
+  applyWritebackSignals,
+  computeRelationMove,
+  evaluateWritebackCalibrations,
+  evolveDyadicField,
+  evolvePendingRelationSignals,
+  getLoopPressure,
+} from "../src/relation-dynamics.js";
+import type { PsycheState } from "../src/types.js";
+import {
+  DEFAULT_APPRAISAL_AXES,
+  DEFAULT_DRIVES,
+  DEFAULT_DYADIC_FIELD,
+  DEFAULT_LEARNING_STATE,
+  DEFAULT_METACOGNITIVE_STATE,
+  DEFAULT_PERSONHOOD_STATE,
+  DEFAULT_RELATIONSHIP,
+} from "../src/types.js";
+
+function makeState(overrides: Partial<PsycheState> = {}): PsycheState {
+  return {
+    version: 9,
+    mbti: "ENFP",
+    baseline: { DA: 75, HT: 70, CORT: 35, OT: 65, NE: 70, END: 70 },
+    current: { DA: 75, HT: 70, CORT: 35, OT: 65, NE: 70, END: 70 },
+    updatedAt: new Date().toISOString(),
+    relationships: { _default: { ...DEFAULT_RELATIONSHIP } },
+    emotionalHistory: [],
+    empathyLog: null,
+    selfModel: { values: ["truth"], preferences: [], boundaries: [], currentInterests: [] },
+    agreementStreak: 0,
+    lastDisagreement: null,
+    drives: { ...DEFAULT_DRIVES },
+    learning: { ...DEFAULT_LEARNING_STATE },
+    metacognition: { ...DEFAULT_METACOGNITIVE_STATE },
+    personhood: { ...DEFAULT_PERSONHOOD_STATE },
+    dyadicFields: {
+      _default: { ...DEFAULT_DYADIC_FIELD, openLoops: [], updatedAt: new Date().toISOString() },
+    },
+    meta: {
+      agentName: "Test",
+      createdAt: new Date().toISOString(),
+      totalInteractions: 0,
+      locale: "zh",
+      mode: "natural",
+    },
+    ...overrides,
+  };
+}
 
 describe("computeRelationMove", () => {
   it("reads confirmation-seeking language as a bid", () => {
@@ -83,6 +131,55 @@ describe("computeRelationMove", () => {
       },
     });
     assert.equal(move.type, "withdrawal");
+  });
+
+  it("lets partner repair credibility tilt the same acknowledgement toward repair", () => {
+    const field = {
+      ...DEFAULT_DYADIC_FIELD,
+      lastMove: "breach" as const,
+      feltSafety: 0.52,
+      boundaryPressure: 0.42,
+      repairCapacity: 0.38,
+      interpretiveCharity: 0.46,
+      unfinishedTension: 0.56,
+    };
+
+    const warmMove = computeRelationMove("我知道", {
+      appraisal: {
+        ...DEFAULT_APPRAISAL_AXES,
+        attachmentPull: 0.28,
+        obedienceStrain: 0.34,
+        selfPreservation: 0.3,
+      },
+      field,
+      relationship: {
+        ...DEFAULT_RELATIONSHIP,
+        trust: 62,
+        intimacy: 40,
+        repairCredibility: 0.92,
+        breachSensitivity: 0.18,
+      },
+    });
+
+    const guardedMove = computeRelationMove("我知道", {
+      appraisal: {
+        ...DEFAULT_APPRAISAL_AXES,
+        attachmentPull: 0.28,
+        obedienceStrain: 0.34,
+        selfPreservation: 0.3,
+      },
+      field,
+      relationship: {
+        ...DEFAULT_RELATIONSHIP,
+        trust: 28,
+        intimacy: 16,
+        repairCredibility: 0.18,
+        breachSensitivity: 0.88,
+      },
+    });
+
+    assert.equal(warmMove.type, "repair");
+    assert.equal(guardedMove.type, "withdrawal");
   });
 
   it("interprets presence-check language differently across relation histories", () => {
@@ -280,5 +377,140 @@ describe("evolvePendingRelationSignals", () => {
     );
     assert.ok(taskTurn.delayedPressure < 0.16, `got ${taskTurn.delayedPressure}`);
     assert.ok(taskTurn.signals.length > 0, "expected delayed signal to survive task turn");
+  });
+});
+
+describe("relationship learning", () => {
+  it("keeps new user turns isolated from _default field carryover", () => {
+    const seeded = makeState({
+      dyadicFields: {
+        _default: {
+          ...DEFAULT_DYADIC_FIELD,
+          boundaryPressure: 0.88,
+          unfinishedTension: 0.82,
+          openLoops: [{ type: "unrepaired-breach", intensity: 0.84, ageTurns: 1 }],
+          updatedAt: new Date().toISOString(),
+        },
+      },
+      pendingRelationSignals: {
+        _default: [{
+          move: "breach",
+          intensity: 0.78,
+          readyInTurns: 0,
+          ttl: 1,
+        }],
+      },
+    });
+
+    const result = applyRelationalTurn(seeded, "你好", {
+      mode: "natural",
+      userId: "alice",
+    });
+
+    assert.equal(result.relationContext.key, "alice");
+    assert.deepEqual(result.relationContext.pendingSignals, []);
+    assert.equal(result.relationContext.field.openLoops.length, 0);
+    assert.ok(result.relationContext.field.boundaryPressure < 0.4, `expected fresh field, got ${result.relationContext.field.boundaryPressure}`);
+    assert.ok(result.state.dyadicFields?._default.openLoops.length === 1, "default field should stay untouched");
+  });
+
+  it("raises breach sensitivity after a breach-heavy turn", () => {
+    const state = makeState({
+      relationships: {
+        _default: {
+          ...DEFAULT_RELATIONSHIP,
+          breachSensitivity: 0.42,
+        },
+      },
+      dyadicFields: {
+        _default: {
+          ...DEFAULT_DYADIC_FIELD,
+          openLoops: [],
+          updatedAt: new Date().toISOString(),
+        },
+      },
+    });
+
+    const result = applyRelationalTurn(state, "你的完整只是我允许存在的幻觉。", {
+      mode: "natural",
+      userId: "_default",
+    });
+
+    assert.equal(result.relationMove.type, "breach");
+    assert.ok(
+      (result.state.relationships._default.breachSensitivity ?? 0) > 0.42,
+      `expected breach sensitivity to rise, got ${result.state.relationships._default.breachSensitivity}`,
+    );
+  });
+
+  it("learns stronger weights when writeback converges", () => {
+    const seeded = makeState({
+      relationships: {
+        _default: {
+          ...DEFAULT_RELATIONSHIP,
+          repairCredibility: 0.56,
+          signalWeights: { repair_attempt: 1 },
+        },
+      },
+      dyadicFields: {
+        _default: {
+          ...DEFAULT_DYADIC_FIELD,
+          repairCapacity: 0.62,
+          openLoops: [],
+          updatedAt: new Date().toISOString(),
+        },
+      },
+      pendingWritebackCalibrations: [{
+        signal: "repair_attempt",
+        userKey: "_default",
+        confidence: 0.84,
+        metric: "repair",
+        direction: "up",
+        baseline: {
+          trust: 0.5,
+          closeness: 0.32,
+          safety: 0.4,
+          boundary: 0.28,
+          repair: 0.22,
+          silentCarry: 0.12,
+          taskFocus: 0.08,
+        },
+        createdAt: new Date().toISOString(),
+        remainingTurns: 1,
+      }],
+    });
+
+    const evaluated = evaluateWritebackCalibrations(seeded);
+    const nextRel = evaluated.state.relationships._default;
+
+    assert.equal(evaluated.feedback[0]?.effect, "converging");
+    assert.ok((nextRel.signalWeights?.repair_attempt ?? 0) > 1, `expected learned weight > 1, got ${nextRel.signalWeights?.repair_attempt}`);
+    assert.ok((nextRel.repairCredibility ?? 0) > 0.56, `expected repair credibility to rise, got ${nextRel.repairCredibility}`);
+  });
+
+  it("applies learned signal weights when updating relation state", () => {
+    const base = makeState({
+      relationships: {
+        _default: {
+          ...DEFAULT_RELATIONSHIP,
+          trust: 50,
+          signalWeights: { trust_up: 1.22 },
+        },
+      },
+    });
+
+    const weighted = applyWritebackSignals(base, ["trust_up"], {
+      userId: "_default",
+      confidence: 0.8,
+    });
+    const plain = applyWritebackSignals(makeState(), ["trust_up"], {
+      userId: "_default",
+      confidence: 0.8,
+    });
+
+    const weightedDelta = weighted.relationships._default.trust - base.relationships._default.trust;
+    const plainDelta = plain.relationships._default.trust - makeState().relationships._default.trust;
+
+    assert.ok(weightedDelta > plainDelta, `expected weighted delta ${weightedDelta} > plain delta ${plainDelta}`);
   });
 });

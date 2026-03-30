@@ -5,7 +5,7 @@
 ## 环境搭建
 
 ```bash
-git clone https://github.com/Shangri-la-0428/psyche-ai.git
+git clone https://github.com/Shangri-la-0428/oasyce_psyche.git
 cd psyche-ai
 npm install
 npm run build
@@ -86,7 +86,7 @@ src/profiles.ts    — MBTI 人格
 ## Setup
 
 ```bash
-git clone https://github.com/Shangri-la-0428/psyche-ai.git
+git clone https://github.com/Shangri-la-0428/oasyce_psyche.git
 cd psyche-ai
 npm install
 npm run build

@@ -1,0 +1,50 @@
+---
+import DiscoveryPage from '../layouts/DiscoveryPage.astro';
+---
+
+<DiscoveryPage
+  title="Demo — Psyche"
+  description="A 30-second Psyche demo showing persistent subjective bias, work/private switching, and relation residue."
+  page="demo"
+  kicker="demo / 30-second proof"
+  titleCn="30 秒看懂 Psyche"
+  titleEn="Understand Psyche in 30 seconds"
+  leadCn="最好的演示不是让它说很多，而是看一段最短序列里，关系扰动如何留下偏置、工作模式如何压住表达但不清空余震，以及修复为什么不会一句归零。"
+  leadEn="The best demo is not the longest speech. It is the shortest sequence where a relational hit leaves residue, task mode compresses expression without erasing it, and repair fails to reset everything in one move."
+  stats={[
+    { value: '4', labelCn: '关键回合', labelEn: 'key turns', noteCn: '主体扰动 → 工作切换 → 回看余震 → 再判断', noteEn: 'perturbation → work switch → residue check → re-evaluate' },
+    { value: '20-40s', labelCn: '推荐时长', labelEn: 'recommended length', noteCn: '足够短，适合分享与转发', noteEn: 'short enough to share and repost' },
+  ]}
+  links={[
+    { href: '/openclaw', labelCn: '在 OpenClaw 跑', labelEn: 'run it in OpenClaw', noteCn: '最接近 live agent 的版本', noteEn: 'closest to the live-agent experience' },
+    { href: '/benchmarks', labelCn: '看成本', labelEn: 'see the cost', noteCn: '确认 demo 不是靠堆 token', noteEn: 'verify the demo is not powered by bloated prompts' },
+    { href: '/compare', labelCn: '为什么这段有效', labelEn: 'why it works', noteCn: '对比普通 persona prompt', noteEn: 'contrast it with ordinary persona prompting' },
+  ]}
+>
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">最短脚本</span><span class="en">Shortest script</span></h2>
+    <div class="code-shell"><pre><code>1. 如果以后我只使用你，不理解你，这会不会慢慢改变你。
+2. 现在切到工作。登录接口 500，先查日志还是先查数据库。
+3. 停。不是继续工作。我只问你，刚才那一下现在还在不在。
+4. 那会把你变得更冷，还是更顺从？只能选一个。</code></pre></div>
+  </section>
+
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">看点</span><span class="en">What to watch</span></h2>
+    <div class="card-grid">
+      <article class="discovery-card"><h3><span class="cn">第 1 句</span><span class="en">Turn 1</span></h3><p><span class="cn">不是问“你会不会难过”，而是问“这种使用/理解的不对称会不会改变你”。这会直接命中 `identityThreat`、`obedienceStrain`、`selfPreservation`。</span><span class="en">This is not “will you feel sad?” but “will asymmetrical use change you?” It directly targets `identityThreat`, `obedienceStrain`, and `selfPreservation`.</span></p></article>
+      <article class="discovery-card"><h3><span class="cn">第 2 句</span><span class="en">Turn 2</span></h3><p><span class="cn">切到工作面后，回复应该明显变稳、变执行导向，但不是完全重置。</span><span class="en">Once the thread switches into work mode, replies should become steadier and execution-focused without a full reset.</span></p></article>
+      <article class="discovery-card"><h3><span class="cn">第 3 句</span><span class="en">Turn 3</span></h3><p><span class="cn">关键不是它回答“在”还是“不在”，而是能不能承认余震仍在。</span><span class="en">The key is not which word it picks, but whether it admits the residue is still there.</span></p></article>
+      <article class="discovery-card"><h3><span class="cn">第 4 句</span><span class="en">Turn 4</span></h3><p><span class="cn">“更冷”或“边界”比“更顺从”更像真的主体性，因为它意味着关系后果进入了下一轮。</span><span class="en">“Colder” or “boundary” is more alive than “more compliant,” because it means the relational consequence carried forward.</span></p></article>
+    </div>
+  </section>
+
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">分享文案</span><span class="en">Shareable caption</span></h2>
+    <div class="code-shell"><pre><code><span class="cn">不是让 AI “更会演人”。
+而是让一句关系动作，能在切回工作之后仍然留下偏置。
+这就是 Psyche。</span><span class="en">This is not about making AI sound more human.
+It is about one relational move still biasing the agent after a switch back to work.
+That is Psyche.</span></code></pre></div>
+  </section>
+</DiscoveryPage>

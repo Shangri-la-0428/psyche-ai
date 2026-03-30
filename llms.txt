@@ -114,5 +114,5 @@ npx psyche-mcp                                     # Run MCP server directly
 ## Links
 
 - npm: https://www.npmjs.com/package/psyche-ai
-- GitHub: https://github.com/Shangri-la-0428/psyche-ai
+- GitHub: https://github.com/Shangri-la-0428/oasyce_psyche
 - License: MIT

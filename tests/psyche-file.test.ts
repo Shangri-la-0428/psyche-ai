@@ -283,6 +283,14 @@ describe("parsePsycheUpdate", () => {
     assert.ok(result);
     assert.equal(result!.llmStimulus, "praise");
   });
+
+  it("parses sparse writeback signals and optional confidence", () => {
+    const text = `<psyche_update>\nsignals: trust_up, boundary_set | repair_attempt\nsignalConfidence: 0.78\n</psyche_update>`;
+    const result = parsePsycheUpdate(text);
+    assert.ok(result);
+    assert.deepEqual(result!.signals, ["trust_up", "boundary_set", "repair_attempt"]);
+    assert.equal(result!.signalConfidence, 0.78);
+  });
 });
 
 // ── mergeUpdates ────────────────────────────────────────────

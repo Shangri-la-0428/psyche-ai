@@ -76,6 +76,7 @@ describe("computeResponseContract", () => {
       algorithmStimulus: null,
     });
     assert.equal(contract.updateMode, "stimulus+empathy");
+    assert.equal(contract.overrideWindow, "wide");
   });
 
   it("requests empathy-only reporting for emotional stimuli", () => {
@@ -243,6 +244,8 @@ describe("buildResponseContractContext", () => {
     assert.ok(ctx.includes("不贴不舔"), `got: ${ctx}`);
     assert.ok(ctx.includes("stimulus速记"), `got: ${ctx}`);
     assert.ok(ctx.includes("因:"), `got: ${ctx}`);
-    assert.ok(ctx.length < 180, `expected compact contract, got ${ctx.length}`);
+    assert.ok(ctx.includes("终判窗"), `got: ${ctx}`);
+    assert.ok(ctx.includes("signals可写"), `got: ${ctx}`);
+    assert.ok(ctx.length < 260, `expected compact contract, got ${ctx.length}`);
   });
 });

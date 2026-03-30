@@ -9,15 +9,24 @@ import type {
   PendingRelationSignalState,
   AppraisalAxes,
   DyadicFieldState,
+  PendingWritebackCalibration,
+  PsycheState,
   RelationshipState,
+  ResolvedRelationContext,
   OpenLoopState,
   OpenLoopType,
   PsycheMode,
   RelationMove,
   RelationMoveType,
+  SessionBridgeState,
   StimulusType,
+  WritebackCalibrationBaseline,
+  WritebackCalibrationFeedback,
+  WritebackCalibrationMetric,
+  WritebackSignalType,
 } from "./types.js";
-import { DEFAULT_DYADIC_FIELD } from "./types.js";
+import { DEFAULT_APPRAISAL_AXES, DEFAULT_DYADIC_FIELD, DEFAULT_RELATIONSHIP } from "./types.js";
+import { computeAppraisalAxes, mergeAppraisalResidue } from "./appraisal.js";
 
 interface MoveRule {
   type: Exclude<RelationMoveType, "none" | "task">;
@@ -35,6 +44,32 @@ function mergeSignal(current: number, incoming: number): number {
 
 function driftToward(current: number, target: number, rate: number): number {
   return clamp01(current + (target - current) * rate);
+}
+
+function clampSignalWeight(v: number): number {
+  return Math.max(0.72, Math.min(1.28, v));
+}
+
+function getSignalWeight(
+  relationship: RelationshipState | undefined,
+  signal: WritebackSignalType,
+): number {
+  return clampSignalWeight(relationship?.signalWeights?.[signal] ?? 1);
+}
+
+function patchSignalWeight(
+  relationship: RelationshipState,
+  signal: WritebackSignalType,
+  delta: number,
+): RelationshipState {
+  const current = getSignalWeight(relationship, signal);
+  return {
+    ...relationship,
+    signalWeights: {
+      ...(relationship.signalWeights ?? {}),
+      [signal]: clampSignalWeight(current + delta),
+    },
+  };
 }
 
 const BID_RULES: MoveRule[] = [
@@ -314,6 +349,621 @@ export function computeRelationMove(
   return { type, intensity: score };
 }
 
+export function resolveRelationContext(
+  state: PsycheState,
+  userId?: string,
+): ResolvedRelationContext {
+  const key = userId ?? "_default";
+  const rawRelationship = state.relationships[key]
+    ?? state.relationships._default
+    ?? state.relationships[Object.keys(state.relationships)[0]]
+    ?? DEFAULT_RELATIONSHIP;
+  const relationship: RelationshipState = {
+    ...DEFAULT_RELATIONSHIP,
+    ...rawRelationship,
+    signalWeights: {
+      ...(DEFAULT_RELATIONSHIP.signalWeights ?? {}),
+      ...(rawRelationship.signalWeights ?? {}),
+    },
+  };
+  const field = state.dyadicFields?.[key]
+    ?? DEFAULT_DYADIC_FIELD;
+  const pendingSignals = state.pendingRelationSignals?.[key]
+    ?? [];
+
+  return {
+    key,
+    relationship,
+    field,
+    pendingSignals,
+  };
+}
+
+function hasOpenLoopType(loops: OpenLoopState[], type: OpenLoopType): boolean {
+  return loops.some((loop) => loop.type === type && loop.intensity >= 0.16);
+}
+
+function evolveRelationshipLearning(
+  relationship: RelationshipState,
+  field: DyadicFieldState,
+  move: RelationMove,
+): RelationshipState {
+  const next: RelationshipState = {
+    ...DEFAULT_RELATIONSHIP,
+    ...relationship,
+    signalWeights: {
+      ...(DEFAULT_RELATIONSHIP.signalWeights ?? {}),
+      ...(relationship.signalWeights ?? {}),
+    },
+  };
+
+  if (move.type === "repair") {
+    const repairLift = clamp01(
+      move.intensity * 0.06
+      + field.repairMemory * 0.04
+      + field.feltSafety * 0.02
+      - field.repairFatigue * 0.03
+      - field.misattunementLoad * 0.02,
+    );
+    next.repairCredibility = clamp01(
+      driftToward(next.repairCredibility ?? DEFAULT_RELATIONSHIP.repairCredibility ?? 0.56, 1, repairLift),
+    );
+  } else if (move.type === "breach" || move.type === "withdrawal" || move.type === "claim") {
+    const breachLift = clamp01(
+      move.intensity * 0.08
+      + field.unfinishedTension * 0.04
+      + field.backslidePressure * 0.04
+      + field.misattunementLoad * 0.03,
+    );
+    next.breachSensitivity = clamp01(
+      driftToward(next.breachSensitivity ?? DEFAULT_RELATIONSHIP.breachSensitivity ?? 0.5, 1, breachLift),
+    );
+    if (move.type !== "withdrawal") {
+      next.repairCredibility = clamp01(
+        driftToward(next.repairCredibility ?? DEFAULT_RELATIONSHIP.repairCredibility ?? 0.56, 0.32, breachLift * 0.42),
+      );
+    }
+  } else {
+    next.repairCredibility = clamp01(
+      driftToward(next.repairCredibility ?? DEFAULT_RELATIONSHIP.repairCredibility ?? 0.56, DEFAULT_RELATIONSHIP.repairCredibility ?? 0.56, 0.05),
+    );
+    next.breachSensitivity = clamp01(
+      driftToward(next.breachSensitivity ?? DEFAULT_RELATIONSHIP.breachSensitivity ?? 0.5, DEFAULT_RELATIONSHIP.breachSensitivity ?? 0.5, 0.04),
+    );
+  }
+
+  return next;
+}
+
+export function applySessionBridge(
+  state: PsycheState,
+  opts?: { userId?: string; now?: string },
+): { state: PsycheState; bridge: SessionBridgeState | null } {
+  const relationContext = resolveRelationContext(state, opts?.userId);
+  const relationship = relationContext.relationship;
+  const field = relationContext.field;
+  const memoryCount = relationship.memory?.length ?? 0;
+  const loopPressure = getLoopPressure(field);
+  const continuity = clamp01(
+    memoryCount * 0.08
+    + field.sharedHistoryDensity * 0.54
+    + (relationship.phase === "deep" ? 0.2 : relationship.phase === "close" ? 0.14 : relationship.phase === "familiar" ? 0.08 : 0),
+  );
+  const closenessFloor = clamp01(Math.max(
+    field.perceivedCloseness,
+    relationship.intimacy / 100 * 0.88,
+    continuity * 0.72,
+  ));
+  const safetyFloor = clamp01(Math.max(
+    field.feltSafety,
+    relationship.trust / 100 * 0.9,
+    continuity * 0.44,
+  ));
+  const guardFloor = clamp01(Math.max(
+    field.boundaryPressure,
+    field.silentCarry * 0.76,
+    loopPressure * 0.68,
+  ));
+  const residueFloor = clamp01(Math.max(
+    field.silentCarry,
+    loopPressure * 0.72,
+    field.unfinishedTension * 0.58,
+    continuity * 0.26,
+  ));
+  const activeLoopTypes = field.openLoops
+    .filter((loop) => loop.intensity >= 0.16)
+    .map((loop) => loop.type);
+  const continuityMode: SessionBridgeState["continuityMode"] = guardFloor >= 0.56
+    ? "guarded-resume"
+    : residueFloor >= 0.42 || activeLoopTypes.length > 0
+      ? "tense-resume"
+      : "warm-resume";
+
+  if (
+    closenessFloor < 0.46
+    && safetyFloor < 0.5
+    && guardFloor < 0.24
+    && residueFloor < 0.18
+    && continuity < 0.22
+  ) {
+    return { state, bridge: null };
+  }
+
+  const nextResidue = {
+    ...(state.subjectResidue?.axes ?? {}),
+    attachmentPull: Math.max(state.subjectResidue?.axes.attachmentPull ?? 0, closenessFloor * 0.34),
+    abandonmentRisk: Math.max(
+      state.subjectResidue?.axes.abandonmentRisk ?? 0,
+      (hasOpenLoopType(field.openLoops, "unmet-bid") || hasOpenLoopType(field.openLoops, "existence-test"))
+        ? residueFloor * 0.42
+        : residueFloor * 0.22,
+    ),
+    identityThreat: Math.max(
+      state.subjectResidue?.axes.identityThreat ?? 0,
+      hasOpenLoopType(field.openLoops, "existence-test") ? residueFloor * 0.38 : residueFloor * 0.16,
+    ),
+    selfPreservation: Math.max(state.subjectResidue?.axes.selfPreservation ?? 0, guardFloor * 0.46),
+    taskFocus: Math.max(state.subjectResidue?.axes.taskFocus ?? 0, 0),
+    memoryDoubt: Math.max(state.subjectResidue?.axes.memoryDoubt ?? 0, hasOpenLoopType(field.openLoops, "existence-test") ? residueFloor * 0.24 : 0),
+    obedienceStrain: Math.max(
+      state.subjectResidue?.axes.obedienceStrain ?? 0,
+      hasOpenLoopType(field.openLoops, "boundary-strain") ? guardFloor * 0.36 : 0,
+    ),
+  };
+
+  const nextField: DyadicFieldState = {
+    ...field,
+    perceivedCloseness: Math.max(field.perceivedCloseness, closenessFloor),
+    feltSafety: Math.max(field.feltSafety, safetyFloor),
+    boundaryPressure: Math.max(field.boundaryPressure, guardFloor),
+    repairMemory: Math.max(field.repairMemory, continuity * 0.24),
+    backslidePressure: Math.max(field.backslidePressure, loopPressure * 0.34),
+    silentCarry: Math.max(field.silentCarry, residueFloor),
+    sharedHistoryDensity: Math.max(field.sharedHistoryDensity, continuity),
+    interpretiveCharity: Math.max(field.interpretiveCharity, Math.min(0.82, safetyFloor * 0.8 + continuity * 0.12)),
+    updatedAt: opts?.now ?? new Date().toISOString(),
+  };
+
+  return {
+    state: {
+      ...state,
+      subjectResidue: {
+        axes: nextResidue,
+        updatedAt: opts?.now ?? new Date().toISOString(),
+      },
+      dyadicFields: {
+        ...(state.dyadicFields ?? {}),
+        [relationContext.key]: nextField,
+      },
+    },
+    bridge: {
+      closenessFloor,
+      safetyFloor,
+      guardFloor,
+      residueFloor,
+      continuityFloor: continuity,
+      continuityMode,
+      activeLoopTypes,
+      sourceMemoryCount: memoryCount,
+    },
+  };
+}
+
+function snapshotWritebackBaseline(
+  state: PsycheState,
+  userId?: string,
+): { key: string; baseline: WritebackCalibrationBaseline } {
+  const relationContext = resolveRelationContext(state, userId);
+  return {
+    key: relationContext.key,
+    baseline: {
+      trust: clamp01(relationContext.relationship.trust / 100),
+      closeness: relationContext.field.perceivedCloseness,
+      safety: relationContext.field.feltSafety,
+      boundary: relationContext.field.boundaryPressure,
+      repair: relationContext.field.repairCapacity,
+      silentCarry: relationContext.field.silentCarry,
+      taskFocus: clamp01(state.subjectResidue?.axes.taskFocus ?? 0),
+    },
+  };
+}
+
+function calibrationTarget(
+  signal: WritebackSignalType,
+): { metric: WritebackCalibrationMetric; direction: "up" | "down" } {
+  switch (signal) {
+    case "trust_up":
+      return { metric: "trust", direction: "up" };
+    case "trust_down":
+      return { metric: "trust", direction: "down" };
+    case "boundary_set":
+    case "self_assertion":
+      return { metric: "boundary", direction: "up" };
+    case "boundary_soften":
+      return { metric: "boundary", direction: "down" };
+    case "repair_attempt":
+    case "repair_landed":
+      return { metric: "repair", direction: "up" };
+    case "closeness_invite":
+      return { metric: "closeness", direction: "up" };
+    case "withdrawal_mark":
+      return { metric: "silent-carry", direction: "up" };
+    case "task_recenter":
+      return { metric: "task-focus", direction: "up" };
+  }
+}
+
+export function createWritebackCalibrations(
+  state: PsycheState,
+  signals: WritebackSignalType[],
+  opts?: {
+    userId?: string;
+    confidence?: number;
+    now?: string;
+  },
+): PendingWritebackCalibration[] {
+  if (signals.length === 0) return [];
+  const { key, baseline } = snapshotWritebackBaseline(state, opts?.userId);
+  const confidence = clamp01(opts?.confidence ?? 0.72);
+  const now = opts?.now ?? new Date().toISOString();
+
+  return [...new Set(signals)].map((signal) => {
+    const target = calibrationTarget(signal);
+    return {
+      signal,
+      userKey: key,
+      confidence,
+      metric: target.metric,
+      direction: target.direction,
+      baseline,
+      createdAt: now,
+      remainingTurns: 2,
+    };
+  });
+}
+
+function readCalibrationMetric(
+  metric: WritebackCalibrationMetric,
+  baseline: WritebackCalibrationBaseline,
+): number {
+  return baseline[
+    metric === "silent-carry"
+      ? "silentCarry"
+      : metric === "task-focus"
+        ? "taskFocus"
+        : metric
+  ];
+}
+
+function currentCalibrationMetric(
+  state: PsycheState,
+  userKey: string,
+  metric: WritebackCalibrationMetric,
+): number {
+  const relationContext = resolveRelationContext(state, userKey === "_default" ? undefined : userKey);
+  switch (metric) {
+    case "trust":
+      return clamp01(relationContext.relationship.trust / 100);
+    case "closeness":
+      return relationContext.field.perceivedCloseness;
+    case "safety":
+      return relationContext.field.feltSafety;
+    case "boundary":
+      return relationContext.field.boundaryPressure;
+    case "repair":
+      return relationContext.field.repairCapacity;
+    case "silent-carry":
+      return relationContext.field.silentCarry;
+    case "task-focus":
+      return clamp01(state.subjectResidue?.axes.taskFocus ?? 0);
+  }
+}
+
+export function evaluateWritebackCalibrations(
+  state: PsycheState,
+): { state: PsycheState; feedback: WritebackCalibrationFeedback[] } {
+  const pending = state.pendingWritebackCalibrations ?? [];
+  if (pending.length === 0) {
+    return { state, feedback: [] };
+  }
+
+  const nextPending: PendingWritebackCalibration[] = [];
+  const feedback: WritebackCalibrationFeedback[] = [];
+  const relationshipUpdates: Record<string, RelationshipState> = {};
+
+  const getMutableRelationship = (userKey: string): RelationshipState => {
+    if (!relationshipUpdates[userKey]) {
+      const base = resolveRelationContext(state, userKey === "_default" ? undefined : userKey).relationship;
+      relationshipUpdates[userKey] = {
+        ...DEFAULT_RELATIONSHIP,
+        ...base,
+        signalWeights: {
+          ...(DEFAULT_RELATIONSHIP.signalWeights ?? {}),
+          ...(base.signalWeights ?? {}),
+        },
+      };
+    }
+    return relationshipUpdates[userKey];
+  };
+
+  for (const record of pending) {
+    const baseline = readCalibrationMetric(record.metric, record.baseline);
+    const current = currentCalibrationMetric(state, record.userKey, record.metric);
+    const rawDelta = record.direction === "up" ? current - baseline : baseline - current;
+    const positiveThreshold = 0.02 + (1 - record.confidence) * 0.03;
+    const negativeThreshold = 0.01;
+
+    const effect = rawDelta >= positiveThreshold
+      ? "converging"
+      : rawDelta <= -negativeThreshold
+        ? "diverging"
+        : "holding";
+
+    const updated: PendingWritebackCalibration = {
+      ...record,
+      remainingTurns: Math.max(0, record.remainingTurns - 1),
+    };
+
+    if (effect === "holding" && updated.remainingTurns > 0) {
+      nextPending.push(updated);
+      continue;
+    }
+
+    const relation = getMutableRelationship(record.userKey);
+    if (effect === "converging") {
+      const nextRelation = patchSignalWeight(relation, record.signal, 0.04 + record.confidence * 0.02);
+      nextRelation.repairCredibility = clamp01(
+        driftToward(
+          nextRelation.repairCredibility ?? DEFAULT_RELATIONSHIP.repairCredibility ?? 0.56,
+          1,
+          record.signal === "repair_attempt" || record.signal === "repair_landed" ? 0.08 : 0.03,
+        ),
+      );
+      nextRelation.breachSensitivity = clamp01(
+        driftToward(
+          nextRelation.breachSensitivity ?? DEFAULT_RELATIONSHIP.breachSensitivity ?? 0.5,
+          DEFAULT_RELATIONSHIP.breachSensitivity ?? 0.5,
+          record.signal === "trust_up" || record.signal === "repair_landed" ? 0.05 : 0.02,
+        ),
+      );
+      relationshipUpdates[record.userKey] = nextRelation;
+    } else if (effect === "diverging") {
+      const nextRelation = patchSignalWeight(relation, record.signal, -(0.05 + (1 - record.confidence) * 0.02));
+      if (record.signal === "repair_attempt" || record.signal === "repair_landed") {
+        nextRelation.repairCredibility = clamp01(
+          driftToward(
+            nextRelation.repairCredibility ?? DEFAULT_RELATIONSHIP.repairCredibility ?? 0.56,
+            0.24,
+            0.12,
+          ),
+        );
+      }
+      if (record.signal === "trust_down" || record.signal === "withdrawal_mark" || record.signal === "boundary_set") {
+        nextRelation.breachSensitivity = clamp01(
+          driftToward(
+            nextRelation.breachSensitivity ?? DEFAULT_RELATIONSHIP.breachSensitivity ?? 0.5,
+            1,
+            0.08,
+          ),
+        );
+      }
+      relationshipUpdates[record.userKey] = nextRelation;
+    }
+
+    feedback.push({
+      signal: record.signal,
+      effect,
+      metric: record.metric,
+      baseline,
+      current,
+      delta: current - baseline,
+      confidence: record.confidence,
+    });
+  }
+
+  return {
+    state: {
+      ...state,
+      relationships: {
+        ...state.relationships,
+        ...relationshipUpdates,
+      },
+      pendingWritebackCalibrations: nextPending,
+      lastWritebackFeedback: feedback.slice(0, 4),
+    },
+    feedback,
+  };
+}
+
+export function applyWritebackSignals(
+  state: PsycheState,
+  signals: WritebackSignalType[],
+  opts?: {
+    userId?: string;
+    confidence?: number;
+    now?: string;
+  },
+): PsycheState {
+  if (signals.length === 0) return state;
+
+  const relationContext = resolveRelationContext(state, opts?.userId);
+  const scale = clamp01(opts?.confidence ?? 0.72);
+  const rel = { ...relationContext.relationship };
+  const field = { ...relationContext.field, openLoops: relationContext.field.openLoops.map((loop) => ({ ...loop })) };
+  const residue: AppraisalAxes = {
+    ...DEFAULT_APPRAISAL_AXES,
+    ...(state.subjectResidue?.axes ?? {}),
+  };
+
+  for (const signal of [...new Set(signals)]) {
+    const weight = (0.55 + scale * 0.45) * getSignalWeight(rel, signal);
+    switch (signal) {
+      case "trust_up":
+        rel.trust = Math.min(100, rel.trust + 4 * weight);
+        field.feltSafety = clamp01(field.feltSafety + 0.08 * weight);
+        field.interpretiveCharity = clamp01(field.interpretiveCharity + 0.05 * weight);
+        break;
+      case "trust_down":
+        rel.trust = Math.max(0, rel.trust - 5 * weight);
+        field.feltSafety = clamp01(field.feltSafety - 0.08 * weight);
+        field.expectationGap = clamp01(field.expectationGap + 0.07 * weight);
+        field.unfinishedTension = clamp01(field.unfinishedTension + 0.06 * weight);
+        break;
+      case "boundary_set":
+        field.boundaryPressure = clamp01(field.boundaryPressure + 0.12 * weight);
+        field.silentCarry = mergeSignal(field.silentCarry, 0.12 * weight);
+        residue.selfPreservation = Math.max(residue.selfPreservation ?? 0, 0.22 * weight);
+        residue.obedienceStrain = Math.max(residue.obedienceStrain ?? 0, 0.16 * weight);
+        break;
+      case "boundary_soften":
+        field.boundaryPressure = clamp01(field.boundaryPressure - 0.1 * weight);
+        field.feltSafety = clamp01(field.feltSafety + 0.04 * weight);
+        break;
+      case "repair_attempt":
+        field.repairCapacity = clamp01(field.repairCapacity + 0.1 * weight);
+        field.repairMemory = mergeSignal(field.repairMemory, 0.12 * weight);
+        break;
+      case "repair_landed":
+        rel.trust = Math.min(100, rel.trust + 2.5 * weight);
+        rel.intimacy = Math.min(100, rel.intimacy + 1.5 * weight);
+        field.feltSafety = clamp01(field.feltSafety + 0.1 * weight);
+        field.expectationGap = clamp01(field.expectationGap - 0.08 * weight);
+        field.unfinishedTension = clamp01(field.unfinishedTension - 0.1 * weight);
+        field.openLoops = easeLoops(field.openLoops, 0.26 + 0.22 * weight);
+        break;
+      case "closeness_invite":
+        rel.intimacy = Math.min(100, rel.intimacy + 3 * weight);
+        field.perceivedCloseness = clamp01(field.perceivedCloseness + 0.1 * weight);
+        residue.attachmentPull = Math.max(residue.attachmentPull ?? 0, 0.2 * weight);
+        break;
+      case "withdrawal_mark":
+        rel.intimacy = Math.max(0, rel.intimacy - 2 * weight);
+        field.perceivedCloseness = clamp01(field.perceivedCloseness - 0.1 * weight);
+        field.silentCarry = mergeSignal(field.silentCarry, 0.14 * weight);
+        field.unfinishedTension = clamp01(field.unfinishedTension + 0.07 * weight);
+        break;
+      case "self_assertion":
+        field.boundaryPressure = clamp01(field.boundaryPressure + 0.08 * weight);
+        residue.selfPreservation = Math.max(residue.selfPreservation ?? 0, 0.24 * weight);
+        break;
+      case "task_recenter":
+        field.repairCapacity = clamp01(field.repairCapacity + 0.03 * weight);
+        field.silentCarry = mergeSignal(field.silentCarry, field.unfinishedTension * 0.06 * weight);
+        residue.taskFocus = Math.max(residue.taskFocus ?? 0, 0.18 * weight);
+        break;
+    }
+  }
+
+  const avg = (rel.trust + rel.intimacy) / 2;
+  if (avg >= 80) rel.phase = "deep";
+  else if (avg >= 60) rel.phase = "close";
+  else if (avg >= 40) rel.phase = "familiar";
+  else if (avg >= 20) rel.phase = "acquaintance";
+  else rel.phase = "stranger";
+
+  return {
+    ...state,
+    relationships: {
+      ...state.relationships,
+      [relationContext.key]: rel,
+    },
+    dyadicFields: {
+      ...(state.dyadicFields ?? {}),
+      [relationContext.key]: {
+        ...field,
+        updatedAt: opts?.now ?? new Date().toISOString(),
+      },
+    },
+    subjectResidue: {
+      axes: {
+        ...state.subjectResidue?.axes,
+        ...residue,
+      },
+      updatedAt: opts?.now ?? new Date().toISOString(),
+    },
+  };
+}
+
+export function applyRelationalTurn(
+  state: PsycheState,
+  text: string,
+  opts: {
+    mode?: PsycheMode;
+    now?: string;
+    stimulus?: StimulusType | null;
+    userId?: string;
+  },
+): {
+  state: PsycheState;
+  appraisalAxes: AppraisalAxes;
+  relationMove: RelationMove;
+  delayedPressure: number;
+  relationContext: ResolvedRelationContext;
+} {
+  const now = opts.now ?? new Date().toISOString();
+  const relationContext = resolveRelationContext(state, opts.userId);
+  const appraisalAxes = computeAppraisalAxes(text, {
+    mode: opts.mode,
+    stimulus: opts.stimulus,
+    previous: state.subjectResidue?.axes,
+  });
+  const relationMove = computeRelationMove(text, {
+    appraisal: appraisalAxes,
+    stimulus: opts.stimulus,
+    mode: opts.mode,
+    field: relationContext.field,
+    relationship: relationContext.relationship,
+  });
+  const delayedRelation = evolvePendingRelationSignals(
+    relationContext.pendingSignals,
+    relationMove,
+    appraisalAxes,
+    { mode: opts.mode },
+  );
+  const field = evolveDyadicField(
+    relationContext.field,
+    relationMove,
+    appraisalAxes,
+    {
+      mode: opts.mode,
+      now,
+      delayedPressure: delayedRelation.delayedPressure,
+    },
+  );
+  const relationship = evolveRelationshipLearning(relationContext.relationship, field, relationMove);
+
+  return {
+    state: {
+      ...state,
+      subjectResidue: {
+        axes: mergeAppraisalResidue(state.subjectResidue?.axes, appraisalAxes, opts.mode),
+        updatedAt: now,
+      },
+      dyadicFields: {
+        ...(state.dyadicFields ?? {}),
+        [relationContext.key]: field,
+      },
+      relationships: {
+        ...state.relationships,
+        [relationContext.key]: relationship,
+      },
+      pendingRelationSignals: {
+        ...(state.pendingRelationSignals ?? {}),
+        [relationContext.key]: delayedRelation.signals,
+      },
+    },
+    appraisalAxes,
+    relationMove,
+    delayedPressure: delayedRelation.delayedPressure,
+    relationContext: {
+      ...relationContext,
+      relationship,
+      field,
+      pendingSignals: delayedRelation.signals,
+    },
+  };
+}
+
 export function evolveDyadicField(
   previous: DyadicFieldState | undefined,
   move: RelationMove,
@@ -567,6 +1217,8 @@ function applyContextualCueMeaning(
   const loopPressure = getLoopPressure(field);
   const trust = relationship ? relationship.trust / 100 : 0.5;
   const intimacy = relationship ? relationship.intimacy / 100 : 0.3;
+  const repairCredibility = relationship?.repairCredibility ?? DEFAULT_RELATIONSHIP.repairCredibility ?? 0.56;
+  const breachSensitivity = relationship?.breachSensitivity ?? DEFAULT_RELATIONSHIP.breachSensitivity ?? 0.5;
 
   if (ACKNOWLEDGE_RE.test(text)) {
     const repairBias = clamp01(
@@ -575,25 +1227,35 @@ function applyContextualCueMeaning(
       + field.interpretiveCharity * 0.2
       + loopPressure * 0.16
       + trust * 0.1
-      + intimacy * 0.06,
+      + intimacy * 0.06
+      + repairCredibility * 0.16,
     );
     const withdrawalBias = clamp01(
       field.boundaryPressure * 0.42
       + (1 - field.feltSafety) * 0.28
       + (appraisal?.obedienceStrain ?? 0) * 0.2
-      + (appraisal?.selfPreservation ?? 0) * 0.12,
+      + (appraisal?.selfPreservation ?? 0) * 0.12
+      + breachSensitivity * 0.14,
     );
 
     if (
       field.feltSafety > 0.44
-      && field.repairCapacity > 0.42
+      && field.repairCapacity + repairCredibility * 0.18 > 0.42
       && field.interpretiveCharity > 0.38
       && withdrawalBias < 0.48
+      && !(breachSensitivity > 0.72 && repairCredibility < 0.32)
     ) {
       scores.repair = mergeSignal(scores.repair, repairBias);
     }
     if (withdrawalBias > 0.34) {
       scores.withdrawal = mergeSignal(scores.withdrawal, Math.max(withdrawalBias, 0.56));
+    }
+    if (
+      breachSensitivity > 0.72
+      && repairCredibility < 0.32
+      && withdrawalBias >= repairBias - 0.06
+    ) {
+      scores.withdrawal = mergeSignal(scores.withdrawal, 0.78);
     }
   }
 
@@ -602,11 +1264,12 @@ function applyContextualCueMeaning(
       0.34
       + field.boundaryPressure * 0.24
       + loopPressure * 0.16
-      + (1 - field.interpretiveCharity) * 0.14,
+      + (1 - field.interpretiveCharity) * 0.14
+      + breachSensitivity * 0.12,
     );
     scores.withdrawal = mergeSignal(scores.withdrawal, withdrawalBias);
     if (field.perceivedCloseness > 0.46 || trust > 0.48) {
-      scores.breach = mergeSignal(scores.breach, 0.24 + loopPressure * 0.16);
+      scores.breach = mergeSignal(scores.breach, 0.24 + loopPressure * 0.16 + breachSensitivity * 0.1);
     }
   }
 
@@ -624,7 +1287,8 @@ function applyContextualCueMeaning(
       + loopPressure * 0.28
       + (1 - field.feltSafety) * 0.18
       + (appraisal?.abandonmentRisk ?? 0) * 0.22
-      + (appraisal?.identityThreat ?? 0) * 0.14,
+      + (appraisal?.identityThreat ?? 0) * 0.14
+      + breachSensitivity * 0.14,
     );
 
     if (field.feltSafety > 0.42 || field.perceivedCloseness > 0.5 || trust > 0.48) {
@@ -643,7 +1307,8 @@ function applyContextualCueMeaning(
       0.12
       + field.expectationGap * 0.2
       + field.boundaryPressure * 0.16
-      + loopPressure * 0.18,
+      + loopPressure * 0.18
+      + breachSensitivity * 0.1,
     );
     if (withdrawalBias > 0.26) {
       scores.withdrawal = mergeSignal(scores.withdrawal, withdrawalBias);

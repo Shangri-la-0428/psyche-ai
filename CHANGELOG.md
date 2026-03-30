@@ -1,5 +1,30 @@
 # 更新日志 / Changelog
 
+## v9.2.7 — 写回学习闭环 + 跨会话桥接增强
+
+- **Session Bridge 强化**：新 session 不再只是“读到旧记忆”，而是会带着 `continuityMode`、`activeLoopTypes`、低频 closeness / safety / silent carry 冷启动，让上一段关系真正进入下一段行为层。
+- **Writeback ABI 闭环化**：轻量 `signals` 写回现在会进入 `pending calibration -> converging / holding / diverging` 的校准回路，并把反馈以结构化 `writebackFeedback` 返回宿主，而不是只写不验。
+- **关系学习层**：新增按对象累积的 `repairCredibility`、`breachSensitivity`、`signalWeights`。相同短语会越来越像“对这个人说的话”，而不是通用人格规则。
+- **低置信度覆写窗口**：`overrideWindow` 正式进入回应契约，分类低置信度时给 agent 更大的终判弹性，而不是被算法硬锁定。
+- **无额外推理成本**：新增桥接、校准、权重学习都在本地热路径内完成，不增加额外模型调用。
+
+**测试：1300 个，0 失败**
+
+---
+
+## Unreleased — 发现链路统一 + 热路径收口
+
+- **公开入口统一**：npm / GitHub / 官网开始明确区分包名 `psyche-ai`、源码仓库 `oasyce_psyche` 和官网 `psyche.oasyce.com`。
+- **官网扩页**：新增 OpenClaw、MCP、benchmarks、relation dynamics、work vs private、compare、demo 等发现页，补齐搜索和分享入口。
+- **传播资产**：补齐 demo 脚本、community post 草稿、MCP 目录提交文案、release cadence 文档。
+
+- **关系视角统一解析**：新增 `ResolvedRelationContext`，每轮只解析一次当前关系、dyadic field 和 pending signals。
+- **关系态跃迁节点**：`applyRelationalTurn()` 把 appraisal carry、relation move、dyadic field 和 delayed signal 更新收成一个纯函数步骤。
+- **统一回复控制面**：新增 `ReplyEnvelope`，把 `SubjectivityKernel`、`ResponseContract`、`GenerationControls` 的导出收口到一个地方。
+- **不损失性能**：本地 quick benchmark 维持毫秒级热路径，`processInput()` 约 `p50 0.191ms / p95 1.05ms`。
+
+---
+
 ## v9.2.5 — 自适应回应闭环 + 清理
 
 - **双回应 profile**：`ResponseContract` 现在区分 `work` / `private`，工作面不再被私人模式的短句克制误伤。

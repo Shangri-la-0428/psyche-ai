@@ -27,7 +27,7 @@ So I built that.
 
 ## Psyche: A Virtual Endocrine System
 
-[Psyche](https://github.com/Shangri-la-0428/psyche-ai) gives AI agents 6 virtual neurotransmitters that shift in real-time based on conversation:
+[Psyche](https://github.com/Shangri-la-0428/oasyce_psyche) gives AI agents 6 virtual neurotransmitters that shift in real-time based on conversation:
 
 ```
 Dopamine (DA)      — pleasure, motivation
@@ -111,7 +111,7 @@ Works with any framework: [OpenClaw](https://github.com/nicepkg/openclaw) (auto-
 
 30-second demo with no LLM needed:
 ```bash
-git clone https://github.com/Shangri-la-0428/psyche-ai.git
+git clone https://github.com/Shangri-la-0428/oasyce_psyche.git
 cd psyche-ai && npm install && npx tsx examples/quickstart.ts
 ```
 
@@ -125,4 +125,4 @@ The goal isn't to make AI that performs emotions. It's to build the substrate fo
 
 ---
 
-[GitHub](https://github.com/Shangri-la-0428/psyche-ai) · [npm](https://www.npmjs.com/package/psyche-ai) · Zero dependencies · 339 tests · MIT licensed
+[GitHub](https://github.com/Shangri-la-0428/oasyce_psyche) · [npm](https://www.npmjs.com/package/psyche-ai) · Zero dependencies · 339 tests · MIT licensed

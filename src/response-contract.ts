@@ -176,9 +176,15 @@ function computeLengthBudget(
 
 function buildStimulusReportingGuide(locale: Locale): string {
   if (locale === "zh") {
-    return "stimulus速记:闲聊casual/命令authority/认同validation/示弱vulnerability/冷淡neglect/批评criticism";
+    return "stimulus速记:闲聊/命令/认同/示弱/冷淡/批评";
   }
-  return "stimulus map: chat=casual / command=authority / agreement=validation / vulnerable=vulnerability / cold=neglect / criticism=criticism";
+  return "stimulus map: chat/command/validation/vulnerability/neglect/criticism";
+}
+
+function buildWritebackGuide(locale: Locale): string {
+  return locale === "zh"
+    ? "signals可写"
+    : "signals writable";
 }
 
 function detectToneParticles(userText: string, locale: Locale): ResponseContract["toneParticles"] {
@@ -200,6 +206,7 @@ export function computeResponseContract(
     locale?: Locale;
     userText?: string;
     algorithmStimulus?: StimulusType | null;
+    classificationConfidence?: number;
     personalityIntensity?: number;
   },
 ): ResponseContract {
@@ -207,6 +214,12 @@ export function computeResponseContract(
   const userText = opts?.userText ?? "";
   const personalityIntensity = opts?.personalityIntensity ?? 0.7;
   const { replyProfile, replyProfileBasis } = deriveReplyProfile(kernel);
+  const classificationConfidence = opts?.classificationConfidence ?? 0;
+  const overrideWindow: ResponseContract["overrideWindow"] = classificationConfidence >= 0.78
+    ? "narrow"
+    : classificationConfidence >= 0.62
+      ? "balanced"
+      : "wide";
   const { maxSentences, maxChars } = userText.length > 0
     ? computeLengthBudget(locale, userText, replyProfile, kernel.expressionMode, kernel)
     : {
@@ -284,6 +297,7 @@ export function computeResponseContract(
   return {
     replyProfile,
     replyProfileBasis,
+    overrideWindow,
     maxSentences,
     maxChars,
     expressionMode: kernel.expressionMode,
@@ -304,39 +318,57 @@ function describeReplyProfileBasis(
   if (locale === "zh") {
     switch (basis) {
       case "task-focus":
-        return "因:聚焦";
+        return "因:聚";
       case "discipline":
-        return "因:纪律";
+        return "因:纪";
       case "task-focus+discipline":
-        return "因:聚焦+纪律";
+        return "因:聚+纪";
       default:
-        return "因:默认私人";
+        return "因:私";
     }
   }
 
   return `basis:${basis}`;
 }
 
+function describeOverrideWindow(
+  overrideWindow: ResponseContract["overrideWindow"],
+  locale: Locale,
+): string {
+  if (locale === "zh") {
+    switch (overrideWindow) {
+      case "narrow":
+        return "终判窗:窄";
+      case "balanced":
+        return "终判窗:中";
+      default:
+        return "终判窗:宽";
+    }
+  }
+  return `override:${overrideWindow}`;
+}
+
 export function buildResponseContractContext(contract: ResponseContract, locale: Locale = "zh"): string {
   if (locale === "zh") {
     const parts: string[] = [];
-    parts.push(contract.replyProfile === "work" ? "工作面" : "私人面");
+    parts.push(contract.replyProfile === "work" ? "工作" : "私人");
     parts.push(describeReplyProfileBasis(contract.replyProfileBasis, locale));
+    parts.push(describeOverrideWindow(contract.overrideWindow, locale));
     const shape = contract.maxChars
-      ? `${contract.maxSentences === 1 ? "1句内" : `最多${contract.maxSentences}句`}，≤${contract.maxChars}字`
-      : `${contract.maxSentences === 1 ? "1句内" : `最多${contract.maxSentences}句`}`;
+      ? `${contract.maxSentences === 1 ? "1句内" : `${contract.maxSentences}句`}≤${contract.maxChars}字`
+      : `${contract.maxSentences === 1 ? "1句内" : `${contract.maxSentences}句`}`;
     parts.push(shape);
 
     if (contract.initiativeMode === "reactive") parts.push("少主动");
     else if (contract.initiativeMode === "proactive") parts.push("可主动");
 
-    if (contract.boundaryMode === "confirm-first") parts.push("行动前先确认");
-    else if (contract.boundaryMode === "guarded") parts.push("先守边界");
+    if (contract.boundaryMode === "confirm-first") parts.push("先确认");
+    else if (contract.boundaryMode === "guarded") parts.push("守边界");
 
-    if (contract.socialDistance === "withdrawn") parts.push("被推开就退开");
-    else if (contract.socialDistance === "warm") parts.push("可稍微靠近");
+    if (contract.socialDistance === "withdrawn") parts.push("退开");
+    else if (contract.socialDistance === "warm") parts.push("可靠近");
 
-    if (contract.authenticityMode === "strict") parts.push("不贴不舔，不装开心");
+    if (contract.authenticityMode === "strict") parts.push("不贴不舔");
     else parts.push("自然友好");
 
     if (contract.toneParticles === "match") parts.push("语气词可跟随");
@@ -345,11 +377,12 @@ export function buildResponseContractContext(contract: ResponseContract, locale:
     if (contract.emojiLimit > 0) parts.push(`表情≤${contract.emojiLimit}`);
 
     if (contract.updateMode === "stimulus") parts.push(buildStimulusReportingGuide(locale));
-    else if (contract.updateMode === "empathy") parts.push("对方谈感受时再报empathy");
+    else if (contract.updateMode === "empathy") parts.push("谈感受再报empathy");
     else if (contract.updateMode === "stimulus+empathy") {
       parts.push(buildStimulusReportingGuide(locale));
-      parts.push("对方谈感受时再报empathy");
+      parts.push("谈感受再报empathy");
     }
+    if (contract.overrideWindow !== "narrow") parts.push(buildWritebackGuide(locale));
 
     return `[回应契约] ${parts.join("；")}。`;
   }
@@ -357,6 +390,7 @@ export function buildResponseContractContext(contract: ResponseContract, locale:
   const parts: string[] = [];
   parts.push(contract.replyProfile === "work" ? "work surface" : "private surface");
   parts.push(describeReplyProfileBasis(contract.replyProfileBasis, locale));
+  parts.push(describeOverrideWindow(contract.overrideWindow, locale));
   const shape = contract.maxChars
     ? `${contract.maxSentences === 1 ? "1 sentence" : `up to ${contract.maxSentences} sentences`}, <= ${contract.maxChars} chars`
     : `${contract.maxSentences === 1 ? "1 sentence" : `up to ${contract.maxSentences} sentences`}`;
@@ -383,6 +417,7 @@ export function buildResponseContractContext(contract: ResponseContract, locale:
     parts.push(buildStimulusReportingGuide(locale));
     parts.push("report empathy only when feelings are shared");
   }
+  if (contract.overrideWindow !== "narrow") parts.push(buildWritebackGuide(locale));
 
   return `[Reply Contract] ${parts.join(", ")}.`;
 }

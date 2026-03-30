@@ -188,12 +188,28 @@ export const DEFAULT_ATTACHMENT: AttachmentData = {
 };
 
 /** Relationship tracking */
+export interface WritebackSignalWeightMap {
+  trust_up: number;
+  trust_down: number;
+  boundary_set: number;
+  boundary_soften: number;
+  repair_attempt: number;
+  repair_landed: number;
+  closeness_invite: number;
+  withdrawal_mark: number;
+  self_assertion: number;
+  task_recenter: number;
+}
+
 export interface RelationshipState {
   trust: number;      // 0-100
   intimacy: number;   // 0-100
   phase: "stranger" | "acquaintance" | "familiar" | "close" | "deep";
   memory?: string[];  // compressed session summaries for cross-session continuity
   attachment?: AttachmentData;  // v5: attachment dynamics
+  repairCredibility?: number; // 0-1: how believable repair language currently is for this partner
+  breachSensitivity?: number; // 0-1: how quickly this partner is read as threatening after prior breaches
+  signalWeights?: Partial<WritebackSignalWeightMap>; // learned per-partner signal gain for sparse writeback
 }
 
 /** Chemical state snapshot for emotional memory */
@@ -442,6 +458,10 @@ export interface PsycheState {
   dyadicFields?: Record<string, DyadicFieldState>;
   /** v9.6: delayed relation signals that can activate in later turns */
   pendingRelationSignals?: Record<string, PendingRelationSignalState[]>;
+  /** v9.2.7: sparse writeback signals waiting for convergence evaluation */
+  pendingWritebackCalibrations?: PendingWritebackCalibration[];
+  /** v9.2.7: latest writeback calibration outcome, for host-facing feedback */
+  lastWritebackFeedback?: WritebackCalibrationFeedback[];
   meta: {
     agentName: string;
     createdAt: string;
@@ -456,6 +476,9 @@ export const DEFAULT_RELATIONSHIP: RelationshipState = {
   trust: 50,
   intimacy: 30,
   phase: "acquaintance",
+  repairCredibility: 0.56,
+  breachSensitivity: 0.5,
+  signalWeights: {},
 };
 
 // ── PolicyModifiers (v9) ─────────────────────────────────────
@@ -599,6 +622,14 @@ export interface DyadicFieldState {
   updatedAt: string;
 }
 
+/** Resolved per-partner view used across the hot path */
+export interface ResolvedRelationContext {
+  key: string;
+  relationship: RelationshipState;
+  field: DyadicFieldState;
+  pendingSignals: PendingRelationSignalState[];
+}
+
 export const DEFAULT_DYADIC_FIELD: DyadicFieldState = {
   perceivedCloseness: 0.42,
   feltSafety: 0.56,
@@ -670,6 +701,18 @@ export interface RelationPlaneState {
   lastMove: RelationMoveType;
 }
 
+/** Minimal cold-start carry derived from persisted relational state. */
+export interface SessionBridgeState {
+  closenessFloor: number;
+  safetyFloor: number;
+  guardFloor: number;
+  residueFloor: number;
+  continuityFloor: number;
+  continuityMode: "warm-resume" | "guarded-resume" | "tense-resume";
+  activeLoopTypes: OpenLoopType[];
+  sourceMemoryCount: number;
+}
+
 // ── Subjectivity Kernel (v9.3) ──────────────────────────────
 
 /**
@@ -726,6 +769,8 @@ export interface ResponseContract {
   replyProfile: "work" | "private";
   /** Why the current turn was classified into that conversational surface */
   replyProfileBasis: "task-focus" | "discipline" | "task-focus+discipline" | "default-private";
+  /** How much freedom the model has to override the algorithmic stimulus read */
+  overrideWindow: "narrow" | "balanced" | "wide";
   /** Maximum suggested sentence count */
   maxSentences: number;
   /** Maximum suggested character count, when a concrete cap is available */
@@ -746,6 +791,61 @@ export interface ResponseContract {
   authenticityMode: "strict" | "friendly";
   /** Which internal report, if any, should be requested in <psyche_update> */
   updateMode: "none" | "stimulus" | "empathy" | "stimulus+empathy";
+}
+
+/** Sparse agent-authored writeback signals. */
+export type WritebackSignalType =
+  | "trust_up"
+  | "trust_down"
+  | "boundary_set"
+  | "boundary_soften"
+  | "repair_attempt"
+  | "repair_landed"
+  | "closeness_invite"
+  | "withdrawal_mark"
+  | "self_assertion"
+  | "task_recenter";
+
+export type WritebackCalibrationMetric =
+  | "trust"
+  | "closeness"
+  | "safety"
+  | "boundary"
+  | "repair"
+  | "silent-carry"
+  | "task-focus";
+
+export type WritebackCalibrationEffect = "converging" | "holding" | "diverging";
+
+export interface WritebackCalibrationBaseline {
+  trust: number;
+  closeness: number;
+  safety: number;
+  boundary: number;
+  repair: number;
+  silentCarry: number;
+  taskFocus: number;
+}
+
+export interface PendingWritebackCalibration {
+  signal: WritebackSignalType;
+  userKey: string;
+  confidence: number;
+  metric: WritebackCalibrationMetric;
+  direction: "up" | "down";
+  baseline: WritebackCalibrationBaseline;
+  createdAt: string;
+  remainingTurns: number;
+}
+
+export interface WritebackCalibrationFeedback {
+  signal: WritebackSignalType;
+  effect: WritebackCalibrationEffect;
+  metric: WritebackCalibrationMetric;
+  baseline: number;
+  current: number;
+  delta: number;
+  confidence: number;
 }
 
 /**

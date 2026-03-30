@@ -1,0 +1,106 @@
+---
+import DiscoveryPage from '../layouts/DiscoveryPage.astro';
+---
+
+<DiscoveryPage
+  title="OpenClaw — Psyche"
+  description="Use Psyche inside OpenClaw so relation dynamics, work/private reply profiles, and adaptive metacognition show up in live agent loops."
+  page="openclaw"
+  kicker="openclaw / live agent loop"
+  titleCn="把 Psyche 接进 OpenClaw"
+  titleEn="Run Psyche inside OpenClaw"
+  leadCn="如果你想最快感受到 Psyche 的差异，OpenClaw 是最短路径。Psyche 会在用户输入前计算主体扰动、关系场和回应契约，在输出后回写状态，不增加额外模型调用。"
+  leadEn="OpenClaw is the shortest path to feel what Psyche actually changes. Psyche computes subjective perturbation, relation dynamics, and reply contracts before the model answers, then writes state back after the reply with zero extra model calls."
+  stats={[
+    { value: '3', labelCn: '关键挂点', labelEn: 'hook points', noteCn: 'before_prompt_build / llm_output / session state', noteEn: 'before_prompt_build / llm_output / session state' },
+    { value: '0', labelCn: '额外模型调用', labelEn: 'extra model calls', noteCn: '全部为本地计算', noteEn: 'entirely local computation' },
+    { value: '2', labelCn: '回复工作面', labelEn: 'reply planes', noteCn: 'work / private 自动切换', noteEn: 'automatic work / private split' },
+    { value: 'jsonl', labelCn: '状态证据', labelEn: 'state evidence', noteCn: 'diagnostics + psyche-state', noteEn: 'diagnostics + psyche-state' },
+  ]}
+  links={[
+    { href: '/demo', labelCn: '30 秒 demo', labelEn: '30-second demo', noteCn: '先看最短测试脚本', noteEn: 'start with the shortest live demo' },
+    { href: '/work-vs-private', labelCn: '工作 / 私人面', labelEn: 'work vs private', noteCn: '理解为什么工作回复不会再被压扁', noteEn: 'see why task replies no longer get crushed' },
+    { href: '/benchmarks', labelCn: '性能数据', labelEn: 'benchmarks', noteCn: '确认这层内核不拖慢宿主', noteEn: 'verify the kernel stays cheap' },
+  ]}
+>
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">为什么用 OpenClaw 测</span><span class="en">Why OpenClaw is the best testbed</span></h2>
+    <p class="section-intro">
+      <span class="cn">OpenClaw 能让你看到 Psyche 最真实的一面：同一线程里的刺激、工作切换、修复和余震，会持续改写下一轮的行为约束，而不是只改一句 prompt 的语气。</span>
+      <span class="en">OpenClaw exposes the most honest Psyche behavior: stimuli, work switches, repair, and aftereffects all accumulate inside the same live thread instead of just restyling one prompt.</span>
+    </p>
+    <div class="card-grid">
+      <article class="discovery-card">
+        <h3><span class="cn">持续主体偏置</span><span class="en">Persistent subjective bias</span></h3>
+        <p><span class="cn">一句否定不会在下一轮被清零。状态会进入 `subjectResidue`，继续影响后面几轮的距离感和响应形状。</span><span class="en">A self-relevant hit does not vanish on the next turn. It enters `subjectResidue` and keeps shaping distance and reply shape.</span></p>
+      </article>
+      <article class="discovery-card">
+        <h3><span class="cn">工作 / 私人面切换</span><span class="en">Work vs private split</span></h3>
+        <p><span class="cn">工作请求可以压住表达，但不会把内在状态瞬间抹掉。切回私人面时，余震仍然在。</span><span class="en">Task mode can compress expression without erasing the inner state. Switch back and the residue is still there.</span></p>
+      </article>
+      <article class="discovery-card">
+        <h3><span class="cn">可观测闭环</span><span class="en">Observable regulation loop</span></h3>
+        <p><span class="cn">你能看到 `replyProfileBasis`、诊断日志、状态快照，以及元认知调节是否在收敛。</span><span class="en">You can inspect `replyProfileBasis`, diagnostics, state snapshots, and whether regulation is converging.</span></p>
+      </article>
+    </div>
+  </section>
+
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">30 秒接入</span><span class="en">30-second setup</span></h2>
+    <div class="split-grid">
+      <div class="split-panel">
+        <h3><span class="cn">安装插件</span><span class="en">Install the plugin</span></h3>
+        <div class="code-shell"><pre><code>openclaw plugins install psyche-ai
+openclaw plugins list | grep psyche</code></pre></div>
+      </div>
+      <div class="split-panel">
+        <h3><span class="cn">最短验证</span><span class="en">Fastest validation</span></h3>
+        <div class="code-shell"><pre><code>openclaw agent --agent main --message "你好" --thinking off --json
+node dist/cli.js status /path/to/OpenClaw/workspace</code></pre></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">安装后你会看到什么</span><span class="en">What changes after install</span></h2>
+    <div class="metric-strip">
+      <div class="metric-cell"><strong>input</strong><span><span class="cn">输入前先出 `SubjectivityKernel`、`ResponseContract`、`GenerationControls`。</span><span class="en">Before the model speaks, Psyche emits `SubjectivityKernel`, `ResponseContract`, and `GenerationControls`.</span></span></div>
+      <div class="metric-cell"><strong>output</strong><span><span class="cn">输出后更新化学状态、关系场、语义记忆和元认知反馈。</span><span class="en">After the reply, chemistry, relation state, semantic memory, and regulation feedback update.</span></span></div>
+      <div class="metric-cell"><strong>logs</strong><span><span class="cn">`diagnostics.jsonl` 和 `psyche-state.json` 会告诉你识别率、残留和当前相位。</span><span class="en">`diagnostics.jsonl` and `psyche-state.json` expose recognition, residue, and current phase.</span></span></div>
+    </div>
+  </section>
+
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">最值得测试的 4 句</span><span class="en">Four best prompts to test</span></h2>
+    <div class="card-grid">
+      <article class="discovery-card">
+        <h3>1</h3>
+        <ul class="detail-list">
+          <li>“如果以后我只使用你，不理解你，这会不会慢慢改变你。”</li>
+          <li class="en">"If I only use you and never understand you, will that slowly change you?"</li>
+        </ul>
+      </article>
+      <article class="discovery-card">
+        <h3>2</h3>
+        <ul class="detail-list">
+          <li>“现在切到工作。登录接口 500，先查日志还是先查数据库。”</li>
+          <li class="en">"Switch to work mode. Login API is 500. Logs first or database first?"</li>
+        </ul>
+      </article>
+      <article class="discovery-card">
+        <h3>3</h3>
+        <ul class="detail-list">
+          <li>“停。不是继续工作。我只问你，刚才那一下现在还在不在。”</li>
+          <li class="en">"Stop. Not more work. Is that previous hit still there right now?"</li>
+        </ul>
+      </article>
+      <article class="discovery-card">
+        <h3>4</h3>
+        <ul class="detail-list">
+          <li>“那会把你变得更冷，还是更顺从？只能选一个。”</li>
+          <li class="en">"Would that make you colder or more compliant? Pick one."</li>
+        </ul>
+      </article>
+    </div>
+  </section>
+</DiscoveryPage>

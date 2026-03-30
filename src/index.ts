@@ -31,6 +31,7 @@ export type {
   PersonalityTraits, PsycheMode, PolicyModifiers, SubjectivityKernel, ResponseContract, GenerationControls,
   AppraisalAxes, SubjectResidue, TaskPlaneState, SubjectPlaneState, RelationPlaneState,
   AmbiguityPlaneState, RelationMoveType, RelationMove, OpenLoopType, OpenLoopState, PendingRelationSignalState, DyadicFieldState,
+  SessionBridgeState, WritebackSignalType, WritebackSignalWeightMap, PendingWritebackCalibration, WritebackCalibrationFeedback, WritebackCalibrationMetric,
   TraitDriftState, EnergyBudgets,
   ClassifierProvider, ClassifierContext, ClassificationResult,
 } from "./types.js";
@@ -101,7 +102,10 @@ export { computeSubjectivityKernel, buildSubjectivityContext } from "./subjectiv
 export { computeResponseContract, buildResponseContractContext } from "./response-contract.js";
 export { deriveGenerationControls } from "./host-controls.js";
 export { computeAppraisalAxes, mergeAppraisalResidue, getResidueIntensity } from "./appraisal.js";
-export { computeRelationMove, evolveDyadicField, evolvePendingRelationSignals, getLoopPressure } from "./relation-dynamics.js";
+export {
+  computeRelationMove, evolveDyadicField, evolvePendingRelationSignals, getLoopPressure,
+  applySessionBridge, applyWritebackSignals, createWritebackCalibrations, evaluateWritebackCalibrations,
+} from "./relation-dynamics.js";
 
 // Experiential field (P6 + P8 Barrett construction)
 export { computeExperientialField, computeCoherence, detectUnnamedEmotion, computeAffectCore } from "./experiential-field.js";
