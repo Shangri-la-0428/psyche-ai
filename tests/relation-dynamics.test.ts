@@ -381,6 +381,39 @@ describe("evolvePendingRelationSignals", () => {
 });
 
 describe("relationship learning", () => {
+  it("keeps new user turns isolated from _default field carryover", () => {
+    const seeded = makeState({
+      dyadicFields: {
+        _default: {
+          ...DEFAULT_DYADIC_FIELD,
+          boundaryPressure: 0.88,
+          unfinishedTension: 0.82,
+          openLoops: [{ type: "unrepaired-breach", intensity: 0.84, ageTurns: 1 }],
+          updatedAt: new Date().toISOString(),
+        },
+      },
+      pendingRelationSignals: {
+        _default: [{
+          move: "breach",
+          intensity: 0.78,
+          readyInTurns: 0,
+          ttl: 1,
+        }],
+      },
+    });
+
+    const result = applyRelationalTurn(seeded, "你好", {
+      mode: "natural",
+      userId: "alice",
+    });
+
+    assert.equal(result.relationContext.key, "alice");
+    assert.deepEqual(result.relationContext.pendingSignals, []);
+    assert.equal(result.relationContext.field.openLoops.length, 0);
+    assert.ok(result.relationContext.field.boundaryPressure < 0.4, `expected fresh field, got ${result.relationContext.field.boundaryPressure}`);
+    assert.ok(result.state.dyadicFields?._default.openLoops.length === 1, "default field should stay untouched");
+  });
+
   it("raises breach sensitivity after a breach-heavy turn", () => {
     const state = makeState({
       relationships: {

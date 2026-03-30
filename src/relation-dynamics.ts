@@ -367,10 +367,8 @@ export function resolveRelationContext(
     },
   };
   const field = state.dyadicFields?.[key]
-    ?? state.dyadicFields?._default
     ?? DEFAULT_DYADIC_FIELD;
   const pendingSignals = state.pendingRelationSignals?.[key]
-    ?? state.pendingRelationSignals?._default
     ?? [];
 
   return {
