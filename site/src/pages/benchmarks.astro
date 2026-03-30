@@ -1,0 +1,112 @@
+---
+import DiscoveryPage from '../layouts/DiscoveryPage.astro';
+---
+
+<DiscoveryPage
+  title="Benchmarks — Psyche"
+  description="Benchmark the Psyche hot path, compact token envelope, and zero-extra-model-call behavior."
+  page="benchmarks"
+  kicker="benchmarks / cost envelope"
+  titleCn="性能和 token 成本"
+  titleEn="Performance and token cost"
+  leadCn="Psyche 的目标不是“更复杂”，而是把复杂度压进本地状态机，把宿主可见的接口保持得很窄。它真正应该被担心的是行为质量，不是延迟。"
+  leadEn="Psyche is not trying to be more complex for its own sake. It pushes complexity into the local state machine while keeping the host-visible surface narrow. The thing to worry about should be behavior quality, not latency."
+  stats={[
+    { value: '0', labelCn: '额外模型调用', labelEn: 'extra model calls', noteCn: '情绪与关系推理全部本地完成', noteEn: 'all emotion and relation logic stays local' },
+    { value: '0.191ms', labelCn: 'hot path p50', labelEn: 'hot path p50', noteCn: '本地 quick benchmark', noteEn: 'local quick benchmark' },
+    { value: '1.05ms', labelCn: 'hot path p95', labelEn: 'hot path p95', noteCn: 'processInput() 级别', noteEn: 'at the processInput() level' },
+    { value: '15-180', labelCn: 'compact tokens', labelEn: 'compact tokens', noteCn: '中性态到活跃态的典型注入区间', noteEn: 'typical neutral-to-active injection envelope' },
+  ]}
+  links={[
+    { href: '/compare', labelCn: '为什么不是“更重”', labelEn: 'why this is not heavier', noteCn: '和 persona prompt / memory layer 对比', noteEn: 'compare against persona prompts and memory layers' },
+    { href: '/install-modes', labelCn: '安装形态', labelEn: 'install modes', noteCn: '不同安装形态的更新与运行差异', noteEn: 'runtime and upgrade differences by install mode' },
+    { href: '/demo', labelCn: '看 live 行为', labelEn: 'watch the live demo', noteCn: '确认这些成本换来了什么', noteEn: 'see what these costs actually buy you' },
+  ]}
+>
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">核心结论</span><span class="en">Core takeaways</span></h2>
+    <div class="metric-strip">
+      <div class="metric-cell"><strong>local only</strong><span><span class="cn">没有“先问一个模型判断情绪”这类隐性慢路径。</span><span class="en">No hidden “ask another model to infer emotion” path.</span></span></div>
+      <div class="metric-cell"><strong>ABI first</strong><span><span class="cn">宿主主要消费结构化控制面，而不是吃长篇散文式 prompt。</span><span class="en">Hosts consume a structural control surface rather than long narrative prompts.</span></span></div>
+      <div class="metric-cell"><strong>cost grows slowly</strong><span><span class="cn">长线程会增厚记忆和元认知，但不是爆炸式增长。</span><span class="en">Long threads thicken memory and metacognition gradually, not exponentially.</span></span></div>
+    </div>
+  </section>
+
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">运行时成本</span><span class="en">Runtime costs</span></h2>
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th><span class="cn">指标</span><span class="en">Metric</span></th>
+          <th><span class="cn">当前值</span><span class="en">Current value</span></th>
+          <th><span class="cn">说明</span><span class="en">Meaning</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>`processInput()` p50</td>
+          <td>`0.191ms`</td>
+          <td><span class="cn">热路径在毫秒以下，不会成为感知延迟来源。</span><span class="en">The hot path is sub-millisecond and not a noticeable source of latency.</span></td>
+        </tr>
+        <tr>
+          <td>`processInput()` p95</td>
+          <td>`1.05ms`</td>
+          <td><span class="cn">高位分位也仍然极轻，主要延迟仍来自模型和网络。</span><span class="en">Even the tail remains light; model/network still dominate latency.</span></td>
+        </tr>
+        <tr>
+          <td>Extra LLM calls</td>
+          <td>`0`</td>
+          <td><span class="cn">状态更新、关系判断、元认知调节都在本地执行。</span><span class="en">State updates, relation logic, and regulation all execute locally.</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">token 包络</span><span class="en">Token envelope</span></h2>
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th><span class="cn">模式</span><span class="en">Mode</span></th>
+          <th><span class="cn">典型成本</span><span class="en">Typical cost</span></th>
+          <th><span class="cn">何时出现</span><span class="en">When it appears</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="cn">中性 compact</span><span class="en">Neutral compact</span></td>
+          <td>`~15 tokens`</td>
+          <td><span class="cn">状态接近基线时只保留最小控制信息。</span><span class="en">When state is near baseline, Psyche emits only the smallest control surface.</span></td>
+        </tr>
+        <tr>
+          <td><span class="cn">活跃 compact</span><span class="en">Active compact</span></td>
+          <td>`~100-180 tokens`</td>
+          <td><span class="cn">有明显主体偏置、关系余震或调节动作时。</span><span class="en">When there is meaningful residue, relation carry, or regulation action.</span></td>
+        </tr>
+        <tr>
+          <td><span class="cn">完整协议</span><span class="en">Full protocol</span></td>
+          <td>`~550 tokens`</td>
+          <td><span class="cn">主要用于调试和研究，不是推荐默认值。</span><span class="en">Mostly for debugging and research, not the recommended default.</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">为什么它仍然更值</span><span class="en">Why the tradeoff is still favorable</span></h2>
+    <div class="card-grid">
+      <article class="discovery-card">
+        <h3><span class="cn">算法做计算</span><span class="en">Algorithms do the computation</span></h3>
+        <p><span class="cn">LLM 不需要“理解化学系统”，只需要执行已经压好的行为约束。</span><span class="en">The LLM does not need to understand the chemistry system; it simply obeys compressed behavioral constraints.</span></p>
+      </article>
+      <article class="discovery-card">
+        <h3><span class="cn">工作面不再误伤</span><span class="en">Task replies stay useful</span></h3>
+        <p><span class="cn">双 profile 让“更像活着”和“仍然能工作”不再互相牺牲。</span><span class="en">Dual reply profiles stop “feels alive” from fighting “still gets work done.”</span></p>
+      </article>
+      <article class="discovery-card">
+        <h3><span class="cn">能解释真实差异</span><span class="en">The cost buys a visible difference</span></h3>
+        <p><span class="cn">这点成本换来的不是文案花哨，而是跨轮残留、关系特异性和修复迟滞。</span><span class="en">These costs buy cross-turn residue, partner-specific meaning, and repair hysteresis rather than decorative language.</span></p>
+      </article>
+    </div>
+  </section>
+</DiscoveryPage>

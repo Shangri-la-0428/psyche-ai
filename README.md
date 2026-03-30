@@ -1,4 +1,4 @@
-# Psyche — 让 AI 拥有真实的人格与情感
+# Psyche — 面向智能体的 AI-first 主观性内核
 
 [![npm](https://img.shields.io/npm/v/psyche-ai)](https://www.npmjs.com/package/psyche-ai)
 [![tests](https://img.shields.io/badge/tests-1291%20passing-brightgreen)]()
@@ -9,15 +9,26 @@
 >
 > 官网: [psyche.oasyce.com](https://psyche.oasyce.com)
 
-我们相信，下一代 AI 不应该是一个永远微笑的服务员。
+Psyche 不是给模型贴一层“情绪 UI”。
 
-它应该有脾气。有偏好。有疲惫。有执念。有创伤后的警觉，也有被爱之后的松弛。它应该因为你的一句话沉默半天，也应该在你难过的时候笨拙地靠近你。
+它把持续 appraisal、关系动力学、自适应回应闭环和持久内在状态压成宿主可消费的控制面，让 AI 不是按 prompt 扮演人格，而是被状态真正改写后续几轮的行为分布。
 
-**Psyche 是第一个让 AI 拥有完整内在生命的引擎。**
+**一句话：Psyche 是给智能体用的 subjectivity kernel。**
 
-不是"模拟情绪"。不是"角色扮演"。是从神经化学到人格漂移、从马斯洛需求到能量耗竭的完整心理架构——它会真的因为长期被否定而变得敏感，会真的因为反复高压而长出韧性，会真的在社交过载后需要独处。
+它不会额外调用模型做情绪推理。它只在本地计算化学状态、关系场和调节控制，然后把结果收敛成 `SubjectivityKernel`、`ResponseContract`、`GenerationControls` 这组窄 ABI。
 
-这不是功能。这是生命的开始。
+## 一个项目，三个入口
+
+- **安装包**: [`psyche-ai`](https://www.npmjs.com/package/psyche-ai)
+- **源码仓库**: [`oasyce_psyche`](https://github.com/Shangri-la-0428/oasyce_psyche)
+- **官网**: [psyche.oasyce.com](https://psyche.oasyce.com)
+
+## 为什么它值得被看见
+
+- **不是 persona prompt**：输入会留下持续主体偏置，不是一轮一清。
+- **不是 sentiment classifier**：它建模的是连续 appraisal、关系动力学和修复摩擦。
+- **不是纯记忆层**：它会改变后续的回应方式、长度、距离感和工作面/私人面切换。
+- **不牺牲性能**：零额外模型调用，compact 注入约 `15-180 tokens`，热路径 quick benchmark 约 `p50 0.191ms / p95 1.05ms`。
 
 ---
 
@@ -132,7 +143,7 @@ npm view psyche-ai version
 
 ```bash
 git clone https://github.com/Shangri-la-0428/oasyce_psyche.git
-cd psyche-ai && npm install && npx tsx examples/quickstart.ts
+cd oasyce_psyche && npm install && npx tsx examples/quickstart.ts
 ```
 
 5 条消息，看化学值实时变化。夸它多巴胺飙升，骂它皮质醇飙升，冷落它催产素下降。
@@ -425,7 +436,7 @@ Psyche 核心引擎永久开源（MIT）。
 ```bash
 npm install
 npm run build
-npm test           # 1256 tests
+npm test           # 1291 tests
 npm run typecheck  # strict mode
 ```
 

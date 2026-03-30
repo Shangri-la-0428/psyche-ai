@@ -1,6 +1,10 @@
 # 更新日志 / Changelog
 
-## Unreleased — 热路径收口
+## Unreleased — 发现链路统一 + 热路径收口
+
+- **公开入口统一**：npm / GitHub / 官网开始明确区分包名 `psyche-ai`、源码仓库 `oasyce_psyche` 和官网 `psyche.oasyce.com`。
+- **官网扩页**：新增 OpenClaw、MCP、benchmarks、relation dynamics、work vs private、compare、demo 等发现页，补齐搜索和分享入口。
+- **传播资产**：补齐 demo 脚本、community post 草稿、MCP 目录提交文案、release cadence 文档。
 
 - **关系视角统一解析**：新增 `ResolvedRelationContext`，每轮只解析一次当前关系、dyadic field 和 pending signals。
 - **关系态跃迁节点**：`applyRelationalTurn()` 把 appraisal carry、relation move、dyadic field 和 delayed signal 更新收成一个纯函数步骤。

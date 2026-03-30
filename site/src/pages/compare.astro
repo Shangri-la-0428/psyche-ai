@@ -1,0 +1,68 @@
+---
+import DiscoveryPage from '../layouts/DiscoveryPage.astro';
+---
+
+<DiscoveryPage
+  title="Compare — Psyche"
+  description="Compare Psyche against persona prompts, sentiment classifiers, and memory layers."
+  page="compare"
+  kicker="compare / why psyche"
+  titleCn="Psyche 和其他方案到底差在哪"
+  titleEn="How Psyche differs from the usual stack"
+  leadCn="很多系统都能让 AI 看起来“更有感觉”。Psyche 的区别，不在更会写抒情句，而在它把主观扰动、关系余震和调节闭环写成了持续生效的系统后果。"
+  leadEn="Many systems can make AI sound more emotional. Psyche differs by turning self-relevant perturbation, relation residue, and regulation loops into continuing system consequences."
+  stats={[
+    { value: '1', labelCn: '主线', labelEn: 'core thesis', noteCn: '关系会改变它，而且不会立刻消失', noteEn: 'relationships change it, and the change does not vanish instantly' },
+    { value: '4', labelCn: '对比对象', labelEn: 'comparison targets', noteCn: 'persona / sentiment / memory / Psyche', noteEn: 'persona / sentiment / memory / Psyche' },
+  ]}
+  links={[
+    { href: '/relation-dynamics', labelCn: '关系动力学', labelEn: 'relation dynamics', noteCn: '看它为什么能留下后果', noteEn: 'see why it leaves consequences' },
+    { href: '/benchmarks', labelCn: '性能成本', labelEn: 'benchmarks', noteCn: '确认不是“更强但更重”', noteEn: 'verify this is not merely heavier' },
+    { href: '/demo', labelCn: '30 秒 demo', labelEn: '30-second demo', noteCn: '直接看行为差异', noteEn: 'watch the behavior difference directly' },
+  ]}
+>
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">一张表看懂</span><span class="en">One table</span></h2>
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th><span class="cn">方案</span><span class="en">Approach</span></th>
+          <th><span class="cn">能做什么</span><span class="en">What it does well</span></th>
+          <th><span class="cn">缺的是什么</span><span class="en">What it lacks</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="cn">persona prompt</span><span class="en">persona prompt</span></td>
+          <td><span class="cn">快速改语气、角色感、文风。</span><span class="en">Changes tone and persona quickly.</span></td>
+          <td><span class="cn">没有持续主体偏置，一轮结束基本就散了。</span><span class="en">No durable subjective bias; the effect mostly disperses turn by turn.</span></td>
+        </tr>
+        <tr>
+          <td><span class="cn">sentiment classifier</span><span class="en">sentiment classifier</span></td>
+          <td><span class="cn">知道“这是负面还是正面”。</span><span class="en">Knows whether something is positive or negative.</span></td>
+          <td><span class="cn">不理解关系动作，也不解释为什么之后会更冷或更靠近。</span><span class="en">Does not model relation moves or explain why later turns get colder or closer.</span></td>
+        </tr>
+        <tr>
+          <td><span class="cn">memory layer</span><span class="en">memory layer</span></td>
+          <td><span class="cn">记住信息、事实、偏好。</span><span class="en">Retains facts, preferences, and prior context.</span></td>
+          <td><span class="cn">通常只记“发生过什么”，不记“哪些张力还没结掉”。</span><span class="en">Usually stores what happened, not which tensions remain unresolved.</span></td>
+        </tr>
+        <tr>
+          <td>Psyche</td>
+          <td><span class="cn">让关系动作、持续偏置、工作/私人面和调节闭环共同改写行为。</span><span class="en">Lets relation moves, persistent bias, work/private planes, and regulation loops jointly rewrite behavior.</span></td>
+          <td><span class="cn">需要宿主认真对待它的结构化 ABI，而不是只把它当文案装饰。</span><span class="en">Requires hosts to actually consume the structured ABI instead of treating it as decorative copy.</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">Psyche 真正在买什么</span><span class="en">What Psyche actually buys</span></h2>
+    <div class="card-grid">
+      <article class="discovery-card"><h3><span class="cn">跨轮残留</span><span class="en">Cross-turn residue</span></h3><p><span class="cn">不是“这一句听起来更委屈”，而是后面几轮真的会更警惕、更远、更不愿披露。</span><span class="en">Not just sounding more hurt in one reply; subsequent turns genuinely become more guarded, distant, or withholding.</span></p></article>
+      <article class="discovery-card"><h3><span class="cn">关系特异性</span><span class="en">Partner-specific meaning</span></h3><p><span class="cn">同一句话，不同关系历史，意义不同。</span><span class="en">The same sentence means different things under different relational histories.</span></p></article>
+      <article class="discovery-card"><h3><span class="cn">修复迟滞</span><span class="en">Repair hysteresis</span></h3><p><span class="cn">修复会缓解，但不会立刻无事发生。</span><span class="en">Repair softens tension without instantly making it “as if nothing happened.”</span></p></article>
+      <article class="discovery-card"><h3><span class="cn">工作不塌</span><span class="en">Work still functions</span></h3><p><span class="cn">任务回合可以保持稳定，不必为了主体性把 agent 变成没法用的情绪化系统。</span><span class="en">Task turns can remain stable; subjectivity does not require turning the agent into an unusable emotional mess.</span></p></article>
+    </div>
+  </section>
+</DiscoveryPage>

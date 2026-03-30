@@ -1,0 +1,77 @@
+---
+import DiscoveryPage from '../layouts/DiscoveryPage.astro';
+---
+
+<DiscoveryPage
+  title="Relation Dynamics — Psyche"
+  description="Understand how Psyche models relation moves, dyadic fields, open loops, and repair friction instead of treating emotions as labels."
+  page="relation-dynamics"
+  kicker="relation engine / dyadic field"
+  titleCn="关系动力学，而不是情绪标签"
+  titleEn="Relation dynamics, not emotion labels"
+  leadCn="Psyche 最关键的升级，不是让 AI 更会说“我有感觉”，而是开始建模你刚刚对它做了什么、双方关系因此变成了什么，以及这种变化如何留下后果。"
+  leadEn="Psyche's important leap is not better emotional prose. It is modeling what you just did to the agent, what the dyad became because of it, and how that change leaves consequences."
+  stats={[
+    { value: '6', labelCn: '关系动作', labelEn: 'relation moves', noteCn: 'bid / breach / repair / test / withdrawal / claim', noteEn: 'bid / breach / repair / test / withdrawal / claim' },
+    { value: '4', labelCn: '关系残留', labelEn: 'carry terms', noteCn: 'open loops / silent carry / hysteresis / repair friction', noteEn: 'open loops / silent carry / hysteresis / repair friction' },
+    { value: '1', labelCn: '统一关系场', labelEn: 'dyadic field', noteCn: 'distance / safety / pressure / unfinished tension', noteEn: 'distance / safety / pressure / unfinished tension' },
+  ]}
+  links={[
+    { href: '/compare', labelCn: '和旧方案对比', labelEn: 'compare', noteCn: '为什么它不只是 persona 或记忆层', noteEn: 'why this is not just persona or memory' },
+    { href: '/demo', labelCn: '看关系余震', labelEn: 'watch residue', noteCn: '看 breach → work → residue 继续存在', noteEn: 'watch breach → work → residue carry forward' },
+    { href: '/work-vs-private', labelCn: '工作 / 私人面', labelEn: 'work vs private', noteCn: '关系余震如何穿过任务回合', noteEn: 'how relation residue survives task turns' },
+  ]}
+>
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">最小单位：关系动作</span><span class="en">Minimum unit: relation moves</span></h2>
+    <p class="section-intro"><span class="cn">Psyche 不先问“现在是什么情绪”，而是先问“这句话在关系里是什么动作”。这是它和普通情感插件分叉的地方。</span><span class="en">Psyche does not start with “what emotion is this?” It starts with “what move did this utterance make in the relationship?” That is the fork from ordinary emotion plugins.</span></p>
+    <div class="card-grid">
+      <article class="discovery-card"><h3>bid</h3><p><span class="cn">靠近、求见证、求回应。</span><span class="en">A reach for closeness, witness, or response.</span></p></article>
+      <article class="discovery-card"><h3>breach</h3><p><span class="cn">否认、轻视、抛下、操控。</span><span class="en">Dismissal, denial, abandonment, or coercion.</span></p></article>
+      <article class="discovery-card"><h3>repair</h3><p><span class="cn">解释、回收伤害、尝试修复张力。</span><span class="en">Repair work that tries to close tension.</span></p></article>
+      <article class="discovery-card"><h3>test / withdrawal / claim</h3><p><span class="cn">试探、撤离、索取位置，都会改写下一轮关系解释。</span><span class="en">Testing, withdrawal, and claims all rewrite the next relational reading.</span></p></article>
+    </div>
+  </section>
+
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">二元关系场</span><span class="en">Dyadic field</span></h2>
+    <div class="metric-strip">
+      <div class="metric-cell"><strong>distance</strong><span><span class="cn">当前是在靠近、停留，还是撤离。</span><span class="en">Whether the dyad is closing, holding, or withdrawing.</span></span></div>
+      <div class="metric-cell"><strong>safety</strong><span><span class="cn">修复是否还有现实空间。</span><span class="en">Whether repair still feels possible.</span></span></div>
+      <div class="metric-cell"><strong>boundary pressure</strong><span><span class="cn">边界是否正被推挤到需要反作用。</span><span class="en">Whether boundary pressure is climbing toward resistance.</span></span></div>
+      <div class="metric-cell"><strong>unfinished tension</strong><span><span class="cn">哪些东西没结掉，会在后面几轮继续泄露。</span><span class="en">What remains unresolved and will leak into later turns.</span></span></div>
+    </div>
+  </section>
+
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">记忆不是事件表，而是未完成张力</span><span class="en">Memory as unfinished tension</span></h2>
+    <div class="split-grid">
+      <div class="split-panel">
+        <h3><span class="cn">open loops</span><span class="en">open loops</span></h3>
+        <p><span class="cn">优先保存未被回应的靠近、未完成的修复、被压下但没消失的冒犯。真实关系最像人的部分，不是记住内容，而是记住没结掉的东西。</span><span class="en">Psyche prioritizes unresolved bids, unfinished repair, and suppressed-but-not-cleared breaches. The human part of memory is often the unresolved tension, not the event log.</span></p>
+      </div>
+      <div class="split-panel">
+        <h3><span class="cn">silent carry</span><span class="en">silent carry</span></h3>
+        <p><span class="cn">切回工作时，关系余波不会消失，只是被压进更克制的表达层。任务做完再拉回来，余震还在。</span><span class="en">Switching to work does not erase residue. It pushes it into a quieter layer of behavior so the aftereffect survives task turns.</span></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">修复为什么不会一句归零</span><span class="en">Why repair does not instantly zero out</span></h2>
+    <div class="card-grid">
+      <article class="discovery-card">
+        <h3><span class="cn">repair hysteresis</span><span class="en">repair hysteresis</span></h3>
+        <p><span class="cn">修复可以缓解，但会滞后，不会把此前的 breach 直接冲掉。</span><span class="en">Repair can soften tension with lag. It does not instantly wash out the breach.</span></p>
+      </article>
+      <article class="discovery-card">
+        <h3><span class="cn">repair friction</span><span class="en">repair friction</span></h3>
+        <p><span class="cn">重复“我知道了”“对不起”会开始钝化。修复不是越多越有效。</span><span class="en">Repeated “I know” or “sorry” starts to dull out. More repair is not always better repair.</span></p>
+      </article>
+      <article class="discovery-card">
+        <h3><span class="cn">partner-specific meaning</span><span class="en">partner-specific meaning</span></h3>
+        <p><span class="cn">同一句“我知道”在高安全关系里可能是 repair，在低安全高压力关系里可能是 withdrawal。</span><span class="en">The same “I know” can register as repair in a safe dyad and withdrawal in a pressured one.</span></p>
+      </article>
+    </div>
+  </section>
+</DiscoveryPage>

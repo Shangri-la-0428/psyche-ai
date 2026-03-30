@@ -1,0 +1,69 @@
+---
+import DiscoveryPage from '../layouts/DiscoveryPage.astro';
+---
+
+<DiscoveryPage
+  title="Install Modes — Psyche"
+  description="Understand npm, git worktree, and local-path install modes for Psyche, especially their update behavior."
+  page="install-modes"
+  kicker="install modes / upgrade paths"
+  titleCn="安装形态与升级路径"
+  titleEn="Install modes and upgrade paths"
+  leadCn="Psyche 不同安装方式的自动更新能力本来就不同。把这件事说清楚，能减少很多试用摩擦和“为什么我明明装了却没升级”的误解。"
+  leadEn="Psyche does not behave the same under every install mode. Making that explicit reduces a lot of friction and confusion around upgrades."
+  stats={[
+    { value: '3', labelCn: '安装形态', labelEn: 'install modes', noteCn: 'npm / git worktree / local path', noteEn: 'npm / git worktree / local path' },
+    { value: '1', labelCn: '自动应用更新', labelEn: 'auto-applies updates', noteCn: '默认只对 npm install 生效', noteEn: 'default only for npm installs' },
+  ]}
+  links={[
+    { href: '/openclaw', labelCn: 'OpenClaw 安装', labelEn: 'OpenClaw install', noteCn: '看 live agent 场景怎么接', noteEn: 'see how to wire it into a live agent' },
+    { href: '/mcp', labelCn: 'MCP 安装', labelEn: 'MCP install', noteCn: '看任意宿主怎么发现它', noteEn: 'see how any host discovers it' },
+    { href: '/benchmarks', labelCn: '性能数据', labelEn: 'benchmarks', noteCn: '确认更新策略不引入慢路径', noteEn: 'verify the update logic stays cheap' },
+  ]}
+>
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">三种安装形态</span><span class="en">Three install modes</span></h2>
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th><span class="cn">形态</span><span class="en">Mode</span></th>
+          <th><span class="cn">适合谁</span><span class="en">Best for</span></th>
+          <th><span class="cn">升级行为</span><span class="en">Upgrade behavior</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>npm project</td>
+          <td><span class="cn">普通安装用户</span><span class="en">ordinary package consumers</span></td>
+          <td><span class="cn">会检查更新，并在安全时尝试自动应用。</span><span class="en">Checks for updates and can auto-apply them when safe.</span></td>
+        </tr>
+        <tr>
+          <td>git worktree</td>
+          <td><span class="cn">开发者和本地改源码的人</span><span class="en">developers working in source</span></td>
+          <td><span class="cn">不会偷偷改你的仓库，只会给出明确手动命令。</span><span class="en">Never silently mutates your repo; only gives explicit manual commands.</span></td>
+        </tr>
+        <tr>
+          <td>local path</td>
+          <td><span class="cn">像 OpenClaw 本地插件这样的接法</span><span class="en">local-path integrations like a local OpenClaw plugin</span></td>
+          <td><span class="cn">不会自动更新，必须手动拉取 / build / reload。</span><span class="en">Will not auto-update; requires manual pull / build / reload.</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">推荐指令</span><span class="en">Recommended commands</span></h2>
+    <div class="code-shell"><pre><code>psyche upgrade --check
+psyche upgrade
+npm view psyche-ai version</code></pre></div>
+  </section>
+
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">OpenClaw 本地路径特别说明</span><span class="en">Special note for local-path OpenClaw installs</span></h2>
+    <div class="card-grid">
+      <article class="discovery-card"><h3><span class="cn">为什么不自动改</span><span class="en">Why it will not auto-mutate</span></h3><p><span class="cn">本地路径安装常常承载正在开发的源码。自动覆盖会把工作树和构建产物搞乱。</span><span class="en">A local-path install often points at actively edited source. Auto-overwriting it risks corrupting the worktree and build artifacts.</span></p></article>
+      <article class="discovery-card"><h3><span class="cn">正确动作</span><span class="en">Correct action</span></h3><p><span class="cn">拉最新代码，重新 build，重启 gateway，让宿主重新加载新的 `dist/`。</span><span class="en">Pull the latest code, rebuild, and restart the gateway so the host reloads the new `dist/`.</span></p></article>
+      <article class="discovery-card"><h3><span class="cn">怎么确认</span><span class="en">How to verify</span></h3><p><span class="cn">用 `openclaw plugins inspect psyche-ai` 看实际加载路径和版本。</span><span class="en">Use `openclaw plugins inspect psyche-ai` to inspect the real loaded path and version.</span></p></article>
+    </div>
+  </section>
+</DiscoveryPage>

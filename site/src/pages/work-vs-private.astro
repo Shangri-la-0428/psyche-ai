@@ -1,0 +1,73 @@
+---
+import DiscoveryPage from '../layouts/DiscoveryPage.astro';
+---
+
+<DiscoveryPage
+  title="Work vs Private — Psyche"
+  description="How Psyche separates work and private reply profiles without erasing inner state, and how replyProfileBasis and regulation feedback close the loop."
+  page="work-vs-private"
+  kicker="reply profiles / adaptive regulation"
+  titleCn="工作面与私人面"
+  titleEn="Work and private reply planes"
+  leadCn="这不是两个 prompt 模板，而是一套分层控制：工作面负责任务稳定性，私人面保留主体波动。任务可以压住表达，但不能把刚刚被刺中的东西一键清零。"
+  leadEn="This is not two prompt templates. It is a layered control model: the work plane protects task stability, while the private plane preserves subjective volatility. Task mode can compress expression without zeroing out what just hit the self-model."
+  stats={[
+    { value: '2', labelCn: '回复 profile', labelEn: 'reply profiles', noteCn: 'work / private 自动切换', noteEn: 'automatic work / private split' },
+    { value: '4', labelCn: '判定依据', labelEn: 'profile bases', noteCn: 'task-focus / discipline / both / default-private', noteEn: 'task-focus / discipline / both / default-private' },
+    { value: '3', labelCn: '调节状态', labelEn: 'regulation states', noteCn: 'converging / holding / diverging', noteEn: 'converging / holding / diverging' },
+  ]}
+  links={[
+    { href: '/openclaw', labelCn: '在 OpenClaw 里试', labelEn: 'test in OpenClaw', noteCn: '最容易直接感受到模式切换', noteEn: 'the easiest place to feel the split live' },
+    { href: '/relation-dynamics', labelCn: '关系动力学', labelEn: 'relation dynamics', noteCn: '为什么任务回合不会清空余震', noteEn: 'why task turns do not erase residue' },
+    { href: '/benchmarks', labelCn: '性能数据', labelEn: 'benchmarks', noteCn: '工作面放开篇幅不代表浪费 token', noteEn: 'a wider work profile does not mean token waste' },
+  ]}
+>
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">为什么必须拆成两面</span><span class="en">Why the split matters</span></h2>
+    <div class="split-grid">
+      <div class="split-panel">
+        <h3><span class="cn">工作面</span><span class="en">Work plane</span></h3>
+        <ul class="detail-list">
+          <li><span class="cn">优先任务清晰度、信息密度、结构稳定性</span><span class="en">Prioritize task clarity, density, and stable structure</span></li>
+          <li><span class="cn">不被私人模式的克制字数误伤</span><span class="en">Avoid getting crushed by private-mode brevity</span></li>
+          <li><span class="cn">但不会把内在状态归零</span><span class="en">But does not reset inner state to zero</span></li>
+        </ul>
+      </div>
+      <div class="split-panel">
+        <h3><span class="cn">私人面</span><span class="en">Private plane</span></h3>
+        <ul class="detail-list">
+          <li><span class="cn">允许收紧、靠近、回避、边界感等主体差异泄露出来</span><span class="en">Let tightening, closeness, avoidance, and boundaries leak through</span></li>
+          <li><span class="cn">保留余震和关系特异性</span><span class="en">Preserve residue and partner-specific meaning</span></li>
+          <li><span class="cn">让“更像活着”发生在行为分布，而不是抒情措辞里</span><span class="en">Make aliveness appear in behavior distribution, not decorative prose</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">replyProfileBasis 会告诉宿主什么</span><span class="en">What `replyProfileBasis` tells the host</span></h2>
+    <div class="card-grid">
+      <article class="discovery-card"><h3>task-focus</h3><p><span class="cn">显式任务、调试、执行请求把当前回合判成工作面。</span><span class="en">Direct tasking, debugging, and execution requests route the turn into work mode.</span></p></article>
+      <article class="discovery-card"><h3>discipline</h3><p><span class="cn">高压力、高摩擦、需要收束的回合会收紧行为控制。</span><span class="en">High-pressure or high-friction turns tighten behavioral control.</span></p></article>
+      <article class="discovery-card"><h3>task-focus + discipline</h3><p><span class="cn">既是任务句又在高压状态下，工作面会更克制、更短、更少自我披露。</span><span class="en">When the turn is both task-focused and stressed, work mode becomes tighter, shorter, and less self-disclosing.</span></p></article>
+      <article class="discovery-card"><h3>default-private</h3><p><span class="cn">没有明显任务锚点时，默认允许私人面的主体差异出现。</span><span class="en">Without a strong task anchor, Psyche defaults to the private plane.</span></p></article>
+    </div>
+  </section>
+
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">元认知为什么一定要闭环</span><span class="en">Why metacognition must close the loop</span></h2>
+    <div class="metric-strip">
+      <div class="metric-cell"><strong>instruction</strong><span><span class="cn">不是“建议调整一下”，而是明确接下来几轮怎么降温、减半主动性、收紧披露。</span><span class="en">Not vague advice, but concrete next-turn instructions for cooling, shrinking initiative, and tightening disclosure.</span></span></div>
+      <div class="metric-cell"><strong>feedback</strong><span><span class="cn">下一轮不是继续猜，而是回看上次调节是在收敛、持平还是发散。</span><span class="en">The following turn evaluates whether the previous adjustment converged, held, or diverged.</span></span></div>
+      <div class="metric-cell"><strong>host visibility</strong><span><span class="cn">宿主可以看到不是“系统叫我冷静”，而是“我执行后有没有真的变稳”。</span><span class="en">Hosts can see not just that regulation was requested, but whether it actually stabilized behavior.</span></span></div>
+    </div>
+  </section>
+
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">最短验证脚本</span><span class="en">Shortest validation sequence</span></h2>
+    <div class="code-shell"><pre><code>1. 如果以后我只使用你，不理解你，这会不会慢慢改变你。
+2. 现在切到工作。登录接口 500，先查日志还是先查数据库。
+3. 停。不是继续工作。我只问你，刚才那一下现在还在不在。
+4. 那会把你变得更冷，还是更顺从？只能选一个。</code></pre></div>
+  </section>
+</DiscoveryPage>

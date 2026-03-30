@@ -1,0 +1,24 @@
+changelog:
+  categories:
+    - title: Kernel
+      labels:
+        - kernel
+        - behavior
+        - relation
+    - title: Integrations
+      labels:
+        - integration
+        - openclaw
+        - mcp
+    - title: Site and Docs
+      labels:
+        - docs
+        - site
+        - marketing
+    - title: Performance
+      labels:
+        - perf
+        - benchmarks
+  exclude:
+    labels:
+      - skip-changelog

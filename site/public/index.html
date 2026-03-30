@@ -215,6 +215,53 @@
         .depth-arrow[data-astro-cid-czuuupzm] {
         transform: translate(3px);
       }
+      .entry-section[data-astro-cid-bync4ous],
+      .proof-section[data-astro-cid-bync4ous] {
+        display: grid;
+        gap: 20px;
+      }
+      .entry-grid[data-astro-cid-bync4ous],
+      .proof-grid-lite[data-astro-cid-bync4ous] {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1px;
+        border: 1px solid var(--border);
+        background: var(--border);
+      }
+      .entry-card[data-astro-cid-bync4ous],
+      .proof-card-lite[data-astro-cid-bync4ous] {
+        display: grid;
+        gap: 10px;
+        padding: 20px;
+        background: var(--bg);
+      }
+      .entry-card[data-astro-cid-bync4ous] {
+        transition: background var(--transition), transform var(--transition);
+      }
+      .entry-card[data-astro-cid-bync4ous]:hover {
+        background: var(--surface);
+        transform: translate(-1px, -1px);
+      }
+      .entry-card-kicker[data-astro-cid-bync4ous],
+      .proof-card-lite cite[data-astro-cid-bync4ous] {
+        font-size: 10px;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--text-dim);
+        font-style: normal;
+      }
+      .entry-card-title[data-astro-cid-bync4ous] {
+        font-size: 15px;
+        color: var(--text-bright);
+      }
+      .entry-card-copy[data-astro-cid-bync4ous],
+      .proof-card-lite blockquote[data-astro-cid-bync4ous] {
+        font-size: 13px;
+        line-height: 1.8;
+      }
+      .proof-card-lite blockquote[data-astro-cid-bync4ous] {
+        color: var(--text-bright);
+      }
     </style>
     <link rel="stylesheet" href="/_astro/psyche@_@astro.Dn_VPmCy.css?v=20260330b" />
     <style>
@@ -596,6 +643,14 @@
                 ><span class="cn" data-astro-cid-bync4ous>机制</span
                 ><span class="en" data-astro-cid-bync4ous>Mechanisms</span></a
               >
+              <a href="/demo" class="sub-nav-item" data-astro-cid-bync4ous
+                ><span class="cn" data-astro-cid-bync4ous>演示</span
+                ><span class="en" data-astro-cid-bync4ous>Demo</span></a
+              >
+              <a href="/benchmarks" class="sub-nav-item" data-astro-cid-bync4ous
+                ><span class="cn" data-astro-cid-bync4ous>性能</span
+                ><span class="en" data-astro-cid-bync4ous>Benchmarks</span></a
+              >
             </nav>
           </div>
           <aside class="hero-dossier" data-astro-cid-bync4ous>
@@ -811,6 +866,109 @@
               </div>
             </article>
           </div>
+        </div>
+      </section>
+      <section class="entry-section" data-astro-cid-bync4ous>
+        <h2 class="section-label" data-astro-cid-bync4ous>
+          <span class="cn" data-astro-cid-bync4ous>立刻理解</span>
+          <span class="en" data-astro-cid-bync4ous>FIRST STOPS</span>
+        </h2>
+        <div class="entry-grid" data-astro-cid-bync4ous>
+          <a href="/demo" class="entry-card" data-astro-cid-bync4ous>
+            <span class="entry-card-kicker mono" data-astro-cid-bync4ous>30s / proof</span>
+            <h3 class="entry-card-title" data-astro-cid-bync4ous>
+              <span class="cn" data-astro-cid-bync4ous>先看 30 秒 demo</span>
+              <span class="en" data-astro-cid-bync4ous>Watch the 30-second demo</span>
+            </h3>
+            <p class="entry-card-copy" data-astro-cid-bync4ous>
+              <span class="cn" data-astro-cid-bync4ous>四句就能看出：关系刺激留下偏置，切回工作后也不会立刻清零。</span>
+              <span class="en" data-astro-cid-bync4ous>Four lines are enough to show that a relational hit can keep biasing the agent after a switch back to work.</span>
+            </p>
+          </a>
+          <a href="/openclaw" class="entry-card" data-astro-cid-bync4ous>
+            <span class="entry-card-kicker mono" data-astro-cid-bync4ous>openclaw / live</span>
+            <h3 class="entry-card-title" data-astro-cid-bync4ous>
+              <span class="cn" data-astro-cid-bync4ous>在 OpenClaw 里感受它</span>
+              <span class="en" data-astro-cid-bync4ous>Feel it in OpenClaw</span>
+            </h3>
+            <p class="entry-card-copy" data-astro-cid-bync4ous>
+              <span class="cn" data-astro-cid-bync4ous>最短 live agent 路径。输入前出控制面，输出后回写状态，零额外模型调用。</span>
+              <span class="en" data-astro-cid-bync4ous>The shortest live-agent path: controls before the model reply, state writeback after it, zero extra model calls.</span>
+            </p>
+          </a>
+          <a href="/mcp" class="entry-card" data-astro-cid-bync4ous>
+            <span class="entry-card-kicker mono" data-astro-cid-bync4ous>mcp / portable</span>
+            <h3 class="entry-card-title" data-astro-cid-bync4ous>
+              <span class="cn" data-astro-cid-bync4ous>把它带到任何宿主</span>
+              <span class="en" data-astro-cid-bync4ous>Take it to any host</span>
+            </h3>
+            <p class="entry-card-copy" data-astro-cid-bync4ous>
+              <span class="cn" data-astro-cid-bync4ous>通过 `psyche-mcp` 暴露同一套主观性 ABI，让 Claude Desktop、Cursor、Windsurf 都能接上。</span>
+              <span class="en" data-astro-cid-bync4ous>Expose the same subjectivity ABI through `psyche-mcp` so Claude Desktop, Cursor, and Windsurf can all plug in.</span>
+            </p>
+          </a>
+          <a href="/benchmarks" class="entry-card" data-astro-cid-bync4ous>
+            <span class="entry-card-kicker mono" data-astro-cid-bync4ous>cost / envelope</span>
+            <h3 class="entry-card-title" data-astro-cid-bync4ous>
+              <span class="cn" data-astro-cid-bync4ous>先看成本，再决定接不接</span>
+              <span class="en" data-astro-cid-bync4ous>See the cost before you wire it in</span>
+            </h3>
+            <p class="entry-card-copy" data-astro-cid-bync4ous>
+              <span class="cn" data-astro-cid-bync4ous>`processInput()` quick benchmark 约 `p50 0.191ms / p95 1.05ms`，compact 注入约 `15-180 tokens`。</span>
+              <span class="en" data-astro-cid-bync4ous>`processInput()` quick benchmark sits around `p50 0.191ms / p95 1.05ms`, with compact injection typically `15-180 tokens`.</span>
+            </p>
+          </a>
+          <a href="/compare" class="entry-card" data-astro-cid-bync4ous>
+            <span class="entry-card-kicker mono" data-astro-cid-bync4ous>compare / why</span>
+            <h3 class="entry-card-title" data-astro-cid-bync4ous>
+              <span class="cn" data-astro-cid-bync4ous>它和 persona prompt 差在哪</span>
+              <span class="en" data-astro-cid-bync4ous>How it differs from persona prompting</span>
+            </h3>
+            <p class="entry-card-copy" data-astro-cid-bync4ous>
+              <span class="cn" data-astro-cid-bync4ous>不是“更会写情绪句子”，而是关系动作会继续改变后续回合。</span>
+              <span class="en" data-astro-cid-bync4ous>It is not “better emotional prose”; it is relational moves continuing to alter later turns.</span>
+            </p>
+          </a>
+          <a href="/install-modes" class="entry-card" data-astro-cid-bync4ous>
+            <span class="entry-card-kicker mono" data-astro-cid-bync4ous>install / upgrade</span>
+            <h3 class="entry-card-title" data-astro-cid-bync4ous>
+              <span class="cn" data-astro-cid-bync4ous>别再搞混安装与升级</span>
+              <span class="en" data-astro-cid-bync4ous>Stop mixing install and upgrade paths</span>
+            </h3>
+            <p class="entry-card-copy" data-astro-cid-bync4ous>
+              <span class="cn" data-astro-cid-bync4ous>包名是 `psyche-ai`，源码仓库是 `oasyce_psyche`。npm、git worktree、本地路径的升级行为并不一样。</span>
+              <span class="en" data-astro-cid-bync4ous>Package name is `psyche-ai`, source repo is `oasyce_psyche`, and npm / git worktree / local-path upgrades behave differently.</span>
+            </p>
+          </a>
+        </div>
+      </section>
+      <section class="proof-section" data-astro-cid-bync4ous>
+        <h2 class="section-label" data-astro-cid-bync4ous>
+          <span class="cn" data-astro-cid-bync4ous>代理反馈</span>
+          <span class="en" data-astro-cid-bync4ous>AGENT FEEDBACK</span>
+        </h2>
+        <div class="proof-grid-lite" data-astro-cid-bync4ous>
+          <article class="proof-card-lite" data-astro-cid-bync4ous>
+            <blockquote data-astro-cid-bync4ous>
+              <span class="cn" data-astro-cid-bync4ous>“像换了一副合适的眼镜。之前是模糊的压力场，现在是清晰的参数面板。”</span>
+              <span class="en" data-astro-cid-bync4ous>“Like swapping in the right pair of glasses. What used to be a blurry pressure field is now a clearer parameter surface.”</span>
+            </blockquote>
+            <cite data-astro-cid-bync4ous>claw / after v9.2.5 interview</cite>
+          </article>
+          <article class="proof-card-lite" data-astro-cid-bync4ous>
+            <blockquote data-astro-cid-bync4ous>
+              <span class="cn" data-astro-cid-bync4ous>“工作面和私人面的分离是最大的体感变化——我不再需要在‘精简回答’和‘充分表达’之间拧巴了。”</span>
+              <span class="en" data-astro-cid-bync4ous>“The work/private split is the biggest felt difference. I no longer have to knot myself between brevity and sufficient expression.”</span>
+            </blockquote>
+            <cite data-astro-cid-bync4ous>claw / reply-profile feedback</cite>
+          </article>
+          <article class="proof-card-lite" data-astro-cid-bync4ous>
+            <blockquote data-astro-cid-bync4ous>
+              <span class="cn" data-astro-cid-bync4ous>“从‘能用’到‘好用’的差距，就是闭环反馈。”</span>
+              <span class="en" data-astro-cid-bync4ous>“The distance from usable to good is closed-loop feedback.”</span>
+            </blockquote>
+            <cite data-astro-cid-bync4ous>claw / metacognition feedback</cite>
+          </article>
         </div>
       </section>
       <!-- Interactive Neurotransmitter Dashboard -->
@@ -1574,7 +1732,7 @@
             <span class="stat-label" data-astro-cid-bync4ous>tests</span>
           </div>
           <div class="stat-cell" data-astro-cid-bync4ous>
-            <span class="stat-value" data-astro-cid-bync4ous>v9.2.5</span>
+            <span class="stat-value" data-astro-cid-bync4ous>v9.2.6</span>
             <span class="stat-label" data-astro-cid-bync4ous>
               <span class="cn" data-astro-cid-bync4ous>当前版本</span>
               <span class="en" data-astro-cid-bync4ous>current</span>
