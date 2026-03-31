@@ -789,6 +789,33 @@ export interface ExternalContinuityEnvelope<TEvent = ExternalContinuityEvent> {
   traces: TEvent[];
 }
 
+export type ThrongletsTraceTaxonomy = "coordination" | "continuity" | "calibration";
+
+export interface ThrongletsExternalContinuityRecord {
+  provider: "thronglets";
+  mode: "optional";
+  version: 1;
+  taxonomy: ThrongletsTraceTaxonomy;
+  event: ThrongletsExport["kind"];
+  summary: string;
+  space: string;
+  audit_ref: string;
+}
+
+export interface ThrongletsTracePayload {
+  outcome: string;
+  model: string;
+  session_id: string;
+  external_continuity: ThrongletsExternalContinuityRecord;
+}
+
+export interface ThrongletsTraceSerializationOptions {
+  outcome?: string;
+  model?: string;
+  sessionId?: string;
+  space?: string;
+}
+
 // ── Subjectivity Kernel (v9.3) ──────────────────────────────
 
 /**

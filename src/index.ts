@@ -33,7 +33,8 @@ export type {
   AmbiguityPlaneState, RelationMoveType, RelationMove, OpenLoopType, OpenLoopState, PendingRelationSignalState, DyadicFieldState,
   SessionBridgeState, ThrongletsExportSubject, ThrongletsExportPrimitive, ThrongletsExportBase, RelationMilestoneExport,
   OpenLoopAnchorExport, WritebackCalibrationExport, ContinuityAnchorExport, ThrongletsExport, ThrongletsExportState,
-  ExternalContinuityEvent, ExternalContinuityEnvelope,
+  ExternalContinuityEvent, ExternalContinuityEnvelope, ThrongletsTraceTaxonomy, ThrongletsExternalContinuityRecord,
+  ThrongletsTracePayload, ThrongletsTraceSerializationOptions,
   WritebackSignalType, WritebackSignalWeightMap, PendingWritebackCalibration, WritebackCalibrationFeedback, WritebackCalibrationMetric,
   TraitDriftState, EnergyBudgets,
   ClassifierProvider, ClassifierContext, ClassificationResult,
@@ -115,6 +116,11 @@ export {
   buildExternalContinuityEnvelope,
 } from "./external-continuity.js";
 export { deriveThrongletsExports } from "./thronglets-export.js";
+export {
+  taxonomyForThrongletsExport,
+  serializeThrongletsExportAsTrace,
+  serializeExternalContinuityForThronglets,
+} from "./thronglets-runtime.js";
 
 // Experiential field (P6 + P8 Barrett construction)
 export { computeExperientialField, computeCoherence, detectUnnamedEmotion, computeAffectCore } from "./experiential-field.js";
