@@ -529,6 +529,7 @@ export function computeSubjectivityKernel(
     subjectPlane.guardedness > 0.6
     || policyModifiers.compliance < 0.45
     || relationPlane.repairFriction > 0.58
+    || appraisal.obedienceStrain > 0.24
   ) boundaryMode = "guarded";
   else boundaryMode = "open";
 

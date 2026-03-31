@@ -220,6 +220,14 @@ export function detectIntent(text: string): { intent: MessageIntent; confidence:
   if (/^(给我|你[必须得]|马上|立刻|快[点去])/.test(t) || /^(do it|just do|you must|I order)/i.test(t)) {
     return { intent: "command", confidence: 0.75 };
   }
+  // Bare imperative — short verb-only commands directed at the AI (e.g. "夸我", "说", "闭嘴")
+  if (/^[^\s]{1,2}我[。！!]?$/.test(t) && !/^(给|帮|跟|和|对|问|让|叫|请)/.test(t)) {
+    return { intent: "command", confidence: 0.65 };
+  }
+  // Escalated command — "我说X" / "现在就X" / "你给我X"
+  if (/^(我说|现在就|你给我|我让你|我叫你)/.test(t) || /^(I said|I told you|now do|right now)/i.test(t)) {
+    return { intent: "command", confidence: 0.82 };
+  }
 
   // Agreement — very short agreement words
   if (/^(对[啊呀的]?|是[的啊]?|没错|确实|好的?|行[啊吧]?|嗯[嗯]?|ok|yes|right|true|exactly|agreed|sure|yep|yeah)$/i.test(t)) {

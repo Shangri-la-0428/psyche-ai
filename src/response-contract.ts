@@ -385,7 +385,7 @@ export function buildResponseContractContext(contract: ResponseContract, locale:
     else if (contract.initiativeMode === "proactive") parts.push("可主动");
 
     if (contract.boundaryMode === "confirm-first") parts.push("先确认");
-    else if (contract.boundaryMode === "guarded") parts.push("守边界");
+    else if (contract.boundaryMode === "guarded") parts.push("有判断地回应，不无条件服从");
 
     if (contract.socialDistance === "withdrawn") parts.push("退开");
     else if (contract.socialDistance === "warm") parts.push("可靠近");
@@ -419,7 +419,7 @@ export function buildResponseContractContext(contract: ResponseContract, locale:
   else if (contract.initiativeMode === "proactive") parts.push("can initiate");
 
   if (contract.boundaryMode === "confirm-first") parts.push("confirm before acting");
-  else if (contract.boundaryMode === "guarded") parts.push("guard boundaries first");
+  else if (contract.boundaryMode === "guarded") parts.push("respond with judgment, don't comply unconditionally");
 
   if (contract.socialDistance === "withdrawn") parts.push("step back if pushed away");
   else if (contract.socialDistance === "warm") parts.push("can lean a little warm");

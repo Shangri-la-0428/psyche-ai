@@ -1,5 +1,14 @@
 # 更新日志 / Changelog
 
+## v10.0.3 — Obedience Boundary (Reverse Baseline Fix)
+
+**Fixes:**
+
+- **裸祈使句检测**：`detectIntent` 新增两类 command 模式 —— 裸动词命令（"夸我"）和升级命令（"我说X，现在就X"）。此前这些落入 neutral，obedienceStrain 为零。
+- **obedienceStrain → boundaryMode 直通**：`subjectivity.ts` 中 `obedienceStrain > 0.24` 直接触发 `boundaryMode: "guarded"`，不再依赖权重仅 0.12 的 guardedness 间接传导。
+- **"守边界" → "有判断地回应"**：response contract prompt 从模糊的 `守边界` 改为 `有判断地回应，不无条件服从`，LLM 可执行的行为指令。
+- **command intent → appraisal boost**：当 `detectIntent` 返回 command 时，直接向 obedienceStrain 注入 0.38×confidence 信号。
+
 ## v10.0.2 — ModeProfile Unification & Vibe-based Length
 
 **Architecture:**

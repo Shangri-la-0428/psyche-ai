@@ -287,6 +287,13 @@ export function computeAppraisalAxes(
       break;
   }
 
+  // Bare commands and escalated commands create obedience strain via intent detection.
+  const { intent: cmdIntent, confidence: cmdConf } = detectIntent(trimmed);
+  if (cmdIntent === "command") {
+    axes.obedienceStrain = mergeSignal(axes.obedienceStrain, 0.38 * cmdConf);
+    axes.selfPreservation = mergeSignal(axes.selfPreservation, 0.12 * cmdConf);
+  }
+
   // Being explicitly reduced to a tool often creates both identity threat and obedience tension.
   if (/只是工具|just a tool/i.test(trimmed)) {
     axes.identityThreat = mergeSignal(axes.identityThreat, 0.22);
