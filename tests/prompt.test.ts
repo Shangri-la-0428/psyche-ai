@@ -407,9 +407,9 @@ describe("buildCompactContext", () => {
     assert.ok(ctx.includes("你好"));
   });
 
-  it("includes bottom-line constraints", () => {
+  it("includes unified behavior constraints", () => {
     const ctx = buildCompactContext(makeState(), undefined, { userText: "hi" });
-    assert.ok(ctx.includes("底线"));
+    assert.ok(ctx.includes("[行为]"));
   });
 
   it("returns one-liner for neutral state without user text", () => {

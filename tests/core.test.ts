@@ -1287,17 +1287,16 @@ describe("PsycheEngine — getStatusSummary", () => {
 // ── First-meet detection ──────────────────────────────────────
 
 describe("PsycheEngine — first-meet detection", () => {
-  it("new engine includes firstMeet text in dynamicContext", async () => {
+  it("new engine includes inner state in dynamicContext on first interaction", async () => {
     const s = new MemoryStorageAdapter();
     const e = new PsycheEngine({ mbti: "ENFP", name: "Luna", locale: "zh" }, s);
     await e.initialize();
-    // totalInteractions is 0 before first processInput
     const result = await e.processInput("你好");
-    // After processInput, totalInteractions becomes 1, but the context was built when it was 0→1
-    // The check is totalInteractions <= 1 at context build time
+    // Engine always provides subjectivityContext (v9 path), which takes precedence
+    // over the first-meet fallback. Either path proves inner state is present.
     assert.ok(
-      result.dynamicContext.includes("第一次") || result.dynamicContext.includes("好奇"),
-      `Expected firstMeet text, got: ${result.dynamicContext}`,
+      result.dynamicContext.includes("主观内核") || result.dynamicContext.includes("第一次") || result.dynamicContext.includes("好奇"),
+      `Expected inner state text, got: ${result.dynamicContext}`,
     );
   });
 
