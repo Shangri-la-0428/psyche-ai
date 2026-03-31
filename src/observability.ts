@@ -1,7 +1,10 @@
 import type {
+  CausalChainObservation,
   ControlBoundaryObservation,
   DecisionCandidateName,
+  DecisionEvidenceObservation,
   DecisionRationaleObservation,
+  ExternalTraceMappingObservation,
   PromptRenderInputName,
   PsycheState,
   ResolvedRelationContext,
@@ -11,6 +14,7 @@ import type {
   StateReconciliationObservation,
   StateLayerObservation,
   StimulusType,
+  ThrongletsExport,
   TurnControlDriver,
   TurnControlPlane,
   TurnObservability,
@@ -185,6 +189,27 @@ function pushReason(reasons: string[], condition: boolean, label: string): void 
   if (condition) reasons.push(label);
 }
 
+function pushEvidence(
+  evidence: DecisionEvidenceObservation[],
+  opts: {
+    ruleId: string;
+    sourceMetric: string;
+    rawValue: number;
+    threshold?: number;
+    contribution: number;
+    condition: boolean;
+  },
+): void {
+  if (!opts.condition) return;
+  evidence.push({
+    ruleId: opts.ruleId,
+    sourceMetric: opts.sourceMetric,
+    rawValue: opts.rawValue,
+    threshold: opts.threshold,
+    contribution: clamp01(opts.contribution),
+  });
+}
+
 function buildDecisionRationale(
   replyEnvelope: ReplyEnvelope,
 ): DecisionRationaleObservation {
@@ -201,8 +226,6 @@ function buildDecisionRationale(
   const namingConfidence = subjectivityKernel.ambiguityPlane.namingConfidence;
   const taskFocused = taskFocus >= 0.62;
   const disciplined = discipline >= 0.72;
-  const taskFocusRatio = clamp01(taskFocus / 0.62);
-  const disciplineRatio = clamp01(discipline / 0.72);
 
   const triggerConditions: string[] = [];
   pushReason(triggerConditions, taskFocused, "task-focus>=0.62");
@@ -216,24 +239,76 @@ function buildDecisionRationale(
   }
 
   const workReasons: string[] = [];
+  const workEvidence: DecisionEvidenceObservation[] = [];
   pushReason(workReasons, taskFocused, "task focus crossed work threshold");
   pushReason(workReasons, disciplined, "discipline crossed work threshold");
   pushReason(workReasons, taskFocus > 0.78 && discipline > 0.68, "high task-focus and discipline reinforce work mode");
-  const workScore = taskFocused && disciplined
-    ? 1
-    : taskFocused || disciplined
-      ? 0.82
-      : clamp01(Math.max(taskFocusRatio, disciplineRatio) * 0.35);
+  pushEvidence(workEvidence, {
+    ruleId: "reply-profile.work.task-focus-threshold",
+    sourceMetric: "taskPlane.focus",
+    rawValue: taskFocus,
+    threshold: 0.62,
+    contribution: 0.55,
+    condition: taskFocused,
+  });
+  pushEvidence(workEvidence, {
+    ruleId: "reply-profile.work.discipline-threshold",
+    sourceMetric: "taskPlane.discipline",
+    rawValue: discipline,
+    threshold: 0.72,
+    contribution: 0.45,
+    condition: disciplined,
+  });
+  const workScore = clamp01(workEvidence.reduce((sum, item) => sum + item.contribution, 0));
 
   const privateReasons: string[] = [];
+  const privateEvidence: DecisionEvidenceObservation[] = [];
   pushReason(privateReasons, !taskFocused && !disciplined, "no work threshold active");
   pushReason(privateReasons, attachment > 0.58, "attachment keeps private surface viable");
   pushReason(privateReasons, closeness > 0.58, "relational closeness favors private surface");
   pushReason(privateReasons, guardedness > 0.62 || loopPressure > 0.58, "guarded relation state prefers private handling");
   pushReason(privateReasons, repairFriction > 0.48 || residue > 0.45, "carry or friction remains active");
-  const privateScore = !taskFocused && !disciplined
-    ? clamp01(0.78 + (((1 - taskFocusRatio) + (1 - disciplineRatio)) / 2) * 0.22)
-    : clamp01((1 - Math.max(taskFocusRatio, disciplineRatio)) * 0.3);
+  pushEvidence(privateEvidence, {
+    ruleId: "reply-profile.private.default-fallback",
+    sourceMetric: "replyProfileBasis",
+    rawValue: !taskFocused && !disciplined ? 1 : 0,
+    threshold: 1,
+    contribution: 0.7,
+    condition: !taskFocused && !disciplined,
+  });
+  pushEvidence(privateEvidence, {
+    ruleId: "reply-profile.private.attachment-support",
+    sourceMetric: "subjectPlane.attachment",
+    rawValue: attachment,
+    threshold: 0.58,
+    contribution: 0.1,
+    condition: attachment > 0.58,
+  });
+  pushEvidence(privateEvidence, {
+    ruleId: "reply-profile.private.closeness-support",
+    sourceMetric: "relationPlane.closeness",
+    rawValue: closeness,
+    threshold: 0.58,
+    contribution: 0.08,
+    condition: closeness > 0.58,
+  });
+  pushEvidence(privateEvidence, {
+    ruleId: "reply-profile.private.guarded-support",
+    sourceMetric: "subjectPlane.guardedness",
+    rawValue: guardedness,
+    threshold: 0.62,
+    contribution: 0.07,
+    condition: guardedness > 0.62 || loopPressure > 0.58,
+  });
+  pushEvidence(privateEvidence, {
+    ruleId: "reply-profile.private.carry-support",
+    sourceMetric: "subjectPlane.residue",
+    rawValue: Math.max(repairFriction, residue),
+    threshold: 0.48,
+    contribution: 0.05,
+    condition: repairFriction > 0.48 || residue > 0.45,
+  });
+  const privateScore = clamp01(privateEvidence.reduce((sum, item) => sum + item.contribution, 0));
 
   const selected: DecisionCandidateName = responseContract.replyProfile === "work"
     ? "work-profile"
@@ -248,14 +323,81 @@ function buildDecisionRationale(
         score: workScore,
         accepted: selected === "work-profile",
         reasons: workReasons,
+        evidence: workEvidence,
       },
       {
         candidate: "private-profile",
         score: privateScore,
         accepted: selected === "private-profile",
         reasons: privateReasons,
+        evidence: privateEvidence,
       },
     ],
+  };
+}
+
+function buildCausalChain(
+  state: PsycheState,
+  opts: {
+    relationContext?: ResolvedRelationContext;
+    sessionBridge: SessionBridgeState | null;
+    writebackFeedback: WritebackCalibrationFeedback[];
+    externalContinuityEvents: ThrongletsExport[];
+  },
+): CausalChainObservation {
+  const relationKey = opts.relationContext?.key ?? "_default";
+  const turnRef = `psyche:${relationKey}:turn:${state.meta.totalInteractions}`;
+  const parentTurnRef = state.meta.totalInteractions > 1
+    ? `psyche:${relationKey}:turn:${state.meta.totalInteractions - 1}`
+    : null;
+  const continuityRefs = opts.externalContinuityEvents
+    .filter((event) => event.kind === "continuity-anchor" || event.kind === "open-loop-anchor")
+    .map((event) => event.key);
+  const writebackRefs = opts.externalContinuityEvents
+    .filter((event) => event.kind === "writeback-calibration")
+    .map((event) => event.key);
+  const externalTraceRefs = opts.externalContinuityEvents.map((event) => event.key);
+
+  if (opts.writebackFeedback.length > 0 && writebackRefs.length === 0) {
+    writebackRefs.push(
+      ...opts.writebackFeedback.map((feedback) => `writeback:${relationKey}:${feedback.signal}:${feedback.effect}`),
+    );
+  }
+  if (opts.sessionBridge && continuityRefs.length === 0) {
+    continuityRefs.push(`bridge:${relationKey}:${opts.sessionBridge.continuityMode}`);
+  }
+
+  return {
+    turnRef,
+    parentTurnRef,
+    continuityRefs,
+    writebackRefs,
+    externalTraceRefs,
+  };
+}
+
+function buildTraceMapping(
+  externalContinuityEvents: ThrongletsExport[],
+): ExternalTraceMappingObservation {
+  const localTraceRefs = externalContinuityEvents.map((event) => event.key);
+  const signalRefs = externalContinuityEvents
+    .filter((event) => event.primitive === "signal")
+    .map((event) => event.key);
+  const traceRefs = externalContinuityEvents
+    .filter((event) => event.primitive === "trace")
+    .map((event) => event.key);
+  const summaryCandidateRefs = externalContinuityEvents
+    .filter((event) => event.kind === "continuity-anchor"
+      || event.kind === "relation-milestone"
+      || (event.kind === "open-loop-anchor" && event.strength >= 0.72))
+    .map((event) => event.key);
+
+  return {
+    provider: externalContinuityEvents.length > 0 ? "thronglets" : null,
+    localTraceRefs,
+    signalRefs,
+    traceRefs,
+    summaryCandidateRefs,
   };
 }
 
@@ -298,7 +440,7 @@ export function buildTurnObservability(
     sessionBridge: SessionBridgeState | null;
     writebackFeedback: WritebackCalibrationFeedback[];
     relationContext?: ResolvedRelationContext;
-    externalContinuityExports: number;
+    externalContinuityEvents: ThrongletsExport[];
   },
 ): TurnObservability {
   const stateLayers = buildStateLayers(state, {
@@ -313,12 +455,19 @@ export function buildTurnObservability(
     stateLayers,
     stateReconciliation: buildStateReconciliation(stateLayers),
     decisionRationale: buildDecisionRationale(opts.replyEnvelope),
+    causalChain: buildCausalChain(state, {
+      relationContext: opts.relationContext,
+      sessionBridge: opts.sessionBridge,
+      writebackFeedback: opts.writebackFeedback,
+      externalContinuityEvents: opts.externalContinuityEvents,
+    }),
+    traceMapping: buildTraceMapping(opts.externalContinuityEvents),
     outputAttribution: {
       canonicalSurface: "reply-envelope",
       promptRenderer: opts.compactMode ? "compact" : "dynamic",
       renderInputs: listRenderInputs(opts.promptRenderInputs),
-      runtimeHooks: listRuntimeHooks(opts.externalContinuityExports, opts.writebackFeedback.length),
-      externalContinuityExports: opts.externalContinuityExports,
+      runtimeHooks: listRuntimeHooks(opts.externalContinuityEvents.length, opts.writebackFeedback.length),
+      externalContinuityExports: opts.externalContinuityEvents.length,
       writebackFeedbackCount: opts.writebackFeedback.length,
     },
   };

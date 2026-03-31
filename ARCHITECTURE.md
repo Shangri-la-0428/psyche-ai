@@ -188,6 +188,8 @@ v9.0 把“反向 baseline test”引入主体性方向。v9.2.9 则进一步把
 - `controlBoundary`：当前哪一个 control plane / driver 在主导
 - `stateReconciliation`：turn、writeback、session bridge、persisted relationship 如何完成当轮对账
 - `decisionRationale`：`work/private` 选择的触发条件、候选集、最终接受项
+- `causalChain`：当前 turn 与 parent turn、session bridge、writeback refs、external continuity refs 的低成本引用链
+- `traceMapping`：当前 low-frequency external continuity 事件如何映射到 local trace、signal、trace、summary candidate
 - `outputAttribution`：哪些 render inputs 和 runtime hooks 参与了输出形成
 
 第一性原则是：**控制和观测必须分开**。`replyEnvelope` 继续是唯一规范控制面；`observability` 只负责让别的 agent 和宿主验证“为什么会这样”，而不是参与“下一步该怎么做”。

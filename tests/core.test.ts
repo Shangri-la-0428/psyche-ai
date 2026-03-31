@@ -156,6 +156,11 @@ describe("PsycheEngine", () => {
     const acceptedWorkCandidate = result.observability?.decisionRationale.candidates.find((candidate) => candidate.accepted);
     const rejectedPrivateCandidate = result.observability?.decisionRationale.candidates.find((candidate) => !candidate.accepted);
     assert.ok((acceptedWorkCandidate?.score ?? 0) >= (rejectedPrivateCandidate?.score ?? 0));
+    assert.ok(Array.isArray(acceptedWorkCandidate?.evidence));
+    assert.ok(acceptedWorkCandidate?.evidence.some((evidence) => evidence.ruleId === "reply-profile.work.task-focus-threshold"));
+    assert.equal(result.observability?.causalChain.turnRef, "psyche:_default:turn:1");
+    assert.equal(result.observability?.causalChain.parentTurnRef, null);
+    assert.ok(Array.isArray(result.observability?.traceMapping.localTraceRefs));
     assert.equal(result.observability?.outputAttribution.canonicalSurface, "reply-envelope");
     assert.equal(result.observability?.outputAttribution.promptRenderer, "dynamic");
     assert.ok(result.observability?.outputAttribution.renderInputs.includes("subjectivity"));
@@ -881,6 +886,10 @@ END: 75 (happy)
     assert.equal(result.observability?.stateReconciliation.governingLayer, "current-turn");
     assert.equal(result.observability?.stateReconciliation.resolution, "writeback-adjusted");
     assert.ok(result.observability?.stateReconciliation.notes.some((note) => note === "writeback-feedback:trust_up:converging"));
+    assert.equal(result.observability?.causalChain.turnRef, "psyche:_default:turn:2");
+    assert.equal(result.observability?.causalChain.parentTurnRef, "psyche:_default:turn:1");
+    assert.ok(result.observability?.causalChain.writebackRefs.some((ref) => ref === "writeback:_default:trust_up:converging"));
+    assert.ok(result.observability?.traceMapping.localTraceRefs.some((ref) => ref === "writeback:_default:trust_up:converging"));
     assert.ok(
       result.throngletsExports?.some(
         (event) => event.kind === "writeback-calibration"

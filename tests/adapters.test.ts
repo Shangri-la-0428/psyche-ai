@@ -321,6 +321,8 @@ describe("createPsycheServer (HTTP)", () => {
     assert.ok(Array.isArray(data.observability?.stateLayers));
     assert.ok(data.observability?.stateReconciliation);
     assert.ok(Array.isArray(data.observability?.decisionRationale?.candidates));
+    assert.ok(data.observability?.causalChain);
+    assert.ok(Array.isArray(data.observability?.traceMapping?.localTraceRefs));
   });
 
   it("POST /process-output strips tags", async () => {

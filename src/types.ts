@@ -982,11 +982,20 @@ export interface StateReconciliationObservation {
 
 export type DecisionCandidateName = "work-profile" | "private-profile";
 
+export interface DecisionEvidenceObservation {
+  ruleId: string;
+  sourceMetric: string;
+  rawValue: number;
+  threshold?: number;
+  contribution: number;
+}
+
 export interface DecisionCandidateObservation {
   candidate: DecisionCandidateName;
   score: number;
   accepted: boolean;
   reasons: string[];
+  evidence: DecisionEvidenceObservation[];
 }
 
 export interface DecisionRationaleObservation {
@@ -995,11 +1004,29 @@ export interface DecisionRationaleObservation {
   candidates: DecisionCandidateObservation[];
 }
 
+export interface CausalChainObservation {
+  turnRef: string;
+  parentTurnRef: string | null;
+  continuityRefs: string[];
+  writebackRefs: string[];
+  externalTraceRefs: string[];
+}
+
+export interface ExternalTraceMappingObservation {
+  provider: "thronglets" | null;
+  localTraceRefs: string[];
+  signalRefs: string[];
+  traceRefs: string[];
+  summaryCandidateRefs: string[];
+}
+
 export interface TurnObservability {
   controlBoundary: ControlBoundaryObservation;
   stateLayers: StateLayerObservation[];
   stateReconciliation: StateReconciliationObservation;
   decisionRationale: DecisionRationaleObservation;
+  causalChain: CausalChainObservation;
+  traceMapping: ExternalTraceMappingObservation;
   outputAttribution: OutputAttributionObservation;
 }
 

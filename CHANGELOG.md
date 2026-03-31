@@ -1,5 +1,15 @@
 # 更新日志 / Changelog
 
+## Unreleased — Audit Layer Causality
+
+- **跨 turn 因果链**：`observability` 现在增加 `causalChain`，把当前 turn、上一 turn、session bridge continuity refs、writeback refs 和外部 continuity trace refs 串成低成本因果链，而不引入第二套控制面。
+- **机器可校验证据指针**：`decisionRationale` 的候选项现在附带 `evidence`，显式给出 `ruleId / sourceMetric / rawValue / threshold / contribution`，不再只返回不可核验的解释性摘要。
+- **外部 tracing 归一映射**：新增 `traceMapping`，把当前低频 external continuity 事件压成 `localTraceRefs / signalRefs / traceRefs / summaryCandidateRefs`，为后续 `Thronglets -> Net` 审计链留出单一映射面。
+
+**测试：1309 个，0 失败**
+
+---
+
 ## v9.2.10 — Observability Side-Channel
 
 - **可观测性侧边信道**：`processInput()` 现在会可选返回 `observability`，但仍严格把它放在 `replyEnvelope` 之外，不让观测和控制混成第二套主接口。

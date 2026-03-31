@@ -97,12 +97,17 @@ Split diagnostics explicitly by:
 
 ### 9. Add causal audit chain without widening control ABI
 
-Observability is now good enough for single-turn control and attribution, but not yet for full auditability.
-The next hardening step is:
+Observability now covers:
 
-- cross-turn / cross-session causal linking
+- cross-turn causal linking
 - machine-verifiable evidence pointers for rule ids and scoring sources
-- one normalized mapping from `observability` into external tracing / telemetry
+- one normalized local mapping from `observability` into external trace candidates
+
+The remaining hardening step is:
+
+- cross-session linking beyond turn-local refs
+- provider-specific trace / telemetry promotion rules
+- one stable audit export contract from local observability into external systems
 
 Keep this as an audit layer, not a second control surface.
 

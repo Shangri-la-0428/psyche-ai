@@ -724,7 +724,7 @@ export class PsycheEngine {
       sessionBridge,
       writebackFeedback,
       relationContext: relationalTurn.relationContext,
-      externalContinuityExports: throngletsExports.length,
+      externalContinuityEvents: throngletsExports,
     });
 
     if (this.cfg.compactMode) {
