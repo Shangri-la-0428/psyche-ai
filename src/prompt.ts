@@ -16,6 +16,91 @@ import { gateEmotions } from "./autonomic.js";
 import type { ChannelType } from "./channels.js";
 import { getChannelProfile, buildChannelModifier } from "./channels.js";
 
+export interface PromptRenderInputs {
+  userText?: string;
+  algorithmStimulus?: string | null;
+  personalityIntensity?: number;
+  channelType?: ChannelType;
+  metacognitiveNote?: string;
+  decisionContext?: string;
+  ethicsContext?: string;
+  sharedIntentionalityContext?: string;
+  experientialNarrative?: string;
+  autonomicDescription?: string;
+  autonomicState?: AutonomicState;
+  primarySystemsDescription?: string;
+  subjectivityContext?: string;
+  responseContractContext?: string;
+  policyContext?: string;
+}
+
+function pushLabeledSection(
+  parts: string[],
+  locale: Locale,
+  titleZh: string,
+  titleEn: string,
+  content?: string,
+): void {
+  if (!content) return;
+  parts.push("", `[${locale === "zh" ? titleZh : titleEn}] ${content}`);
+}
+
+function pushRawSection(parts: string[], content?: string): void {
+  if (!content) return;
+  parts.push("", content);
+}
+
+function appendDynamicOverlaySections(
+  parts: string[],
+  locale: Locale,
+  opts?: PromptRenderInputs,
+): void {
+  pushLabeledSection(parts, locale, "元认知", "Metacognition", opts?.metacognitiveNote);
+  pushLabeledSection(parts, locale, "决策倾向", "Decision Bias", opts?.decisionContext);
+  pushLabeledSection(parts, locale, "内在体验", "Inner Experience", opts?.experientialNarrative);
+  pushRawSection(parts, opts?.sharedIntentionalityContext);
+  pushRawSection(parts, opts?.ethicsContext);
+  pushLabeledSection(parts, locale, "自主神经状态", "Autonomic State", opts?.autonomicDescription);
+  pushLabeledSection(parts, locale, "行为倾向", "Behavioral Tendencies", opts?.primarySystemsDescription);
+  pushRawSection(parts, opts?.policyContext);
+}
+
+function appendCompactOverlaySections(
+  parts: string[],
+  locale: Locale,
+  opts?: PromptRenderInputs,
+): void {
+  if (opts?.metacognitiveNote && !(opts?.responseContractContext && isNeutralMetacognitiveNote(opts.metacognitiveNote))) {
+    pushLabeledSection(parts, locale, "元认知", "Metacognition", opts.metacognitiveNote);
+  }
+
+  if (opts?.decisionContext && !opts?.subjectivityContext) {
+    pushLabeledSection(parts, locale, "决策倾向", "Decision Bias", opts.decisionContext);
+  }
+
+  if (opts?.experientialNarrative && !opts?.subjectivityContext) {
+    pushLabeledSection(parts, locale, "内在体验", "Inner Experience", opts.experientialNarrative);
+  }
+
+  if (opts?.sharedIntentionalityContext && !(opts?.responseContractContext && isGenericSharedIntentionalityContext(opts.sharedIntentionalityContext))) {
+    pushRawSection(parts, opts.sharedIntentionalityContext);
+  }
+
+  pushRawSection(parts, opts?.ethicsContext);
+
+  if (opts?.autonomicDescription && !opts?.subjectivityContext) {
+    pushLabeledSection(parts, locale, "自主神经", "Autonomic", opts.autonomicDescription);
+  }
+
+  if (opts?.primarySystemsDescription && !opts?.subjectivityContext) {
+    pushLabeledSection(parts, locale, "行为倾向", "Tendencies", opts.primarySystemsDescription);
+  }
+
+  if (opts?.policyContext && !opts?.subjectivityContext) {
+    pushRawSection(parts, opts.policyContext);
+  }
+}
+
 /**
  * Build the dynamic per-turn emotional context injected via before_prompt_build.
  *
@@ -24,19 +109,7 @@ import { getChannelProfile, buildChannelModifier } from "./channels.js";
 export function buildDynamicContext(
   state: PsycheState,
   userId?: string,
-  opts?: {
-    metacognitiveNote?: string;
-    decisionContext?: string;
-    ethicsContext?: string;
-    sharedIntentionalityContext?: string;
-    experientialNarrative?: string;
-    autonomicDescription?: string;
-    autonomicState?: AutonomicState;
-    primarySystemsDescription?: string;
-    subjectivityContext?: string;
-    responseContractContext?: string;
-    policyContext?: string;
-  },
+  opts?: PromptRenderInputs,
 ): string {
   const { current, baseline, mbti, empathyLog, selfModel, meta, agreementStreak, emotionalHistory } = state;
   const locale = meta.locale ?? "zh";
@@ -134,49 +207,7 @@ export function buildDynamicContext(
     parts.push("", reciprocity);
   }
 
-  // Metacognitive awareness (P5)
-  if (opts?.metacognitiveNote) {
-    const mcTitle = locale === "zh" ? "元认知" : "Metacognition";
-    parts.push("", `[${mcTitle}] ${opts.metacognitiveNote}`);
-  }
-
-  // Decision bias context (P5)
-  if (opts?.decisionContext) {
-    const dbTitle = locale === "zh" ? "决策倾向" : "Decision Bias";
-    parts.push("", `[${dbTitle}] ${opts.decisionContext}`);
-  }
-
-  // Experiential field narrative (P6)
-  if (opts?.experientialNarrative) {
-    const efTitle = locale === "zh" ? "内在体验" : "Inner Experience";
-    parts.push("", `[${efTitle}] ${opts.experientialNarrative}`);
-  }
-
-  // Shared intentionality (P6)
-  if (opts?.sharedIntentionalityContext) {
-    parts.push("", opts.sharedIntentionalityContext);
-  }
-
-  // Ethics (P6)
-  if (opts?.ethicsContext) {
-    parts.push("", opts.ethicsContext);
-  }
-
-  // Autonomic state (P7)
-  if (opts?.autonomicDescription) {
-    const anTitle = locale === "zh" ? "自主神经状态" : "Autonomic State";
-    parts.push("", `[${anTitle}] ${opts.autonomicDescription}`);
-  }
-
-  // Primary systems behavioral tendencies (P9)
-  if (opts?.primarySystemsDescription) {
-    const psTitle = locale === "zh" ? "行为倾向" : "Behavioral Tendencies";
-    parts.push("", `[${psTitle}] ${opts.primarySystemsDescription}`);
-  }
-
-  if (opts?.policyContext) {
-    parts.push("", opts.policyContext);
-  }
+  appendDynamicOverlaySections(parts, locale, opts);
 
   parts.push(
     "",
@@ -735,23 +766,7 @@ export function getNearBaselineThreshold(mode?: PsycheMode): number {
 export function buildCompactContext(
   state: PsycheState,
   userId?: string,
-  opts?: {
-    userText?: string;
-    algorithmStimulus?: string | null;
-    personalityIntensity?: number;
-    channelType?: ChannelType;
-    metacognitiveNote?: string;
-    decisionContext?: string;
-    ethicsContext?: string;
-    sharedIntentionalityContext?: string;
-    experientialNarrative?: string;
-    autonomicDescription?: string;
-    autonomicState?: AutonomicState;
-    primarySystemsDescription?: string;
-    subjectivityContext?: string;
-    responseContractContext?: string;
-    policyContext?: string;
-  },
+  opts?: PromptRenderInputs,
 ): string {
   const { meta, selfModel, agreementStreak, emotionalHistory } = state;
   const locale = meta.locale ?? "zh";
@@ -931,56 +946,7 @@ export function buildCompactContext(
     if (selfCtx) parts.push(selfCtx);
   }
 
-  // 9. Metacognitive awareness (P5)
-  if (opts?.metacognitiveNote && !(opts?.responseContractContext && isNeutralMetacognitiveNote(opts.metacognitiveNote))) {
-    parts.push(locale === "zh"
-      ? `[元认知] ${opts.metacognitiveNote}`
-      : `[Metacognition] ${opts.metacognitiveNote}`);
-  }
-
-  // 9b. Decision/autonomic/policy are compressed into subjectivityContext
-  // when available. Keep legacy renderers for compatibility.
-  if (opts?.decisionContext && !opts?.subjectivityContext) {
-    parts.push(locale === "zh"
-      ? `[决策倾向] ${opts.decisionContext}`
-      : `[Decision Bias] ${opts.decisionContext}`);
-  }
-
-  // 9c. Experiential field narrative (P6) — inner experience beyond named emotions
-  if (opts?.experientialNarrative && !opts?.subjectivityContext) {
-    parts.push(locale === "zh"
-      ? `[内在体验] ${opts.experientialNarrative}`
-      : `[Inner Experience] ${opts.experientialNarrative}`);
-  }
-
-  // 9d. Shared intentionality (P6) — theory of mind, joint attention
-  if (opts?.sharedIntentionalityContext && !(opts?.responseContractContext && isGenericSharedIntentionalityContext(opts.sharedIntentionalityContext))) {
-    parts.push(opts.sharedIntentionalityContext);
-  }
-
-  // 9e. Ethics (P6) — manipulation detection, self-protection
-  if (opts?.ethicsContext) {
-    parts.push(opts.ethicsContext);
-  }
-
-  // 9f. Autonomic state (P7) — polyvagal nervous system state
-  if (opts?.autonomicDescription && !opts?.subjectivityContext) {
-    parts.push(locale === "zh"
-      ? `[自主神经] ${opts.autonomicDescription}`
-      : `[Autonomic] ${opts.autonomicDescription}`);
-  }
-
-  // 9g. Primary systems behavioral tendencies (P9)
-  if (opts?.primarySystemsDescription && !opts?.subjectivityContext) {
-    parts.push(locale === "zh"
-      ? `[行为倾向] ${opts.primarySystemsDescription}`
-      : `[Tendencies] ${opts.primarySystemsDescription}`);
-  }
-
-  // 9h. Policy context (v9)
-  if (opts?.policyContext && !opts?.subjectivityContext) {
-    parts.push(opts.policyContext);
-  }
+  appendCompactOverlaySections(parts, locale, opts);
 
   // 10. Channel modifier — expression style per platform
   if (opts?.channelType) {

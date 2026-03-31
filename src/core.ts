@@ -19,6 +19,7 @@ import { MemoryStorageAdapter } from "./storage.js";
 import { applyDecay, applyStimulus, applyContagion, clamp, describeEmotionalState } from "./chemistry.js";
 import { classifyStimulus, BuiltInClassifier, buildLLMClassifierPrompt, parseLLMClassification } from "./classify.js";
 import { buildDynamicContext, buildProtocolContext, buildCompactContext } from "./prompt.js";
+import type { PromptRenderInputs } from "./prompt.js";
 import { getSensitivity, getBaseline, getDefaultSelfModel, traitsToBaseline } from "./profiles.js";
 import { isStimulusType } from "./guards.js";
 import {
@@ -695,27 +696,28 @@ export class PsycheEngine {
       responseContract: derivedReplyEnvelope.responseContract,
       generationControls: derivedReplyEnvelope.generationControls,
     };
+    const promptRenderInputs: PromptRenderInputs = {
+      userText: text || undefined,
+      algorithmStimulus: appliedStimulus,
+      personalityIntensity: this.cfg.personalityIntensity,
+      metacognitiveNote: reflectiveTurn.metacognitiveNote,
+      decisionContext: reflectiveTurn.decisionContext,
+      ethicsContext: reflectiveTurn.ethicsContext,
+      sharedIntentionalityContext: reflectiveTurn.sharedIntentionalityContext,
+      experientialNarrative: reflectiveTurn.experientialNarrative,
+      autonomicDescription: reflectiveTurn.autonomicDescription,
+      autonomicState: reflectiveTurn.autonomicState,
+      primarySystemsDescription: reflectiveTurn.primarySystemsDescription,
+      subjectivityContext: derivedReplyEnvelope.subjectivityContext,
+      responseContractContext: derivedReplyEnvelope.responseContractContext,
+      policyContext: derivedReplyEnvelope.policyContext || undefined,
+    };
 
     if (this.cfg.compactMode) {
       const externalContinuity = buildExternalContinuityEnvelope(throngletsExports);
       return {
         systemContext: "",
-        dynamicContext: buildCompactContext(state, opts?.userId, {
-          userText: text || undefined,
-          algorithmStimulus: appliedStimulus,
-          personalityIntensity: this.cfg.personalityIntensity,
-          metacognitiveNote: reflectiveTurn.metacognitiveNote,
-          decisionContext: reflectiveTurn.decisionContext,
-          ethicsContext: reflectiveTurn.ethicsContext,
-          sharedIntentionalityContext: reflectiveTurn.sharedIntentionalityContext,
-          experientialNarrative: reflectiveTurn.experientialNarrative,
-          autonomicDescription: reflectiveTurn.autonomicDescription,
-          autonomicState: reflectiveTurn.autonomicState,
-          primarySystemsDescription: reflectiveTurn.primarySystemsDescription,
-          subjectivityContext: derivedReplyEnvelope.subjectivityContext,
-          responseContractContext: derivedReplyEnvelope.responseContractContext,
-          policyContext: derivedReplyEnvelope.policyContext || undefined,
-        }),
+        dynamicContext: buildCompactContext(state, opts?.userId, promptRenderInputs),
         stimulus: appliedStimulus,
         stimulusConfidence: this.lastStimulusAssessment?.confidence,
         replyEnvelope,
@@ -734,17 +736,7 @@ export class PsycheEngine {
     const externalContinuity = buildExternalContinuityEnvelope(throngletsExports);
     return {
       systemContext: this.getProtocol(locale),
-      dynamicContext: buildDynamicContext(state, opts?.userId, {
-        metacognitiveNote: reflectiveTurn.metacognitiveNote,
-        decisionContext: reflectiveTurn.decisionContext,
-        ethicsContext: reflectiveTurn.ethicsContext,
-        sharedIntentionalityContext: reflectiveTurn.sharedIntentionalityContext,
-        experientialNarrative: reflectiveTurn.experientialNarrative,
-        autonomicDescription: reflectiveTurn.autonomicDescription,
-        autonomicState: reflectiveTurn.autonomicState,
-        primarySystemsDescription: reflectiveTurn.primarySystemsDescription,
-        policyContext: derivedReplyEnvelope.policyContext || undefined,
-      }),
+      dynamicContext: buildDynamicContext(state, opts?.userId, promptRenderInputs),
       stimulus: appliedStimulus,
       stimulusConfidence: this.lastStimulusAssessment?.confidence,
       replyEnvelope,
