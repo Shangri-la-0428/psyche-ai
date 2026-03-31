@@ -10,6 +10,19 @@ Canonical references:
 
 ## Immediate
 
+### 0. Keep public truth single-sourced
+
+Do not allow:
+
+- npm version ahead of GitHub `main`
+- site content that only exists on VPS
+- agent adoption claims without runtime proof
+
+The current hard gates are:
+
+- `psyche probe --json`
+- `npm run release:guard`
+
 ### 1. Keep Psyche local state private by default
 
 Continuously audit integrations to ensure these never become shared primitives:

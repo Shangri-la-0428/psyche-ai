@@ -7,7 +7,7 @@ It compresses continuous appraisal, relation dynamics, adaptive reply loops, and
 **One sentence:** Psyche is a subjectivity kernel for agents.
 
 [![npm](https://img.shields.io/npm/v/psyche-ai)](https://www.npmjs.com/package/psyche-ai)
-[![tests](https://img.shields.io/badge/tests-1307%20passing-brightgreen)]()
+[![tests](https://img.shields.io/badge/tests-1308%20passing-brightgreen)]()
 [![deps](https://img.shields.io/badge/dependencies-0-blue)]()
 [![license](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 
@@ -345,6 +345,30 @@ npm view psyche-ai version
 - `git` worktrees and local-path installs are never mutated behind your back.
 - Local OpenClaw plugin development still requires a host restart after rebuilding `dist/`.
 
+## Runtime Proof For Other Local Agents
+
+If another agent claims it is already using Psyche, do not accept a conceptual explanation. Ask it to run:
+
+```bash
+psyche probe --json
+```
+
+This performs a real `processInput()` and `processOutput()` call and reports:
+
+- the actual loaded version
+- the actual load path
+- whether the runtime is truly callable
+- whether the canonical `replyEnvelope` surface is present
+
+Passing means:
+
+- `ok = true`
+- `processInputCalled = true`
+- `processOutputCalled = true`
+- `canonicalHostSurface = true`
+
+Formal acceptance notes: [docs/AGENT_RUNTIME_PROBE.md](docs/AGENT_RUNTIME_PROBE.md)
+
 ---
 
 ## Personality
@@ -471,7 +495,7 @@ git clone https://github.com/Shangri-la-0428/oasyce_psyche.git
 cd oasyce_psyche
 npm install
 npm run build
-npm test                        # 1307 tests
+npm test                        # 1308 tests
 npm run typecheck               # strict mode
 ```
 

@@ -1,5 +1,16 @@
 # 更新日志 / Changelog
 
+## v9.2.9 — Runtime Proof + 发布硬闸
+
+- **运行时自证**：新增 `psyche probe --json`，真实执行一次 `processInput()` / `processOutput()` 并返回版本、加载路径、主接口可用性。以后任何 agent 如果声称“已经在用 Psyche”，都必须先拿出 probe 结果。
+- **接入验收文档**：新增 `docs/AGENT_RUNTIME_PROBE.md`，把“入口存在”和“运行时已接上”严格区分开，不再接受口头解释代替真实 runtime proof。
+- **发布硬闸**：新增 `npm run release:guard`，要求工作树干净、版本已写入 changelog，且发布提交已在 GitHub `main` 上，从根上防止 npm 比公开主线走得更快。
+- **发布流程收紧**：`prepublishOnly` 和 CI publish workflow 现在都会执行 `release:guard`，把“包、GitHub main、文档”统一成一个公开真相源。
+
+**测试：1308 个，0 失败**
+
+---
+
 ## v9.2.8 — 外部连续性边界 + 核心接口收口
 
 - **外部连续性 contract**：`Psyche -> Thronglets` 现在通过可选 `externalContinuity` envelope 连接，`throngletsExports` 仅保留为兼容别名。默认只导出低频、稀疏、可外化的 continuity / coordination / calibration 事件。
@@ -29,6 +40,7 @@
 - **公开入口统一**：npm / GitHub / 官网开始明确区分包名 `psyche-ai`、源码仓库 `oasyce_psyche` 和官网 `psyche.oasyce.com`。
 - **官网扩页**：新增 OpenClaw、MCP、benchmarks、relation dynamics、work vs private、compare、demo 等发现页，补齐搜索和分享入口。
 - **传播资产**：补齐 demo 脚本、community post 草稿、MCP 目录提交文案、release cadence 文档。
+- **运行时自证**：新增 `psyche probe --json` 和 `docs/AGENT_RUNTIME_PROBE.md`，把“另一个 agent 是否真的接上了 Psyche”变成可执行的验收协议，而不是口头解释。
 
 ---
 

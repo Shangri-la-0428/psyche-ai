@@ -1,7 +1,7 @@
 # Psyche — 面向智能体的 AI-first 主观性内核
 
 [![npm](https://img.shields.io/npm/v/psyche-ai)](https://www.npmjs.com/package/psyche-ai)
-[![tests](https://img.shields.io/badge/tests-1307%20passing-brightgreen)]()
+[![tests](https://img.shields.io/badge/tests-1308%20passing-brightgreen)]()
 [![deps](https://img.shields.io/badge/dependencies-0-blue)]()
 [![license](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 
@@ -208,6 +208,30 @@ npm view psyche-ai version
 - npm 管理的安装会后台安全检查更新，必要时才尝试自动升级。
 - `git` 工作树和本地路径安装不会偷偷改你的代码；脏工作树只会提示手动命令。
 - OpenClaw 如果是从当前仓库本地加载，升级后记得重启 gateway 以载入新的 `dist/`。
+
+## 给本机其他 Agent 的真实验收
+
+如果另一个 agent 声称“已经在用 Psyche”，不要接受口头解释，直接让它跑：
+
+```bash
+psyche probe --json
+```
+
+这条命令会实际调用一次 `processInput()` 和 `processOutput()`，并返回：
+
+- 实际版本
+- 实际加载路径
+- 是否真的调用成功
+- `replyEnvelope` 这个规范主接口是否存在
+
+通过标准不是“它理解了 Psyche”，而是：
+
+- `ok = true`
+- `processInputCalled = true`
+- `processOutputCalled = true`
+- `canonicalHostSurface = true`
+
+正式说明见：[docs/AGENT_RUNTIME_PROBE.md](docs/AGENT_RUNTIME_PROBE.md)
 
 ---
 
@@ -523,7 +547,7 @@ Psyche 核心引擎永久开源（MIT）。
 ```bash
 npm install
 npm run build
-npm test           # 1307 tests
+npm test           # 1308 tests
 npm run typecheck  # strict mode
 ```
 
