@@ -62,7 +62,10 @@ v9.0 把“反向 baseline test”引入主体性方向。v9.2.7 则继续把关
 - `delegate` 是执行边界，不是终极身份
 - `principal` 今天通常是人，未来也可以是 AI
 
-完整蓝图见 [docs/IDENTITY_MODEL.md](docs/IDENTITY_MODEL.md)。
+完整蓝图见：
+
+- [docs/IDENTITY_MODEL.md](docs/IDENTITY_MODEL.md)
+- [docs/STACK_ARCHITECTURE.md](docs/STACK_ARCHITECTURE.md)
 
 ### Psyche 负责
 
@@ -654,7 +657,7 @@ src/
     langchain.ts       — LangChain 适配器
     http.ts            — HTTP REST API 服务器
 
-tests/                   — 1301 tests
+tests/                   — 1307 tests
   core.test.ts           — 核心引擎测试
   storage.test.ts        — 存储适配器测试
   chemistry.test.ts      — 化学系统测试
@@ -905,7 +908,7 @@ src/
   storage.ts           — FileStorageAdapter / MemoryStorageAdapter
   adapters/            — OpenClaw / Vercel AI / LangChain / HTTP
 
-tests/                 — 1301 tests
+tests/                 — 1307 tests
 ```
 
 ## Design Principles

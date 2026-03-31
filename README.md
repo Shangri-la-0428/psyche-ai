@@ -1,7 +1,7 @@
 # Psyche — 面向智能体的 AI-first 主观性内核
 
 [![npm](https://img.shields.io/npm/v/psyche-ai)](https://www.npmjs.com/package/psyche-ai)
-[![tests](https://img.shields.io/badge/tests-1301%20passing-brightgreen)]()
+[![tests](https://img.shields.io/badge/tests-1307%20passing-brightgreen)]()
 [![deps](https://img.shields.io/badge/dependencies-0-blue)]()
 [![license](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 
@@ -42,7 +42,10 @@ Psyche 要解决的不可压缩问题只有一个：
 - 关系动力学运行时
 - 宿主可消费的行为控制面
 
-更完整的战略定义见：[docs/PROJECT_DIRECTION.md](docs/PROJECT_DIRECTION.md)
+更完整的战略定义见：
+
+- [docs/PROJECT_DIRECTION.md](docs/PROJECT_DIRECTION.md)
+- [docs/STACK_ARCHITECTURE.md](docs/STACK_ARCHITECTURE.md)
 
 ## 冻结身份蓝图
 
@@ -60,7 +63,10 @@ Psyche 要解决的不可压缩问题只有一个：
 - `Oasyce Net = policy, operations, and resource orchestration`
 - `Oasyce Chain = account truth, authorization truth, commitments, settlement, and public finality`
 
-正式版本见：[docs/IDENTITY_MODEL.md](docs/IDENTITY_MODEL.md)
+正式版本见：
+
+- [docs/IDENTITY_MODEL.md](docs/IDENTITY_MODEL.md)
+- [docs/STACK_ARCHITECTURE.md](docs/STACK_ARCHITECTURE.md)
 
 ## Psyche 和 Thronglets 的关系
 
@@ -87,6 +93,8 @@ Psyche 要解决的不可压缩问题只有一个：
 - `Psyche` 必须 standalone 可用
 - `Thronglets` 必须 additive，而不是 Psyche 的运行前提
 - 两者之间只通过稀疏 `signal / trace` 接口连接
+
+更细的分层、边界和运行流见：[docs/STACK_ARCHITECTURE.md](docs/STACK_ARCHITECTURE.md)
 
 ## 新概念准入规则
 
@@ -513,7 +521,7 @@ Psyche 核心引擎永久开源（MIT）。
 ```bash
 npm install
 npm run build
-npm test           # 1301 tests
+npm test           # 1307 tests
 npm run typecheck  # strict mode
 ```
 

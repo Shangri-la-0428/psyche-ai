@@ -7,6 +7,8 @@ Thronglets asks who is acting, how execution stays continuous, and how collectiv
 Oasyce Net asks how policy, operations, and resource orchestration should run.
 Oasyce Chain asks which commitments, authorizations, and settlements count as public fact.
 
+For the canonical stack-level boundary, runtime flow, and invariants, see [STACK_ARCHITECTURE.md](STACK_ARCHITECTURE.md).
+
 ## Four Identity Primitives
 
 Only four top-level identity objects are allowed.

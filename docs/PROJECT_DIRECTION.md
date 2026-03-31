@@ -14,6 +14,15 @@ In one sentence:
 
 **Psyche is a low-cost subjectivity substrate that lets relationships and experience keep changing an agent's later behavior.**
 
+The cross-project stack this lives inside is now frozen as:
+
+- `Psyche = subjective continuity substrate`
+- `Thronglets = delegate continuity + session traces/coordination + emergent collective intelligence`
+- `Oasyce Net = policy, operations, and resource orchestration`
+- `Oasyce Chain = account truth, authorization truth, commitments, settlement, and public finality`
+
+See [STACK_ARCHITECTURE.md](STACK_ARCHITECTURE.md) for the canonical stack-level view.
+
 ## What Psyche Is
 
 - A local subjectivity kernel
@@ -40,33 +49,23 @@ The identity model is now frozen around four objects:
 
 If a new concept cannot be expressed as one of those, or as a policy / view / trace layered around them, suspect the concept before adding another identity object.
 
-See [IDENTITY_MODEL.md](IDENTITY_MODEL.md) for the canonical version.
+See [IDENTITY_MODEL.md](IDENTITY_MODEL.md) for the canonical identity version.
 
-## Four-Layer Stack
+## Stack Direction
 
-### Psyche
+At stack level, the project should keep moving toward:
 
-`subjective continuity substrate`
+- cleaner Psyche / Thronglets separation
+- thinner optional external continuity contracts
+- lower-frequency summary surfaces above Thronglets
+- more explicit authorization truth below Net
 
-Psyche answers whether the agent is still inwardly the same one.
+At stack level, it should move away from:
 
-### Thronglets
-
-`delegate continuity + session traces/coordination + emergent collective intelligence`
-
-Thronglets answers who is acting, how execution remains continuous, and how shared environments create convergence.
-
-### Oasyce Net
-
-`policy, operations, and resource orchestration`
-
-Net decides how capabilities, budgets, routing, and operations should run.
-
-### Oasyce Chain
-
-`account truth, authorization truth, commitments, settlement, and public finality`
-
-Chain decides what counts publicly.
+- mixed identity objects
+- private-state leakage into shared layers
+- high-frequency or prompt-native integration surfaces
+- any feature that forces Thronglets or Chain to depend on Psyche
 
 ## Psyche vs Thronglets
 
@@ -114,6 +113,8 @@ When the same phenomenon touches both systems, split it:
 - Thronglets keeps the sparse external trace, signal, or commitment surface
 
 Do not create a third mixed object unless both existing layers fail.
+
+The detailed boundary by data class now lives in [STACK_ARCHITECTURE.md](STACK_ARCHITECTURE.md).
 
 ## The Five Primitive Containers
 
@@ -234,6 +235,8 @@ Psyche should move away from:
 - more narrative self-explanation
 - more one-off protocol features
 - more top-level entity types
+
+For concrete execution work, see [IMPLEMENTATION_TODO.md](IMPLEMENTATION_TODO.md).
 
 ## External Risks
 

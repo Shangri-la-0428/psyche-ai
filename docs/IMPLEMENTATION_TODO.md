@@ -1,35 +1,37 @@
-# Implementation TODO — Identity and Boundary
+# Implementation TODO — Layered Boundary Work
 
-This file translates the frozen blueprint into implementation work.
+This file translates the frozen stack blueprint into implementation work.
+
+Canonical references:
+
+- [STACK_ARCHITECTURE.md](STACK_ARCHITECTURE.md)
+- [IDENTITY_MODEL.md](IDENTITY_MODEL.md)
+- [PROJECT_DIRECTION.md](PROJECT_DIRECTION.md)
 
 ## Immediate
 
-### 1. Formalize sparse Psyche → Thronglets export
+### 1. Keep Psyche local state private by default
 
-Define the exact low-frequency event set that may leave Psyche.
+Continuously audit integrations to ensure these never become shared primitives:
 
-Target shape:
+- chemistry
+- raw residue
+- raw session state
+- raw dyadic fields
+- private semantic memory
+- per-turn open-loop internals
 
+### 2. Keep the external continuity contract thin
+
+Maintain the current rule:
+
+- optional
 - typed
 - thresholded
 - attributable
 - low-frequency
 
-Examples to evaluate:
-
-- relation milestone reached
-- repair crossed threshold
-- continuity anchor requested
-- significant writeback convergence
-
-### 2. Keep high-frequency subjectivity local
-
-Audit current integrations and explicitly ensure these never become shared primitives:
-
-- chemistry
-- raw residue
-- raw session state
-- per-turn open loop internals
+No provider should require widening Psyche core abstractions.
 
 ### 3. Make delegate boundaries capability-scoped
 
@@ -50,15 +52,28 @@ Document and implement:
 
 ## Near-Term
 
-### 5. Session trace taxonomy
+### 5. Formalize trace retention windows in Thronglets
 
-Define which trace classes belong in Thronglets and which remain purely local.
+The taxonomy is now frozen, but runtime retention still needs explicit rules:
 
-### 6. Principal gate checklist
+- which `coordination` traces decay locally
+- which `continuity` traces can become summary candidates
+- which `calibration` traces aggregate before any promotion
+
+### 6. Formalize trace-to-signal degradation rules
+
+Keep the current invariant:
+
+- trace first
+- signal only when another delegate's next move should change
+
+Do not add new signal kinds.
+
+### 7. Principal gate checklist
 
 Turn the institutional AI-principal gate into a concrete evaluation checklist.
 
-### 7. Diagnostics by layer
+### 8. Diagnostics by layer
 
 Split diagnostics explicitly by:
 
@@ -69,7 +84,7 @@ Split diagnostics explicitly by:
 
 ## Continuous Discipline
 
-### 8. Reject new identity objects by default
+### 9. Reject new identity objects by default
 
 When a new concept appears, try in order:
 
@@ -80,7 +95,7 @@ When a new concept appears, try in order:
 
 Only if all fail should a new top-level identity object even be discussed.
 
-### 9. Keep collectives environmental
+### 10. Keep collectives environmental
 
 Prefer:
 
@@ -91,7 +106,7 @@ Prefer:
 
 Avoid introducing anthropomorphic collective entities unless absolutely forced by reality.
 
-### 10. Re-check the frozen blueprint before new features
+### 11. Re-check the frozen blueprint before new features
 
 Before identity-related work lands, confirm it still preserves:
 
