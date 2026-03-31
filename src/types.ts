@@ -778,11 +778,15 @@ export interface ThrongletsExportState {
   lastAt: string;
 }
 
-export interface ExternalContinuityEnvelope<TEvent = unknown> {
+export type ExternalContinuityEvent = ThrongletsExport;
+
+export interface ExternalContinuityEnvelope<TEvent = ExternalContinuityEvent> {
   provider: "thronglets";
   mode: "optional";
   version: 1;
   exports: TEvent[];
+  signals: TEvent[];
+  traces: TEvent[];
 }
 
 // ── Subjectivity Kernel (v9.3) ──────────────────────────────

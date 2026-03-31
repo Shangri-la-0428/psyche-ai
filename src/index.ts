@@ -33,7 +33,7 @@ export type {
   AmbiguityPlaneState, RelationMoveType, RelationMove, OpenLoopType, OpenLoopState, PendingRelationSignalState, DyadicFieldState,
   SessionBridgeState, ThrongletsExportSubject, ThrongletsExportPrimitive, ThrongletsExportBase, RelationMilestoneExport,
   OpenLoopAnchorExport, WritebackCalibrationExport, ContinuityAnchorExport, ThrongletsExport, ThrongletsExportState,
-  ExternalContinuityEnvelope,
+  ExternalContinuityEvent, ExternalContinuityEnvelope,
   WritebackSignalType, WritebackSignalWeightMap, PendingWritebackCalibration, WritebackCalibrationFeedback, WritebackCalibrationMetric,
   TraitDriftState, EnergyBudgets,
   ClassifierProvider, ClassifierContext, ClassificationResult,
@@ -109,6 +109,11 @@ export {
   computeRelationMove, evolveDyadicField, evolvePendingRelationSignals, getLoopPressure,
   applySessionBridge, applyWritebackSignals, createWritebackCalibrations, evaluateWritebackCalibrations,
 } from "./relation-dynamics.js";
+export {
+  EXTERNAL_CONTINUITY_SIGNAL_KINDS,
+  EXTERNAL_CONTINUITY_TRACE_KINDS,
+  buildExternalContinuityEnvelope,
+} from "./external-continuity.js";
 export { deriveThrongletsExports } from "./thronglets-export.js";
 
 // Experiential field (P6 + P8 Barrett construction)

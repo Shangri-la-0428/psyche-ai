@@ -732,6 +732,8 @@ END: 75 (happy)
     assert.equal(result.externalContinuity?.provider, "thronglets");
     assert.equal(result.externalContinuity?.mode, "optional");
     assert.equal(result.externalContinuity?.version, 1);
+    assert.ok((result.externalContinuity?.signals.length ?? 0) >= 1, `got ${JSON.stringify(result.externalContinuity)}`);
+    assert.ok((result.externalContinuity?.traces.length ?? 0) >= 1, `got ${JSON.stringify(result.externalContinuity)}`);
     assert.ok((result.subjectivityKernel?.subjectPlane.residue ?? 0) >= 0.28, `got ${result.subjectivityKernel?.subjectPlane.residue}`);
     assert.ok((result.subjectivityKernel?.relationPlane.closeness ?? 0) >= 0.6, `got ${result.subjectivityKernel?.relationPlane.closeness}`);
     assert.ok(result.throngletsExports && result.throngletsExports.length > 0, "expected sparse thronglets exports");

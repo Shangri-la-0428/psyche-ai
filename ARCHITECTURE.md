@@ -101,7 +101,9 @@ v9.0 把“反向 baseline test”引入主体性方向。v9.2.7 则继续把关
 
 - `externalContinuity.provider = "thronglets"`
 - `externalContinuity.mode = "optional"`
-- `externalContinuity.exports = sparse signal/trace[]`
+- `externalContinuity.exports = sparse event[]`
+- `externalContinuity.signals = sparse signal[]`
+- `externalContinuity.traces = sparse trace[]`
 
 `throngletsExports` 保留为兼容别名，但不应被理解为硬依赖。
 

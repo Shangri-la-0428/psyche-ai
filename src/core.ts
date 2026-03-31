@@ -51,6 +51,7 @@ import {
 } from "./primary-systems.js";
 import { applyRelationalTurn, applySessionBridge, applyWritebackSignals, createWritebackCalibrations, evaluateWritebackCalibrations } from "./relation-dynamics.js";
 import { deriveReplyEnvelope } from "./reply-envelope.js";
+import { buildExternalContinuityEnvelope } from "./external-continuity.js";
 import { deriveThrongletsExports } from "./thronglets-export.js";
 
 // ── Types ────────────────────────────────────────────────────
@@ -851,12 +852,7 @@ export class PsycheEngine {
     }
 
     if (this.cfg.compactMode) {
-      const externalContinuity: ExternalContinuityEnvelope<ThrongletsExport> = {
-        provider: "thronglets",
-        mode: "optional",
-        version: 1,
-        exports: throngletsExports,
-      };
+      const externalContinuity = buildExternalContinuityEnvelope(throngletsExports);
       return {
         systemContext: "",
         dynamicContext: buildCompactContext(state, opts?.userId, {
@@ -889,12 +885,7 @@ export class PsycheEngine {
       };
     }
 
-    const externalContinuity: ExternalContinuityEnvelope<ThrongletsExport> = {
-      provider: "thronglets",
-      mode: "optional",
-      version: 1,
-      exports: throngletsExports,
-    };
+    const externalContinuity = buildExternalContinuityEnvelope(throngletsExports);
     return {
       systemContext: this.getProtocol(locale),
       dynamicContext: buildDynamicContext(state, opts?.userId, {

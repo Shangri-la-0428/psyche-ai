@@ -310,6 +310,8 @@ describe("createPsycheServer (HTTP)", () => {
     assert.equal(data.externalContinuity?.mode, "optional");
     assert.equal(data.externalContinuity?.version, 1);
     assert.ok(Array.isArray(data.externalContinuity?.exports));
+    assert.ok(Array.isArray(data.externalContinuity?.signals));
+    assert.ok(Array.isArray(data.externalContinuity?.traces));
   });
 
   it("POST /process-output strips tags", async () => {

@@ -80,7 +80,7 @@ Psyche 要解决的不可压缩问题只有一个：
 
 - **只装 Psyche**：正常可用，拥有主观连续性和关系动力学；只是没有外部连续性层
 - **只装 Thronglets**：正常可用，拥有 delegate / session 连续性与环境协作；只是没有主观连续性内核
-- **两者都装**：Psyche 通过可选 `externalContinuity` envelope 输出稀疏、低频、可归属的事件给 Thronglets
+- **两者都装**：Psyche 通过可选 `externalContinuity` envelope 输出稀疏、低频、可归属的 `signals / traces` 给 Thronglets
 
 原则上：
 
