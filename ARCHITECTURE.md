@@ -663,7 +663,7 @@ src/
     langchain.ts       — LangChain 适配器
     http.ts            — HTTP REST API 服务器
 
-tests/                   — 1307 tests
+tests/                   — 1308 tests
   core.test.ts           — 核心引擎测试
   storage.test.ts        — 存储适配器测试
   chemistry.test.ts      — 化学系统测试
@@ -914,7 +914,7 @@ src/
   storage.ts           — FileStorageAdapter / MemoryStorageAdapter
   adapters/            — OpenClaw / Vercel AI / LangChain / HTTP
 
-tests/                 — 1307 tests
+tests/                 — 1308 tests
 ```
 
 ## Design Principles

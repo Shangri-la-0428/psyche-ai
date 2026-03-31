@@ -13,6 +13,7 @@
 //   psyche reset <dir> [--full]
 //   psyche diagnose <dir> [--github]
 //   psyche upgrade [--check]
+//   psyche probe [--json]
 //   psyche profiles [--json] [--mbti TYPE]
 // ============================================================
 
@@ -39,6 +40,7 @@ import type { MBTIType, PsycheState, Locale, PsycheMode, PersonalityTraits } fro
 import { CHEMICAL_KEYS, CHEMICAL_NAMES_ZH, DRIVE_KEYS, DRIVE_NAMES_ZH } from "./types.js";
 import { isMBTIType, isChemicalKey, isLocale } from "./guards.js";
 import { getPackageVersion, selfUpdate } from "./update.js";
+import { runRuntimeProbe } from "./runtime-probe.js";
 
 // ── Logger ───────────────────────────────────────────────────
 
@@ -486,6 +488,37 @@ async function cmdUpgrade(checkOnly: boolean): Promise<void> {
   console.log(result.message);
 }
 
+async function cmdProbe(json: boolean): Promise<void> {
+  const result = await runRuntimeProbe();
+
+  if (json) {
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+
+  if (!result.ok) {
+    console.log("\nPsyche runtime probe: FAILED\n");
+    console.log(`  version: ${result.version}`);
+    console.log(`  entry: ${result.entry}`);
+    console.log(`  load path: ${result.loadPath}`);
+    console.log(`  module path: ${result.modulePath}`);
+    console.log(`  cli path: ${result.cliPath}`);
+    console.log(`  error: ${result.error ?? "unknown error"}`);
+    return;
+  }
+
+  console.log("\nPsyche runtime probe: OK\n");
+  console.log(`  version: ${result.version}`);
+  console.log(`  entry: ${result.entry}`);
+  console.log(`  load path: ${result.loadPath}`);
+  console.log(`  module path: ${result.modulePath}`);
+  console.log(`  cli path: ${result.cliPath}`);
+  console.log(`  processInput: ok (stimulus=${result.stimulus ?? "null"})`);
+  console.log(`  processOutput: ok (stateChanged=${String(result.stateChanged)})`);
+  console.log(`  replyEnvelope: ${result.canonicalHostSurface ? "present" : "missing"}`);
+  console.log(`  externalContinuity: ${result.externalContinuityAvailable ? "present" : "missing"}`);
+}
+
 // ── Usage ────────────────────────────────────────────────────
 
 function usage(): void {
@@ -504,6 +537,7 @@ Usage:
   psyche reset <dir> [--full]
   psyche diagnose <dir> [--github]   Run health checks & show diagnostic report
   psyche upgrade [--check]           Check/apply package updates safely
+  psyche probe [--json]              Verify the runtime is truly callable
   psyche profiles [--mbti TYPE] [--json]
 
 Options:
@@ -536,6 +570,9 @@ Examples:
 
   # Check for new package versions without applying them
   psyche upgrade --check
+
+  # Prove this environment can really call Psyche
+  psyche probe --json
 	`);
 }
 
@@ -681,6 +718,18 @@ async function main(): Promise<void> {
           allowPositionals: true,
         });
         await cmdUpgrade(values.check ?? false);
+        break;
+      }
+
+      case "probe": {
+        const { values } = parseArgs({
+          args: rest,
+          options: {
+            json: { type: "boolean", default: false },
+          },
+          allowPositionals: true,
+        });
+        await cmdProbe(values.json ?? false);
         break;
       }
 

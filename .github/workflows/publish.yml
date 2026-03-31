@@ -12,13 +12,19 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org
       - run: npm ci
+      - run: npm run release:guard
+        env:
+          PSYCHE_RELEASE_GUARD_MODE: ci
       - run: npm run build
       - run: npm test
       - run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          PSYCHE_RELEASE_GUARD_MODE: ci

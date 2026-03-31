@@ -32,11 +32,28 @@ describe("cli help", () => {
     assert.ok(stdout.includes("init"));
     assert.ok(stdout.includes("status"));
     assert.ok(stdout.includes("upgrade"));
+    assert.ok(stdout.includes("probe"));
   });
 
   it("shows usage on no args", async () => {
     const { stdout } = await run([]);
     assert.ok(stdout.includes("Usage"));
+  });
+});
+
+// ── probe ───────────────────────────────────────────────────
+
+describe("cli probe", () => {
+  it("returns machine-readable runtime proof", async () => {
+    const { stdout } = await run(["probe", "--json"]);
+    const parsed = JSON.parse(stdout);
+    assert.equal(parsed.ok, true);
+    assert.equal(parsed.packageName, "psyche-ai");
+    assert.equal(parsed.entry, "sdk");
+    assert.equal(parsed.processInputCalled, true);
+    assert.equal(parsed.processOutputCalled, true);
+    assert.equal(parsed.canonicalHostSurface, true);
+    assert.ok(typeof parsed.loadPath === "string" && parsed.loadPath.length > 0);
   });
 });
 

@@ -43,7 +43,10 @@
     "test": "npm run build && npm run build:test && node --test dist-test/tests/*.test.js",
     "typecheck": "tsc --noEmit --strict",
     "dev": "tsc --watch",
-    "demo": "node scripts/demo-ab.js"
+    "demo": "node scripts/demo-ab.js",
+    "probe": "node dist/cli.js probe --json",
+    "release:guard": "node scripts/release-guard.mjs",
+    "prepublishOnly": "npm run release:guard && npm test"
   },
   "license": "MIT",
   "repository": {

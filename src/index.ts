@@ -123,6 +123,8 @@ export {
   serializeThrongletsExportAsTrace,
   serializeExternalContinuityForThronglets,
 } from "./thronglets-runtime.js";
+export { runRuntimeProbe } from "./runtime-probe.js";
+export type { RuntimeProbeResult } from "./runtime-probe.js";
 
 // Experiential field (P6 + P8 Barrett construction)
 export { computeExperientialField, computeCoherence, detectUnnamedEmotion, computeAffectCore } from "./experiential-field.js";

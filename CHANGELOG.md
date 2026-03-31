@@ -29,6 +29,7 @@
 - **公开入口统一**：npm / GitHub / 官网开始明确区分包名 `psyche-ai`、源码仓库 `oasyce_psyche` 和官网 `psyche.oasyce.com`。
 - **官网扩页**：新增 OpenClaw、MCP、benchmarks、relation dynamics、work vs private、compare、demo 等发现页，补齐搜索和分享入口。
 - **传播资产**：补齐 demo 脚本、community post 草稿、MCP 目录提交文案、release cadence 文档。
+- **运行时自证**：新增 `psyche probe --json` 和 `docs/AGENT_RUNTIME_PROBE.md`，把“另一个 agent 是否真的接上了 Psyche”变成可执行的验收协议，而不是口头解释。
 
 ---
 

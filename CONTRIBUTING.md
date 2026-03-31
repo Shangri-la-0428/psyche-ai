@@ -54,6 +54,21 @@ src/profiles.ts    — MBTI 人格
 
 不要再添加新的顶层身份对象，除非现有四元组和 policy / view / trace 层都无法表达现实。
 
+## 两个硬闸
+
+以后默认执行这两条，不靠口头约定：
+
+1. **接入硬闸**
+   - 任何 agent 如果声称“已经在用 Psyche”，必须附 `psyche probe --json` 的结果
+   - 没有 probe，不算真正接入
+   - 说明文档见 [docs/AGENT_RUNTIME_PROBE.md](docs/AGENT_RUNTIME_PROBE.md)
+
+2. **发布硬闸**
+   - npm 发版前必须通过 `npm run release:guard`
+   - 本地发布要求：工作树干净、当前分支是 `main`、`HEAD == origin/main`
+   - CI 发布要求：当前发布提交必须已经属于 `origin/main`
+   - 这条规则用来防止 npm 版本领先 GitHub `main`
+
 ## 在新增刺激类型之前
 
 新增 `StimulusType` 现在应被视为**例外**，不是默认扩展路径。
@@ -121,7 +136,7 @@ src/profiles.ts    — MBTI 人格
 
 ## PR 准则
 
-- 所有 PR 必须通过 `npm test`（1301+ 测试）和 `npx tsc --noEmit --strict`
+- 所有 PR 必须通过 `npm test`（1308+ 测试）和 `npx tsc --noEmit --strict`
 - 新功能必须包含测试
 - 保持零依赖策略：不引入运行时依赖
 - 用户可见的字符串应通过 `src/i18n.ts`
@@ -182,6 +197,21 @@ The cross-stack identity model is also frozen around four objects:
 4. `session`
 
 Do not introduce new top-level identity objects unless these four plus policy / view / trace layers fail.
+
+## Two Hard Gates
+
+These are now process rules, not soft conventions:
+
+1. **Adoption gate**
+   - Any agent claiming “Psyche is enabled” must provide `psyche probe --json`
+   - No probe means no verified integration
+   - See [docs/AGENT_RUNTIME_PROBE.md](docs/AGENT_RUNTIME_PROBE.md)
+
+2. **Release gate**
+   - npm publishing must pass `npm run release:guard`
+   - Local publishing requires: clean worktree, `main`, and `HEAD == origin/main`
+   - CI publishing requires the release commit to already belong to `origin/main`
+   - This prevents npm releases from getting ahead of GitHub `main`
 
 ## Before Adding a New Stimulus Type
 
@@ -251,7 +281,7 @@ Profiles live in `src/profiles.ts`. Each has:
 
 ## PR Guidelines
 
-- All PRs must pass `npm test` (1301+ tests) and `npx tsc --noEmit --strict`
+- All PRs must pass `npm test` (1308+ tests) and `npx tsc --noEmit --strict`
 - Include tests for new features
 - Keep the zero-dependency policy: no runtime dependencies
 - Strings that users will see should go through `src/i18n.ts`
