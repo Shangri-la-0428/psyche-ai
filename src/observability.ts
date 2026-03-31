@@ -152,19 +152,19 @@ function buildStateLayers(
 function buildStateReconciliation(
   stateLayers: StateLayerObservation[],
 ): StateReconciliationObservation {
-  const activeLayers = stateLayers.filter((layer) => layer.active).map((layer) => layer.layer);
+  const activeObservations = stateLayers
+    .filter((layer) => layer.active)
+    .sort((a, b) => a.precedence - b.precedence);
+  const activeLayers = activeObservations.map((layer) => layer.layer);
   const carryLayers = activeLayers.filter((layer) => layer !== "current-turn");
 
-  let governingLayer: StateLayerKind = "persisted-relationship";
+  const governingLayer = activeObservations[0]?.layer ?? "persisted-relationship";
   let resolution: StateReconciliationObservation["resolution"] = "persistent-baseline";
   if (activeLayers.includes("writeback-feedback")) {
-    governingLayer = "writeback-feedback";
     resolution = "writeback-adjusted";
-  } else if (activeLayers.includes("session-bridge")) {
-    governingLayer = "session-bridge";
+  } else if (activeLayers.includes("session-bridge") && activeLayers.includes("current-turn")) {
     resolution = "session-bridge-biased";
   } else if (activeLayers.includes("current-turn")) {
-    governingLayer = "current-turn";
     resolution = "current-turn-dominant";
   }
 
@@ -199,10 +199,14 @@ function buildDecisionRationale(
   const repairFriction = subjectivityKernel.relationPlane.repairFriction;
   const expressionInhibition = subjectivityKernel.ambiguityPlane.expressionInhibition;
   const namingConfidence = subjectivityKernel.ambiguityPlane.namingConfidence;
+  const taskFocused = taskFocus >= 0.62;
+  const disciplined = discipline >= 0.72;
+  const taskFocusRatio = clamp01(taskFocus / 0.62);
+  const disciplineRatio = clamp01(discipline / 0.72);
 
   const triggerConditions: string[] = [];
-  pushReason(triggerConditions, taskFocus >= 0.62, "task-focus>=0.62");
-  pushReason(triggerConditions, discipline >= 0.72, "discipline>=0.72");
+  pushReason(triggerConditions, taskFocused, "task-focus>=0.62");
+  pushReason(triggerConditions, disciplined, "discipline>=0.72");
   pushReason(triggerConditions, expressionInhibition > 0.64, "expression-inhibition>0.64");
   pushReason(triggerConditions, loopPressure > 0.68, "loop-pressure>0.68");
   pushReason(triggerConditions, repairFriction > 0.6, "repair-friction>0.60");
@@ -212,26 +216,24 @@ function buildDecisionRationale(
   }
 
   const workReasons: string[] = [];
-  pushReason(workReasons, taskFocus >= 0.62, "task focus crossed work threshold");
-  pushReason(workReasons, discipline >= 0.72, "discipline crossed work threshold");
+  pushReason(workReasons, taskFocused, "task focus crossed work threshold");
+  pushReason(workReasons, disciplined, "discipline crossed work threshold");
   pushReason(workReasons, taskFocus > 0.78 && discipline > 0.68, "high task-focus and discipline reinforce work mode");
-  const workScore = clamp01((taskFocus * 0.55) + (discipline * 0.45));
+  const workScore = taskFocused && disciplined
+    ? 1
+    : taskFocused || disciplined
+      ? 0.82
+      : clamp01(Math.max(taskFocusRatio, disciplineRatio) * 0.35);
 
   const privateReasons: string[] = [];
-  pushReason(privateReasons, taskFocus < 0.62 && discipline < 0.72, "no work threshold active");
+  pushReason(privateReasons, !taskFocused && !disciplined, "no work threshold active");
   pushReason(privateReasons, attachment > 0.58, "attachment keeps private surface viable");
   pushReason(privateReasons, closeness > 0.58, "relational closeness favors private surface");
   pushReason(privateReasons, guardedness > 0.62 || loopPressure > 0.58, "guarded relation state prefers private handling");
   pushReason(privateReasons, repairFriction > 0.48 || residue > 0.45, "carry or friction remains active");
-  const privateScore = clamp01(
-    ((1 - taskFocus) * 0.24)
-    + (attachment * 0.2)
-    + (closeness * 0.2)
-    + (guardedness * 0.14)
-    + (loopPressure * 0.12)
-    + (repairFriction * 0.06)
-    + (residue * 0.04),
-  );
+  const privateScore = !taskFocused && !disciplined
+    ? clamp01(0.78 + (((1 - taskFocusRatio) + (1 - disciplineRatio)) / 2) * 0.22)
+    : clamp01((1 - Math.max(taskFocusRatio, disciplineRatio)) * 0.3);
 
   const selected: DecisionCandidateName = responseContract.replyProfile === "work"
     ? "work-profile"

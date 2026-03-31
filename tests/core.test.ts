@@ -153,6 +153,9 @@ describe("PsycheEngine", () => {
     assert.ok(result.observability?.decisionRationale.triggerConditions.includes("task-focus>=0.62"));
     assert.equal(result.observability?.decisionRationale.selected, "work-profile");
     assert.ok(result.observability?.decisionRationale.candidates.some((candidate) => candidate.accepted && candidate.candidate === "work-profile"));
+    const acceptedWorkCandidate = result.observability?.decisionRationale.candidates.find((candidate) => candidate.accepted);
+    const rejectedPrivateCandidate = result.observability?.decisionRationale.candidates.find((candidate) => !candidate.accepted);
+    assert.ok((acceptedWorkCandidate?.score ?? 0) >= (rejectedPrivateCandidate?.score ?? 0));
     assert.equal(result.observability?.outputAttribution.canonicalSurface, "reply-envelope");
     assert.equal(result.observability?.outputAttribution.promptRenderer, "dynamic");
     assert.ok(result.observability?.outputAttribution.renderInputs.includes("subjectivity"));
@@ -875,7 +878,7 @@ END: 75 (happy)
     const writebackLayer = result.observability?.stateLayers.find((layer) => layer.layer === "writeback-feedback");
     assert.ok(writebackLayer?.active, "expected writeback layer to be active");
     assert.equal(writebackLayer?.summary, "trust_up:converging");
-    assert.equal(result.observability?.stateReconciliation.governingLayer, "writeback-feedback");
+    assert.equal(result.observability?.stateReconciliation.governingLayer, "current-turn");
     assert.equal(result.observability?.stateReconciliation.resolution, "writeback-adjusted");
     assert.ok(result.observability?.stateReconciliation.notes.some((note) => note === "writeback-feedback:trust_up:converging"));
     assert.ok(
