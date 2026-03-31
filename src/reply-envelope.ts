@@ -61,6 +61,7 @@ export function deriveReplyEnvelope(
     algorithmStimulus: opts.algorithmStimulus,
     classificationConfidence: opts.classificationConfidence,
     personalityIntensity: opts.personalityIntensity,
+    mode: state.meta.mode,
   });
   const generationControls = deriveGenerationControls({
     responseContract,

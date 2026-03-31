@@ -208,11 +208,13 @@ export function computeResponseContract(
     algorithmStimulus?: StimulusType | null;
     classificationConfidence?: number;
     personalityIntensity?: number;
+    mode?: "natural" | "work" | "companion";
   },
 ): ResponseContract {
   const locale = opts?.locale ?? "zh";
   const userText = opts?.userText ?? "";
   const personalityIntensity = opts?.personalityIntensity ?? 0.7;
+  const isCompanion = opts?.mode === "companion";
   const { replyProfile, replyProfileBasis } = deriveReplyProfile(kernel);
   const classificationConfidence = opts?.classificationConfidence ?? 0;
   const overrideWindow: ResponseContract["overrideWindow"] = classificationConfidence >= 0.78
@@ -220,14 +222,19 @@ export function computeResponseContract(
     : classificationConfidence >= 0.62
       ? "balanced"
       : "wide";
-  const { maxSentences, maxChars } = userText.length > 0
+  let { maxSentences, maxChars } = userText.length > 0
     ? computeLengthBudget(locale, userText, replyProfile, kernel.expressionMode, kernel)
     : {
         maxSentences: replyProfile === "work"
           ? (kernel.expressionMode === "expansive" ? 5 : 3)
           : kernel.expressionMode === "brief" ? 1 : kernel.expressionMode === "expansive" ? 3 : 2,
-        maxChars: replyProfile === "work" ? 160 : undefined,
+        maxChars: replyProfile === "work" ? 160 : undefined as number | undefined,
       };
+
+  // Companion mode: relax length constraints — warmth needs room.
+  if (isCompanion && maxChars !== undefined) {
+    maxChars = Math.round(maxChars * 1.3);
+  }
 
   let updateMode: ResponseContract["updateMode"] = "none";
   if (kernel.taskPlane.focus > 0.72) {
@@ -306,7 +313,7 @@ export function computeResponseContract(
     boundaryMode,
     toneParticles: userText.length > 0 ? detectToneParticles(userText, locale) : "natural",
     emojiLimit: userText.length > 0 ? detectEmojiLimit(userText) : 0,
-    authenticityMode: personalityIntensity >= 0.3 ? "strict" : "friendly",
+    authenticityMode: personalityIntensity >= 0.3 && !(isCompanion && socialDistance === "warm") ? "strict" : "friendly",
     updateMode,
   };
 }

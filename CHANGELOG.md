@@ -1,5 +1,15 @@
 # 更新日志 / Changelog
 
+## v10.0.1 — Companion Warmth Calibration
+
+**Fixes:**
+
+- **Companion mode mirror constraint 放松 ×1.3**：response contract 的 `maxChars` 在 companion 模式下乘以 1.3，给 LLM 更多表达空间。此前 mirror constraint 过严导致 companion 模式"体感更冷"。
+- **Companion + warm socialDistance → "自然友好"**：当 companion 模式下 `socialDistance=warm` 时，`authenticityMode` 从 `strict`（不贴不舔）切换为 `friendly`（自然友好）。只在暖的时候放松，非无条件。
+- **OT warmth 阈值 mode-aware**：`deriveBehavioralBias` 中 OT warmth 触发阈值，companion 模式从 >10 降至 >5。
+- **warm-resume 正向约束**：established + warm-resume 场景下，unified constraints 从纯防御（"镜像对方风格。不贴不舔。有自尊。"）改为正向（"放松，可以主动分享。有自尊。"）。
+- **Companion 模式语气词默认启用**：mirror constraint 中 companion 模式无条件允许语气词。
+
 ## v10.0.0 — Radical Simplification
 
 **Breaking changes:**
