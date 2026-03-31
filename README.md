@@ -74,6 +74,20 @@ Psyche 要解决的不可压缩问题只有一个：
 - `Psyche` 回答“我因此变成了什么”
 - `Thronglets` 回答“这个变化属于谁、谁能验证、谁能继续承认它”
 
+## 可分离安装
+
+这两层默认就是可分离的，不应互相成为硬依赖。
+
+- **只装 Psyche**：正常可用，拥有主观连续性和关系动力学；只是没有外部连续性层
+- **只装 Thronglets**：正常可用，拥有 delegate / session 连续性与环境协作；只是没有主观连续性内核
+- **两者都装**：Psyche 通过可选 `externalContinuity` envelope 输出稀疏、低频、可归属的事件给 Thronglets
+
+原则上：
+
+- `Psyche` 必须 standalone 可用
+- `Thronglets` 必须 additive，而不是 Psyche 的运行前提
+- 两者之间只通过稀疏 `signal / trace` 接口连接
+
 ## 新概念准入规则
 
 以后引入任何新概念，先尝试压进这 5 个原始容器：

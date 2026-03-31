@@ -306,6 +306,10 @@ describe("createPsycheServer (HTTP)", () => {
     assert.ok(data.subjectivityKernel);
     assert.ok(data.responseContract);
     assert.ok(data.generationControls);
+    assert.equal(data.externalContinuity?.provider, "thronglets");
+    assert.equal(data.externalContinuity?.mode, "optional");
+    assert.equal(data.externalContinuity?.version, 1);
+    assert.ok(Array.isArray(data.externalContinuity?.exports));
   });
 
   it("POST /process-output strips tags", async () => {

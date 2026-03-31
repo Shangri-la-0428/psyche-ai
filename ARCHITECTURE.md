@@ -89,6 +89,22 @@ v9.0 把“反向 baseline test”引入主体性方向。v9.2.7 则继续把关
 
 不要把高频化学状态、内心独白或每轮 residue 推给 Thronglets。
 
+### 可分离安装原则
+
+这两个系统必须默认可分离安装：
+
+- 没有 `Thronglets` 时，`Psyche` 仍然完整运行
+- 没有 `Psyche` 时，`Thronglets` 仍然完整运行
+- 两者同时存在时，只通过可选的外部连续性 contract 连接
+
+当前在 `Psyche` 侧，这个 contract 体现为：
+
+- `externalContinuity.provider = "thronglets"`
+- `externalContinuity.mode = "optional"`
+- `externalContinuity.exports = sparse signal/trace[]`
+
+`throngletsExports` 保留为兼容别名，但不应被理解为硬依赖。
+
 ## 五个原始容器
 
 以后所有新概念，先尝试压缩进这 5 个原始容器：

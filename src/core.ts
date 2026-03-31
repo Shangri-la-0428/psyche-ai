@@ -12,7 +12,7 @@
 // Orchestrates: chemistry, classify, prompt, profiles, guards, learning
 // ============================================================
 
-import type { PsycheState, StimulusType, Locale, MBTIType, ChemicalState, OutcomeScore, PsycheMode, PersonalityTraits, PolicyModifiers, ClassifierProvider, SubjectivityKernel, ResponseContract, GenerationControls, SessionBridgeState, ThrongletsExport, WritebackCalibrationFeedback, WritebackSignalType } from "./types.js";
+import type { PsycheState, StimulusType, Locale, MBTIType, ChemicalState, OutcomeScore, PsycheMode, PersonalityTraits, PolicyModifiers, ClassifierProvider, SubjectivityKernel, ResponseContract, GenerationControls, SessionBridgeState, ThrongletsExport, WritebackCalibrationFeedback, WritebackSignalType, ExternalContinuityEnvelope } from "./types.js";
 import { DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE, DEFAULT_ENERGY_BUDGETS, DEFAULT_TRAIT_DRIFT, DEFAULT_SUBJECT_RESIDUE, DEFAULT_DYADIC_FIELD } from "./types.js";
 import type { StorageAdapter } from "./storage.js";
 import { MemoryStorageAdapter } from "./storage.js";
@@ -105,6 +105,8 @@ export interface ProcessInputResult {
   sessionBridge?: SessionBridgeState | null;
   /** v9.2.8: sparse writeback signals evaluated on the latest turn */
   writebackFeedback?: WritebackCalibrationFeedback[];
+  /** v9.2.8: optional additive external continuity contract */
+  externalContinuity?: ExternalContinuityEnvelope<ThrongletsExport>;
   /** v9.2.8: sparse low-frequency export surface suitable for Thronglets */
   throngletsExports?: ThrongletsExport[];
   /**
@@ -849,6 +851,12 @@ export class PsycheEngine {
     }
 
     if (this.cfg.compactMode) {
+      const externalContinuity: ExternalContinuityEnvelope<ThrongletsExport> = {
+        provider: "thronglets",
+        mode: "optional",
+        version: 1,
+        exports: throngletsExports,
+      };
       return {
         systemContext: "",
         dynamicContext: buildCompactContext(state, opts?.userId, {
@@ -875,11 +883,18 @@ export class PsycheEngine {
         generationControls: replyEnvelope.generationControls,
         sessionBridge,
         writebackFeedback,
+        externalContinuity,
         throngletsExports,
         policyContext: replyEnvelope.policyContext,
       };
     }
 
+    const externalContinuity: ExternalContinuityEnvelope<ThrongletsExport> = {
+      provider: "thronglets",
+      mode: "optional",
+      version: 1,
+      exports: throngletsExports,
+    };
     return {
       systemContext: this.getProtocol(locale),
       dynamicContext: buildDynamicContext(state, opts?.userId, {
@@ -901,6 +916,7 @@ export class PsycheEngine {
       generationControls: replyEnvelope.generationControls,
       sessionBridge,
       writebackFeedback,
+      externalContinuity,
       throngletsExports,
       policyContext: replyEnvelope.policyContext,
     };

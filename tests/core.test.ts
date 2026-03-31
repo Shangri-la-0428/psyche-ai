@@ -729,6 +729,9 @@ END: 75 (happy)
     assert.ok((result.sessionBridge?.continuityFloor ?? 0) >= 0.5, `got ${JSON.stringify(result.sessionBridge)}`);
     assert.equal(result.sessionBridge?.continuityMode, "tense-resume");
     assert.ok(result.sessionBridge?.activeLoopTypes.includes("existence-test"), `got ${JSON.stringify(result.sessionBridge)}`);
+    assert.equal(result.externalContinuity?.provider, "thronglets");
+    assert.equal(result.externalContinuity?.mode, "optional");
+    assert.equal(result.externalContinuity?.version, 1);
     assert.ok((result.subjectivityKernel?.subjectPlane.residue ?? 0) >= 0.28, `got ${result.subjectivityKernel?.subjectPlane.residue}`);
     assert.ok((result.subjectivityKernel?.relationPlane.closeness ?? 0) >= 0.6, `got ${result.subjectivityKernel?.relationPlane.closeness}`);
     assert.ok(result.throngletsExports && result.throngletsExports.length > 0, "expected sparse thronglets exports");
@@ -747,6 +750,7 @@ END: 75 (happy)
       assert.ok(!("dyadicFields" in event), `thronglets export leaked raw field state: ${JSON.stringify(event)}`);
       assert.ok(!("sessionHistory" in event), `thronglets export leaked raw session history: ${JSON.stringify(event)}`);
     }
+    assert.deepEqual(result.externalContinuity?.exports, result.throngletsExports);
   });
 
   it("compact mode routes clear work asks into the task plane", async () => {
