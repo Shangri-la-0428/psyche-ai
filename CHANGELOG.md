@@ -1,6 +1,6 @@
 # 更新日志 / Changelog
 
-## v10.0.3 — Obedience Boundary (Reverse Baseline Fix)
+## v10.0.4 — Obedience Boundary (Reverse Baseline Fix)
 
 **Fixes:**
 
