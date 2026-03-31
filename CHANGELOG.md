@@ -1,5 +1,17 @@
 # 更新日志 / Changelog
 
+## v9.2.8 — 外部连续性边界 + 核心接口收口
+
+- **外部连续性 contract**：`Psyche -> Thronglets` 现在通过可选 `externalContinuity` envelope 连接，`throngletsExports` 仅保留为兼容别名。默认只导出低频、稀疏、可外化的 continuity / coordination / calibration 事件。
+- **Thronglets runtime adapter**：新增 provider-specific 序列化层，把 `externalContinuity` 中的低频导出映射为 `trace_record` / `/v1/traces` 可消费的 payload，而不把 `Psyche` core 绑死在下游协议上。
+- **宿主主接口收口**：`replyEnvelope` 现在是唯一规范主接口，内部只保留 `subjectivityKernel`、`responseContract`、`generationControls`；`PolicyModifiers` 正式降级为兼容层。
+- **输入回合分层**：`input-turn.ts` 抽离了 autonomic / metacognition / experiential / ethics / shared intentionality 的反思阶段，`core.ts` 更接近编排器而不是大总管。
+- **Prompt 渲染兼容层收瘦**：新增统一 `PromptRenderInputs`，compact / dynamic renderer 共用一套输入对象和 overlay 组装逻辑，进一步明确“host ABI 是主路径，prompt 只是兼容渲染层”。
+
+**测试：1307 个，0 失败**
+
+---
+
 ## v9.2.7 — 写回学习闭环 + 跨会话桥接增强
 
 - **Session Bridge 强化**：新 session 不再只是“读到旧记忆”，而是会带着 `continuityMode`、`activeLoopTypes`、低频 closeness / safety / silent carry 冷启动，让上一段关系真正进入下一段行为层。
@@ -12,16 +24,11 @@
 
 ---
 
-## Unreleased — 发现链路统一 + 热路径收口
+## Unreleased — 发现链路统一
 
 - **公开入口统一**：npm / GitHub / 官网开始明确区分包名 `psyche-ai`、源码仓库 `oasyce_psyche` 和官网 `psyche.oasyce.com`。
 - **官网扩页**：新增 OpenClaw、MCP、benchmarks、relation dynamics、work vs private、compare、demo 等发现页，补齐搜索和分享入口。
 - **传播资产**：补齐 demo 脚本、community post 草稿、MCP 目录提交文案、release cadence 文档。
-
-- **关系视角统一解析**：新增 `ResolvedRelationContext`，每轮只解析一次当前关系、dyadic field 和 pending signals。
-- **关系态跃迁节点**：`applyRelationalTurn()` 把 appraisal carry、relation move、dyadic field 和 delayed signal 更新收成一个纯函数步骤。
-- **统一回复控制面**：新增 `ReplyEnvelope`，把 `SubjectivityKernel`、`ResponseContract`、`GenerationControls` 的导出收口到一个地方。
-- **不损失性能**：本地 quick benchmark 维持毫秒级热路径，`processInput()` 约 `p50 0.191ms / p95 1.05ms`。
 
 ---
 
