@@ -26,7 +26,9 @@ export type {
   PsycheState, ChemicalState, Locale, PsycheMode, StimulusType, MBTIType,
   WritebackSignalType,
   DelegateCapability, CapabilityGrant, RevocationCondition, DelegateAuthorization,
+  ModeProfile,
 } from "./types.js";
+export { MODE_PROFILES } from "./types.js";
 
 // ── Prompt context builders ─────────────────────────────────
 export { buildProtocolContext, buildCompactContext } from "./prompt.js";

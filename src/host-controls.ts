@@ -13,20 +13,18 @@ function clampInt(v: number, min: number, max: number): number {
 function estimateMaxTokens(contract?: ResponseContract): number | undefined {
   if (!contract) return undefined;
 
+  // Derive from vibe tier (maxSentences) — aligned with what the prompt actually tells the LLM.
+  // No precise char counts in prompt means maxTokens is the only hard ceiling.
   let budget: number;
-  if (contract.maxChars !== undefined) {
-    budget = clampInt(contract.maxChars * 2.2, 64, 1024);
-  } else if (contract.expressionMode === "brief") {
-    budget = 96;
-  } else if (contract.expressionMode === "expansive") {
-    budget = 640;
-  } else {
-    budget = 256;
-  }
+  if (contract.maxSentences <= 1) budget = 96;
+  else if (contract.maxSentences <= 2) budget = 192;
+  else if (contract.maxSentences <= 3) budget = 320;
+  else budget = 512;
 
-  if (contract.maxSentences <= 1) budget = Math.min(budget, 96);
-  else if (contract.maxSentences === 2) budget = Math.min(budget, 160);
-  else if (contract.maxSentences === 3) budget = Math.min(budget, 320);
+  // Work mode: tighter ceiling from internal maxChars when available
+  if (contract.replyProfile === "work" && contract.maxChars !== undefined) {
+    budget = Math.min(budget, clampInt(contract.maxChars * 2.2, 96, 1024));
+  }
 
   if (contract.initiativeMode === "reactive") {
     budget = clampInt(budget * 0.85, 64, 1024);

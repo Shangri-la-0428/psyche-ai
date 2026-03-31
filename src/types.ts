@@ -114,6 +114,67 @@ export const CHEMICAL_RUNTIME_SPECS: Record<keyof ChemicalState, ChemicalRuntime
 /** Psyche operating mode */
 export type PsycheMode = "natural" | "work" | "companion";
 
+/** Mode profile — all mode-specific parameters in one place. */
+export interface ModeProfile {
+  chemistryMultiplier: number;
+  maxChemicalDelta: number | null;
+  nearBaselineThreshold: number;
+  otWarmthThreshold: number;
+  lengthMultiplier: number;
+  minSentences: number;
+  authenticityWhenWarm: "strict" | "friendly";
+  toneParticlesDefault: boolean;
+  relationDecay: number;
+  relationDrift: number;
+  relationSignalTTL: number;
+  appraisalDecay: number;
+}
+
+export const MODE_PROFILES: Record<PsycheMode, ModeProfile> = {
+  work: {
+    chemistryMultiplier: 0.3,
+    maxChemicalDelta: 5,
+    nearBaselineThreshold: 20,
+    otWarmthThreshold: 10,
+    lengthMultiplier: 1.0,
+    minSentences: 1,
+    authenticityWhenWarm: "strict",
+    toneParticlesDefault: false,
+    relationDecay: 0.94,
+    relationDrift: 0.06,
+    relationSignalTTL: 4,
+    appraisalDecay: 0.68,
+  },
+  natural: {
+    chemistryMultiplier: 1.0,
+    maxChemicalDelta: null,
+    nearBaselineThreshold: 8,
+    otWarmthThreshold: 10,
+    lengthMultiplier: 1.0,
+    minSentences: 1,
+    authenticityWhenWarm: "strict",
+    toneParticlesDefault: false,
+    relationDecay: 0.97,
+    relationDrift: 0.04,
+    relationSignalTTL: 6,
+    appraisalDecay: 0.78,
+  },
+  companion: {
+    chemistryMultiplier: 1.5,
+    maxChemicalDelta: null,
+    nearBaselineThreshold: 5,
+    otWarmthThreshold: 5,
+    lengthMultiplier: 1.5,
+    minSentences: 2,
+    authenticityWhenWarm: "friendly",
+    toneParticlesDefault: true,
+    relationDecay: 0.97,
+    relationDrift: 0.04,
+    relationSignalTTL: 6,
+    appraisalDecay: 0.86,
+  },
+};
+
 /** Big Five personality traits (0-100 each) */
 export interface PersonalityTraits {
   openness: number;        // 好奇↔保守

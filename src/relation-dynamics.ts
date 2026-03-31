@@ -25,7 +25,7 @@ import type {
   WritebackCalibrationMetric,
   WritebackSignalType,
 } from "./types.js";
-import { DEFAULT_APPRAISAL_AXES, DEFAULT_DYADIC_FIELD, DEFAULT_RELATIONSHIP } from "./types.js";
+import { DEFAULT_APPRAISAL_AXES, DEFAULT_DYADIC_FIELD, DEFAULT_RELATIONSHIP, MODE_PROFILES } from "./types.js";
 import { computeAppraisalAxes, mergeAppraisalResidue } from "./appraisal.js";
 
 interface MoveRule {
@@ -219,7 +219,7 @@ function withLoop(
 }
 
 function ageLoops(loops: OpenLoopState[], mode: PsycheMode | undefined): OpenLoopState[] {
-  const decay = mode === "work" ? 0.94 : 0.97;
+  const decay = MODE_PROFILES[mode ?? "natural"].relationDecay;
   return loops
     .map((loop) => ({
       ...loop,
@@ -983,7 +983,7 @@ export function evolveDyadicField(
   const delayedPressure = opts?.delayedPressure ?? 0;
 
   let openLoops = ageLoops(prev.openLoops, mode);
-  const naturalDrift = mode === "work" ? 0.06 : 0.04;
+  const naturalDrift = MODE_PROFILES[mode ?? "natural"].relationDrift;
   // NOTE: repairFriction reads deprecated fields (repairFatigue, misattunementLoad,
   // backslidePressure).  These feed internal field evolution only — they have no
   // downstream behavioral effect on prompt or policy output.
@@ -1425,7 +1425,7 @@ export function evolvePendingRelationSignals(
   const aged = (previous ?? [])
     .map((signal) => ({
       ...signal,
-      intensity: clamp01(signal.intensity * (mode === "work" ? 0.94 : 0.97)),
+      intensity: clamp01(signal.intensity * MODE_PROFILES[mode ?? "natural"].relationDecay),
       readyInTurns: Math.max(0, signal.readyInTurns - 1),
       ttl: signal.ttl - 1,
     }))
@@ -1453,7 +1453,7 @@ export function evolvePendingRelationSignals(
       move: move.type,
       intensity: clamp01(move.intensity * (move.type === "repair" ? 0.42 : 0.54)),
       readyInTurns: move.type === "repair" ? 0 : 1,
-      ttl: mode === "work" ? 4 : 6,
+      ttl: MODE_PROFILES[mode ?? "natural"].relationSignalTTL,
     });
   }
 

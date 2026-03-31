@@ -1,5 +1,24 @@
 # 更新日志 / Changelog
 
+## v10.0.2 — ModeProfile Unification & Vibe-based Length
+
+**Architecture:**
+
+- **ModeProfile 统一抽象**：新增 `ModeProfile` 接口和 `MODE_PROFILES` 常量（`types.ts`），将 work/natural/companion 三种模式的所有参数集中定义。此前散布在 6 个文件中的 if-else 链全部替换为 profile 查表。导出为公共 API。
+- **Vibe words 替代精确字数**：prompt 层不再输出 `≤14字` 这样的精确限制，改为 `简短回`/`一两句`/`两三句`/`可以展开` 等模糊词。LLM 不再变成计数机器。
+- **maxTokens 对齐 vibe tier**：`estimateMaxTokens` 从 `maxSentences` 分档推导（96/192/320/512），不再从 `maxChars` 推导出过小的值（如 64）。
+
+**Files changed:**
+
+- `types.ts`: ModeProfile + MODE_PROFILES 定义
+- `core.ts`: chemistry multiplier/maxDelta → profile
+- `prompt.ts`: nearBaselineThreshold, otWarmthThreshold, toneParticles → profile; mirror constraint 用 vibe words
+- `response-contract.ts`: lengthMultiplier, minSentences, authenticityWhenWarm → profile; `describeLengthVibe()` 替代精确字数
+- `host-controls.ts`: maxTokens 从 maxSentences vibe tier 推导
+- `relation-dynamics.ts`: decay, drift, signalTTL → profile
+- `appraisal.ts`: appraisalDecay → profile
+- `index.ts`: 导出 ModeProfile, MODE_PROFILES
+
 ## v10.0.1 — Companion Warmth Calibration
 
 **Fixes:**

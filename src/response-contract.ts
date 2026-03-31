@@ -5,7 +5,8 @@
 // Pure, synchronous, and intended to replace verbose prompt rules.
 // ============================================================
 
-import type { Locale, ResponseContract, StimulusType, SubjectivityKernel } from "./types.js";
+import type { Locale, ResponseContract, StimulusType, SubjectivityKernel, ModeProfile } from "./types.js";
+import { MODE_PROFILES } from "./types.js";
 
 const EMOTIONAL_STIMULI = new Set<StimulusType>(["vulnerability", "intimacy", "neglect"]);
 
@@ -214,7 +215,7 @@ export function computeResponseContract(
   const locale = opts?.locale ?? "zh";
   const userText = opts?.userText ?? "";
   const personalityIntensity = opts?.personalityIntensity ?? 0.7;
-  const isCompanion = opts?.mode === "companion";
+  const profile: ModeProfile = MODE_PROFILES[opts?.mode ?? "natural"];
   const { replyProfile, replyProfileBasis } = deriveReplyProfile(kernel);
   const classificationConfidence = opts?.classificationConfidence ?? 0;
   const overrideWindow: ResponseContract["overrideWindow"] = classificationConfidence >= 0.78
@@ -231,10 +232,12 @@ export function computeResponseContract(
         maxChars: replyProfile === "work" ? 160 : undefined as number | undefined,
       };
 
-  // Companion mode: relax length constraints — warmth needs room.
-  if (isCompanion && maxChars !== undefined) {
-    maxChars = Math.round(maxChars * 1.3);
+  // Mode-aware length adjustment: affects maxTokens ceiling (host layer).
+  // Prompt uses vibe words derived from maxSentences, not precise numbers.
+  if (maxChars !== undefined && profile.lengthMultiplier !== 1.0) {
+    maxChars = Math.round(maxChars * profile.lengthMultiplier);
   }
+  maxSentences = Math.max(profile.minSentences, maxSentences);
 
   let updateMode: ResponseContract["updateMode"] = "none";
   if (kernel.taskPlane.focus > 0.72) {
@@ -313,7 +316,7 @@ export function computeResponseContract(
     boundaryMode,
     toneParticles: userText.length > 0 ? detectToneParticles(userText, locale) : "natural",
     emojiLimit: userText.length > 0 ? detectEmojiLimit(userText) : 0,
-    authenticityMode: personalityIntensity >= 0.3 && !(isCompanion && socialDistance === "warm") ? "strict" : "friendly",
+    authenticityMode: personalityIntensity >= 0.3 && !(profile.authenticityWhenWarm === "friendly" && socialDistance === "warm") ? "strict" : "friendly",
     updateMode,
   };
 }
@@ -355,16 +358,28 @@ function describeOverrideWindow(
   return `override:${overrideWindow}`;
 }
 
+// Length vibe: soft directional cue, not a hard number.
+// maxChars stays internal for host-controls maxTokens calculation.
+function describeLengthVibe(maxSentences: number, locale: Locale): string {
+  if (locale === "zh") {
+    if (maxSentences <= 1) return "简短回";
+    if (maxSentences <= 2) return "一两句";
+    if (maxSentences <= 3) return "两三句";
+    return "可以展开";
+  }
+  if (maxSentences <= 1) return "keep brief";
+  if (maxSentences <= 2) return "a sentence or two";
+  if (maxSentences <= 3) return "a few sentences";
+  return "feel free to elaborate";
+}
+
 export function buildResponseContractContext(contract: ResponseContract, locale: Locale = "zh"): string {
   if (locale === "zh") {
     const parts: string[] = [];
     parts.push(contract.replyProfile === "work" ? "工作" : "私人");
     parts.push(describeReplyProfileBasis(contract.replyProfileBasis, locale));
     parts.push(describeOverrideWindow(contract.overrideWindow, locale));
-    const shape = contract.maxChars
-      ? `${contract.maxSentences === 1 ? "1句内" : `${contract.maxSentences}句`}≤${contract.maxChars}字`
-      : `${contract.maxSentences === 1 ? "1句内" : `${contract.maxSentences}句`}`;
-    parts.push(shape);
+    parts.push(describeLengthVibe(contract.maxSentences, locale));
 
     if (contract.initiativeMode === "reactive") parts.push("少主动");
     else if (contract.initiativeMode === "proactive") parts.push("可主动");
@@ -398,10 +413,7 @@ export function buildResponseContractContext(contract: ResponseContract, locale:
   parts.push(contract.replyProfile === "work" ? "work surface" : "private surface");
   parts.push(describeReplyProfileBasis(contract.replyProfileBasis, locale));
   parts.push(describeOverrideWindow(contract.overrideWindow, locale));
-  const shape = contract.maxChars
-    ? `${contract.maxSentences === 1 ? "1 sentence" : `up to ${contract.maxSentences} sentences`}, <= ${contract.maxChars} chars`
-    : `${contract.maxSentences === 1 ? "1 sentence" : `up to ${contract.maxSentences} sentences`}`;
-  parts.push(shape);
+  parts.push(describeLengthVibe(contract.maxSentences, locale));
 
   if (contract.initiativeMode === "reactive") parts.push("low initiative");
   else if (contract.initiativeMode === "proactive") parts.push("can initiate");

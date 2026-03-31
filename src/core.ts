@@ -13,7 +13,7 @@
 // ============================================================
 
 import type { PsycheState, StimulusType, Locale, MBTIType, ChemicalState, OutcomeScore, PsycheMode, PersonalityTraits, PolicyModifiers, ClassifierProvider, SubjectivityKernel, ResponseContract, GenerationControls, SessionBridgeState, ThrongletsExport, TurnObservability, WritebackCalibrationFeedback, WritebackSignalType, ExternalContinuityEnvelope } from "./types.js";
-import { DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE, DEFAULT_ENERGY_BUDGETS, DEFAULT_TRAIT_DRIFT, DEFAULT_SUBJECT_RESIDUE, DEFAULT_DYADIC_FIELD } from "./types.js";
+import { DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE, DEFAULT_ENERGY_BUDGETS, DEFAULT_TRAIT_DRIFT, DEFAULT_SUBJECT_RESIDUE, DEFAULT_DYADIC_FIELD, MODE_PROFILES } from "./types.js";
 import type { StorageAdapter } from "./storage.js";
 import { MemoryStorageAdapter } from "./storage.js";
 import { applyDecay, applyStimulus, applyContagion, clamp, describeEmotionalState } from "./chemistry.js";
@@ -535,8 +535,9 @@ export class PsycheEngine {
         // hits ~1.7x harder than a 0.55 mild disagreement.
         // Maps [0.5, 1.0] → [0.6, 1.2] via linear interpolation.
         const confidenceIntensity = 0.6 + (primary.confidence - 0.5) * 1.2;
-        const modeMultiplier = this.cfg.mode === "work" ? 0.3 : this.cfg.mode === "companion" ? 1.5 : 1.0;
-        const effectiveMaxDelta = this.cfg.mode === "work" ? 5 : this.cfg.maxChemicalDelta;
+        const modeProfile = MODE_PROFILES[this.cfg.mode];
+        const modeMultiplier = modeProfile.chemistryMultiplier;
+        const effectiveMaxDelta = modeProfile.maxChemicalDelta ?? this.cfg.maxChemicalDelta;
         // v9: Habituation — count recent same-type stimuli in this session
         const recentSameCount = (state.emotionalHistory ?? [])
           .filter(s => s.stimulus === primary.type).length + 1; // +1 for current

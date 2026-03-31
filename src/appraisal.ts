@@ -6,7 +6,7 @@
 // ============================================================
 
 import type { AppraisalAxes, PsycheMode, StimulusType } from "./types.js";
-import { DEFAULT_APPRAISAL_AXES } from "./types.js";
+import { DEFAULT_APPRAISAL_AXES, MODE_PROFILES } from "./types.js";
 import { detectIntent } from "./classify.js";
 
 type AxisKey = keyof AppraisalAxes;
@@ -411,7 +411,7 @@ function getAxisDecay(
   previousValue: number,
   currentValue: number,
 ): number {
-  let decay = mode === "work" ? 0.68 : mode === "companion" ? 0.86 : 0.78;
+  let decay = MODE_PROFILES[mode ?? "natural"].appraisalDecay;
 
   if (key === "identityThreat" || key === "abandonmentRisk" || key === "selfPreservation") {
     decay += 0.08;

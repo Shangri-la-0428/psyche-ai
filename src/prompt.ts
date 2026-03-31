@@ -4,7 +4,7 @@
 // ============================================================
 
 import type { PsycheState, SelfModel, Locale, ChemicalState, ChemicalSnapshot, StimulusType, PsycheMode } from "./types.js";
-import { CHEMICAL_KEYS, CHEMICAL_NAMES_ZH, DRIVE_KEYS } from "./types.js";
+import { CHEMICAL_KEYS, CHEMICAL_NAMES_ZH, DRIVE_KEYS, MODE_PROFILES } from "./types.js";
 import { getExpressionHint, getBehaviorGuide, detectEmotions } from "./chemistry.js";
 import { getRelationship } from "./psyche-file.js";
 import { t } from "./i18n.js";
@@ -802,9 +802,7 @@ export function isNearBaseline(state: PsycheState, threshold = 8): boolean {
 }
 
 export function getNearBaselineThreshold(mode?: PsycheMode): number {
-  if (mode === "work") return 20;
-  if (mode === "companion") return 5;
-  return 8; // natural
+  return MODE_PROFILES[mode ?? "natural"].nearBaselineThreshold;
 }
 
 // ── Behavioral Bias ─────────────────────────────────────────
@@ -830,7 +828,7 @@ export function deriveBehavioralBias(state: PsycheState, locale: Locale): string
   const dNE = current.NE - baseline.NE;
   const dEND = current.END - baseline.END;
 
-  const otThreshold = state.meta.mode === "companion" ? 5 : 10;
+  const otThreshold = MODE_PROFILES[state.meta.mode ?? "natural"].otWarmthThreshold;
   if (dOT > otThreshold) biases.push(isZh ? "倾向靠近，愿意多说" : "leaning closer, willing to share");
   else if (dOT < -10) biases.push(isZh ? "保持距离，不想多说" : "keeping distance, not inclined to share");
 
@@ -945,28 +943,27 @@ function buildUnifiedConstraints(
   }
 
   // ── Mirror constraints (if user text, skip for ultra-short) ──
-  // Companion mode relaxes word limits ×1.3 — warmth needs room to breathe.
+  // Vibe words, not precise numbers — LLMs turn hard limits into counting exercises.
   if (userText && userText.length >= 3) {
     const len = userText.length;
-    const isCompanion = state.meta.mode === "companion";
-    const m = isCompanion ? 1.3 : 1.0; // mirror multiplier
+    const profile = MODE_PROFILES[state.meta.mode ?? "natural"];
     if (isZh) {
-      if (len <= 6) lines.push(`对方只发了${len}个字。你也简短回，不超过${Math.round(15 * m)}字。`);
-      else if (len <= 20) lines.push(`对方说了一句话(${len}字)。你回一两句，不超过${Math.round(len * 1.5 * m)}字。`);
-      else if (len <= 60) lines.push(`对方写了几句(${len}字)。你回两三句，不超过${Math.round(len * 1.2 * m)}字。`);
-      else lines.push(`对方认真写了一段(${len}字)。你可以多说，但不要超过${Math.round(len * m)}字。`);
+      if (len <= 6) lines.push("对方发了很短的消息。你也简短回。");
+      else if (len <= 20) lines.push("对方说了一句话。你回一两句，别比对方长太多。");
+      else if (len <= 60) lines.push("对方写了几句。你回两三句，篇幅相当。");
+      else lines.push("对方认真写了一段。你可以多说，认真回应。");
 
       const mojiCount = (userText.match(/[呀啊呢吧嘛哦噢哈嘿嗯啦吗呐嗨]/g) || []).length;
-      if (mojiCount >= 2 || isCompanion) lines.push("对方用了语气词，你也自然地用。");
+      if (mojiCount >= 2 || profile.toneParticlesDefault) lines.push("对方用了语气词，你也自然地用。");
       else if (mojiCount === 0 && len > 15) lines.push("对方措辞正式/干练，少用语气词。");
 
       const emojiCount = (userText.match(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu) || []).length;
       if (emojiCount > 0) lines.push("对方用了表情，你可以适当用1-2个。");
     } else {
-      if (len <= 10) lines.push(`They sent ${len} chars. Keep reply under ${Math.round(20 * m)} chars.`);
-      else if (len <= 40) lines.push(`Short message (${len} chars). 1-2 sentences, under ${Math.round(len * 1.5 * m)} chars.`);
-      else if (len <= 100) lines.push(`Medium message (${len} chars). 2-3 sentences, under ${Math.round(len * 1.2 * m)} chars.`);
-      else lines.push(`Long message (${len} chars). Match their effort, don't exceed ${Math.round(len * m)} chars.`);
+      if (len <= 10) lines.push("Very short message. Keep your reply brief too.");
+      else if (len <= 40) lines.push("Short message. A sentence or two, don't over-extend.");
+      else if (len <= 100) lines.push("Medium message. A few sentences, roughly matching their effort.");
+      else lines.push("Long message. Match their effort, respond thoughtfully.");
     }
   }
 
