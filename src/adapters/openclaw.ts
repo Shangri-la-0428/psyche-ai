@@ -99,7 +99,7 @@ export function sanitizeOpenClawInputText(text: string): string {
 }
 
 function getDominantAppraisalLabel(result: ProcessInputResult): string | null {
-  const appraisal = result.subjectivityKernel?.appraisal;
+  const appraisal = result.replyEnvelope?.subjectivityKernel?.appraisal ?? result.subjectivityKernel?.appraisal;
   if (!appraisal) return null;
 
   const entries = [
@@ -192,7 +192,7 @@ export function register(api: PluginApi) {
           inputText,
           { userId: ctx.userId as string | undefined },
         );
-        const controls = result.generationControls;
+        const controls = result.replyEnvelope?.generationControls ?? result.generationControls;
         const dominantAppraisal = getDominantAppraisalLabel(result);
 
         const state = engine.getState();

@@ -105,6 +105,8 @@ export type { DecisionBiasVector, AttentionWeights } from "./decision-bias.js";
 export { computeSubjectivityKernel, buildSubjectivityContext } from "./subjectivity.js";
 export { computeResponseContract, buildResponseContractContext } from "./response-contract.js";
 export { deriveGenerationControls } from "./host-controls.js";
+export { deriveReplyEnvelope } from "./reply-envelope.js";
+export type { ReplyEnvelope } from "./reply-envelope.js";
 export { computeAppraisalAxes, mergeAppraisalResidue, getResidueIntensity } from "./appraisal.js";
 export {
   computeRelationMove, evolveDyadicField, evolvePendingRelationSignals, getLoopPressure,

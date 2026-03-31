@@ -86,11 +86,12 @@ export class PsycheLangChain {
     opts?: { userId?: string; maxTokens?: number },
   ): Promise<{ systemMessage: string; maxTokens?: number; requireConfirmation: boolean }> {
     const result = await this.engine.processInput(userText, opts);
+    const generationControls = result.replyEnvelope?.generationControls ?? result.generationControls;
     const controls = {
-      ...(result.generationControls ?? {}),
-      maxTokens: result.generationControls?.maxTokens !== undefined && opts?.maxTokens !== undefined
-        ? Math.min(opts.maxTokens, result.generationControls.maxTokens)
-        : result.generationControls?.maxTokens ?? opts?.maxTokens,
+      ...(generationControls ?? {}),
+      maxTokens: generationControls?.maxTokens !== undefined && opts?.maxTokens !== undefined
+        ? Math.min(opts.maxTokens, generationControls.maxTokens)
+        : generationControls?.maxTokens ?? opts?.maxTokens,
     };
     return {
       systemMessage: result.systemContext + "\n\n" + result.dynamicContext,

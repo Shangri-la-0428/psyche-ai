@@ -177,6 +177,8 @@ v9.0 把“反向 baseline test”引入主体性方向。v9.2.7 则继续把关
 - 默认关系视角解析只做一次
 - 宿主控制面只从一个地方导出，减少重复计算和叙述漂移
 
+当前主线里，`processInput()` 会直接返回 `replyEnvelope` 作为规范主接口；`policyModifiers`、`subjectivityKernel`、`responseContract`、`generationControls` 继续保留为兼容别名。
+
 ### 3. AI-first ABI + 双回应 profile (`subjectivity.ts`, `response-contract.ts`, `host-controls.ts`)
 
 `processInput()` 现在除了 prompt 文本，还会直接返回：

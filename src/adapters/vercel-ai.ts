@@ -86,11 +86,13 @@ export function psycheMiddleware(engine: PsycheEngine, _opts?: PsycheMiddlewareO
     transformParams: async ({ params }: { type: string; params: CallParams }) => {
       const userText = extractLastUserText(params.prompt ?? []);
       const result = await engine.processInput(userText);
+      const envelope = result.replyEnvelope;
+      const generationControls = envelope?.generationControls ?? result.generationControls;
       const controls = {
-        ...(result.generationControls ?? {}),
-        maxTokens: result.generationControls?.maxTokens !== undefined && typeof params.maxTokens === "number"
-          ? Math.min(params.maxTokens, result.generationControls.maxTokens)
-          : result.generationControls?.maxTokens ?? (typeof params.maxTokens === "number" ? params.maxTokens : undefined),
+        ...(generationControls ?? {}),
+        maxTokens: generationControls?.maxTokens !== undefined && typeof params.maxTokens === "number"
+          ? Math.min(params.maxTokens, generationControls.maxTokens)
+          : generationControls?.maxTokens ?? (typeof params.maxTokens === "number" ? params.maxTokens : undefined),
       };
 
       const psycheContext = result.systemContext + "\n\n" + result.dynamicContext;

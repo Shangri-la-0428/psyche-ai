@@ -1283,13 +1283,17 @@ describe("PsycheEngine — first-meet detection", () => {
 // ── v9.1: Pluggable classifier integration ──────────────────
 
 describe("pluggable classifier in PsycheEngine", () => {
-  it("processInput returns subjectivityKernel in compact mode", async () => {
+  it("processInput returns a canonical replyEnvelope in compact mode", async () => {
     const storage = new MemoryStorageAdapter();
     const engine = new PsycheEngine({ mbti: "INFJ", compactMode: true }, storage);
     await engine.initialize();
     const result = await engine.processInput("你好");
+    assert.ok(result.replyEnvelope, "replyEnvelope should be present");
     assert.ok(result.subjectivityKernel, "subjectivityKernel should be present");
     assert.ok(result.responseContract, "responseContract should be present");
+    assert.deepEqual(result.replyEnvelope?.subjectivityKernel, result.subjectivityKernel);
+    assert.deepEqual(result.replyEnvelope?.responseContract, result.responseContract);
+    assert.deepEqual(result.replyEnvelope?.generationControls, result.generationControls);
     assert.equal(typeof result.subjectivityKernel?.tension, "number");
     assert.ok(result.dynamicContext.includes("主观内核"), `Got: ${result.dynamicContext}`);
   });

@@ -2,7 +2,7 @@
 // PsycheEngine — Framework-agnostic emotional intelligence core
 //
 // Three-phase API:
-//   processInput(text)   → systemContext + dynamicContext + stimulus
+//   processInput(text)   → systemContext + dynamicContext + replyEnvelope + stimulus
 //   processOutput(text)  → cleanedText + stateChanged
 //   processOutcome(text) → outcomeScore (optional: evaluate last interaction)
 //
@@ -50,6 +50,7 @@ import {
   gatePrimarySystemsByAutonomic, describeBehavioralTendencies,
 } from "./primary-systems.js";
 import { applyRelationalTurn, applySessionBridge, applyWritebackSignals, createWritebackCalibrations, evaluateWritebackCalibrations } from "./relation-dynamics.js";
+import type { ReplyEnvelope } from "./reply-envelope.js";
 import { deriveReplyEnvelope } from "./reply-envelope.js";
 import { buildExternalContinuityEnvelope } from "./external-continuity.js";
 import { deriveThrongletsExports } from "./thronglets-export.js";
@@ -96,11 +97,13 @@ export interface ProcessInputResult {
   stimulusConfidence?: number;
   /** v9: Structured behavioral policy modifiers — machine-readable "off baseline" signals */
   policyModifiers?: PolicyModifiers;
-  /** v9.3: Compact machine-readable subjective state for AI-first hosts */
+  /** v9.3+: canonical host-facing reply surface */
+  replyEnvelope?: ReplyEnvelope;
+  /** v9.3 compatibility alias: use replyEnvelope.subjectivityKernel when possible */
   subjectivityKernel?: SubjectivityKernel;
-  /** v9.3: Compact next-reply behavioral envelope */
+  /** v9.3 compatibility alias: use replyEnvelope.responseContract when possible */
   responseContract?: ResponseContract;
-  /** v9.3: Mechanical host controls derived from the reply envelope */
+  /** v9.3 compatibility alias: use replyEnvelope.generationControls when possible */
   generationControls?: GenerationControls;
   /** v9.2.7: cold-start carry derived from persisted relation state */
   sessionBridge?: SessionBridgeState | null;
@@ -873,6 +876,7 @@ export class PsycheEngine {
         }),
         stimulus: appliedStimulus,
         stimulusConfidence: this.lastStimulusAssessment?.confidence,
+        replyEnvelope,
         policyModifiers: replyEnvelope.policyModifiers,
         subjectivityKernel: replyEnvelope.subjectivityKernel,
         responseContract: replyEnvelope.responseContract,
@@ -901,6 +905,7 @@ export class PsycheEngine {
       }),
       stimulus: appliedStimulus,
       stimulusConfidence: this.lastStimulusAssessment?.confidence,
+      replyEnvelope,
       policyModifiers: replyEnvelope.policyModifiers,
       subjectivityKernel: replyEnvelope.subjectivityKernel,
       responseContract: replyEnvelope.responseContract,
