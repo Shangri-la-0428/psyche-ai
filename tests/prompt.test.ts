@@ -700,7 +700,7 @@ describe("buildCompactContext session continuity", () => {
     const ctx = buildCompactContext(state, undefined, { userText: "你好", sessionBridge: warmBridge });
     // Bridge exists → compressed bottom-line, no full 5-rule list
     assert.ok(!ctx.includes("像发微信一样说话"), `established should not have full boilerplate, got: ${ctx}`);
-    assert.ok(ctx.includes("不贴不舔"), `should have compressed bottom-line, got: ${ctx}`);
+    assert.ok(ctx.includes("放松，可以主动分享"), `warm-resume should have relaxed constraint, got: ${ctx}`);
   });
 
   it("no bridge = full boilerplate (zh)", () => {

@@ -7,3 +7,4 @@ site/.astro/
 psyche-state.json
 psyche-state.json.tmp
 scripts/.chat-state/
+dist-eval/

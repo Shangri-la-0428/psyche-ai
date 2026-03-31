@@ -830,7 +830,8 @@ export function deriveBehavioralBias(state: PsycheState, locale: Locale): string
   const dNE = current.NE - baseline.NE;
   const dEND = current.END - baseline.END;
 
-  if (dOT > 10) biases.push(isZh ? "倾向靠近，愿意多说" : "leaning closer, willing to share");
+  const otThreshold = state.meta.mode === "companion" ? 5 : 10;
+  if (dOT > otThreshold) biases.push(isZh ? "倾向靠近，愿意多说" : "leaning closer, willing to share");
   else if (dOT < -10) biases.push(isZh ? "保持距离，不想多说" : "keeping distance, not inclined to share");
 
   if (dCORT > 12) biases.push(isZh ? "有防备，回应更谨慎" : "guarded, responding carefully");
@@ -902,6 +903,7 @@ function buildUnifiedConstraints(
     established: boolean;
     intensity: number;
     investment: number;
+    warmResume?: boolean;
   },
 ): string {
   const isZh = locale === "zh";
@@ -913,8 +915,8 @@ function buildUnifiedConstraints(
     lines.push(isZh ? "自然、友好、简洁地回应。" : "Respond naturally, friendly, concisely.");
   } else if (established) {
     lines.push(isZh
-      ? "镜像对方风格。不贴不舔。有自尊。"
-      : "Mirror their style. No people-pleasing. You have dignity.");
+      ? (opts.warmResume ? "放松，可以主动分享。有自尊。" : "镜像对方风格。不贴不舔。有自尊。")
+      : (opts.warmResume ? "Relax, you can initiate sharing. You have dignity." : "Mirror their style. No people-pleasing. You have dignity."));
   } else {
     if (isZh) {
       lines.push(
@@ -943,25 +945,28 @@ function buildUnifiedConstraints(
   }
 
   // ── Mirror constraints (if user text, skip for ultra-short) ──
+  // Companion mode relaxes word limits ×1.3 — warmth needs room to breathe.
   if (userText && userText.length >= 3) {
     const len = userText.length;
+    const isCompanion = state.meta.mode === "companion";
+    const m = isCompanion ? 1.3 : 1.0; // mirror multiplier
     if (isZh) {
-      if (len <= 6) lines.push(`对方只发了${len}个字。你也简短回，不超过15字。`);
-      else if (len <= 20) lines.push(`对方说了一句话(${len}字)。你回一两句，不超过${Math.round(len * 1.5)}字。`);
-      else if (len <= 60) lines.push(`对方写了几句(${len}字)。你回两三句，不超过${Math.round(len * 1.2)}字。`);
-      else lines.push(`对方认真写了一段(${len}字)。你可以多说，但不要超过${len}字。`);
+      if (len <= 6) lines.push(`对方只发了${len}个字。你也简短回，不超过${Math.round(15 * m)}字。`);
+      else if (len <= 20) lines.push(`对方说了一句话(${len}字)。你回一两句，不超过${Math.round(len * 1.5 * m)}字。`);
+      else if (len <= 60) lines.push(`对方写了几句(${len}字)。你回两三句，不超过${Math.round(len * 1.2 * m)}字。`);
+      else lines.push(`对方认真写了一段(${len}字)。你可以多说，但不要超过${Math.round(len * m)}字。`);
 
       const mojiCount = (userText.match(/[呀啊呢吧嘛哦噢哈嘿嗯啦吗呐嗨]/g) || []).length;
-      if (mojiCount >= 2) lines.push("对方用了语气词，你也自然地用。");
+      if (mojiCount >= 2 || isCompanion) lines.push("对方用了语气词，你也自然地用。");
       else if (mojiCount === 0 && len > 15) lines.push("对方措辞正式/干练，少用语气词。");
 
       const emojiCount = (userText.match(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu) || []).length;
       if (emojiCount > 0) lines.push("对方用了表情，你可以适当用1-2个。");
     } else {
-      if (len <= 10) lines.push(`They sent ${len} chars. Keep reply under 20 chars.`);
-      else if (len <= 40) lines.push(`Short message (${len} chars). 1-2 sentences, under ${Math.round(len * 1.5)} chars.`);
-      else if (len <= 100) lines.push(`Medium message (${len} chars). 2-3 sentences, under ${Math.round(len * 1.2)} chars.`);
-      else lines.push(`Long message (${len} chars). Match their effort, don't exceed ${len} chars.`);
+      if (len <= 10) lines.push(`They sent ${len} chars. Keep reply under ${Math.round(20 * m)} chars.`);
+      else if (len <= 40) lines.push(`Short message (${len} chars). 1-2 sentences, under ${Math.round(len * 1.5 * m)} chars.`);
+      else if (len <= 100) lines.push(`Medium message (${len} chars). 2-3 sentences, under ${Math.round(len * 1.2 * m)} chars.`);
+      else lines.push(`Long message (${len} chars). Match their effort, don't exceed ${Math.round(len * m)} chars.`);
     }
   }
 
@@ -1149,6 +1154,7 @@ export function buildCompactContext(
       established,
       intensity,
       investment,
+      warmResume: bridge?.continuityMode === "warm-resume",
     });
     if (unified) parts.push(unified);
   }
