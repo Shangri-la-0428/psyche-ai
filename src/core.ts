@@ -714,6 +714,7 @@ export class PsycheEngine {
       subjectivityContext: derivedReplyEnvelope.subjectivityContext,
       responseContractContext: derivedReplyEnvelope.responseContractContext,
       policyContext: derivedReplyEnvelope.policyContext || undefined,
+      sessionBridge,
     };
     const observability = buildTurnObservability(state, {
       replyEnvelope,

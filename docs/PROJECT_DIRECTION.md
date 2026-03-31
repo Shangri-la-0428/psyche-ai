@@ -269,10 +269,10 @@ If principal/account/delegate/session stops being the hard limit, the system wil
 ### Now
 
 - strengthen host-native writeback paths so metadata beats prompt protocol
-- make session continuity visible in first-turn behavior, not only stored memory
-- continue shifting weight from explanation text to stable ABI
-- formalize the frozen identity model in code-facing docs
-- define the sparse Psyche → Thronglets export set
+- ~~make session continuity visible in first-turn behavior, not only stored memory~~ — done: compact prompt renderer is now continuity-aware (warm/guarded/tense orientation)
+- ~~continue shifting weight from explanation text to stable ABI~~ — done: prompt audit + compression (established-relationship boilerplate decay, first-meet dedup, agency→boundary separation)
+- ~~formalize the frozen identity model in code-facing docs~~ — done: IDENTITY_MODEL.md + STACK_ARCHITECTURE.md + TypeScript types aligned to 4 primitives
+- ~~define the sparse Psyche → Thronglets export set~~ — done: thronglets-export.ts + external-continuity.ts
 
 ### Next
 
@@ -280,7 +280,7 @@ If principal/account/delegate/session stops being the hard limit, the system wil
 - make delegate authorization explicitly capability-scoped, revocable, and time-bounded
 - define session trace classes that belong in Thronglets
 - expand evaluation around continuity, calibration, and partner specificity
-- turn the AI-principal gate into an explicit institutional checklist
+- ~~turn the AI-principal gate into an explicit institutional checklist~~ — done: [AI_PRINCIPAL_GATE.md](AI_PRINCIPAL_GATE.md)
 
 ### Later
 
@@ -298,9 +298,9 @@ If principal/account/delegate/session stops being the hard limit, the system wil
 
 ### Product
 
-- reduce remaining prompt-only explanations in hot paths
+- ~~reduce remaining prompt-only explanations in hot paths~~ — done: compact renderer compressed (established relationships 60% fewer tokens)
 - push more host integrations toward structured writeback
-- make first-turn continuity more legible in diagnostics and behavior
+- ~~make first-turn continuity more legible in diagnostics and behavior~~ — done: session bridge wired to prompt, layered diagnostics implemented
 
 ### Evaluation
 
@@ -309,7 +309,7 @@ If principal/account/delegate/session stops being the hard limit, the system wil
 
 ### Coordination With Thronglets
 
-- define the sparse export set from Psyche to Thronglets
+- ~~define the sparse export set from Psyche to Thronglets~~ — done: thronglets-export.ts
 - keep chemistry and high-frequency residue local
 - export only low-frequency, thresholded, typed events
 - keep delegate validity rooted in chain truth, not local guesswork

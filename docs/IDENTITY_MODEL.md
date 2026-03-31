@@ -200,6 +200,8 @@ It should only be considered when institutional conditions are met:
 
 Until then, AI remains a delegated or partially continuous actor, not a sovereign principal.
 
+The formal specification — including evidence requirements, evaluation protocol, transition phases, and revocation rules — lives in [AI_PRINCIPAL_GATE.md](AI_PRINCIPAL_GATE.md).
+
 ## Psyche / Thronglets Boundary
 
 ### Psyche keeps

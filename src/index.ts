@@ -187,8 +187,11 @@ export type { PsycheUpdateResult } from "./psyche-file.js";
 
 // ── Diagnostics ──────────────────────────────────────────────
 export {
-  runHealthCheck, DiagnosticCollector,
+  runHealthCheck, DiagnosticCollector, computeLayerHealthSummary,
   generateReport, formatReport, toGitHubIssueBody, formatLogEntry,
   submitFeedback,
 } from "./diagnostics.js";
-export type { DiagnosticIssue, DiagnosticReport, SessionMetrics, Severity } from "./diagnostics.js";
+export type {
+  DiagnosticIssue, DiagnosticReport, SessionMetrics, Severity,
+  DiagnosticLayer, LayerStatus, LayerHealthDetail, LayerHealthSummary,
+} from "./diagnostics.js";

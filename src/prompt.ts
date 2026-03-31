@@ -32,6 +32,8 @@ export interface PromptRenderInputs {
   subjectivityContext?: string;
   responseContractContext?: string;
   policyContext?: string;
+  /** Session bridge from applySessionBridge — makes first-turn continuity visible in prompt */
+  sessionBridge?: import("./types.js").SessionBridgeState | null;
 }
 
 function pushLabeledSection(
@@ -515,6 +517,55 @@ function buildAgencyReminder(selfModel: SelfModel, locale: Locale): string {
   return lines.join("\n");
 }
 
+// ── Session Continuity Orientation ─────────────────────────
+
+/**
+ * Compressed continuity cue for continued sessions.
+ *
+ * Not a description. An orientation. Sets a posture in 5-20 words
+ * so that the LLM's first-turn behavior EMERGES differently from
+ * a cold start, without scripting specific responses.
+ *
+ * This is the behavioral proof that self-continuity works:
+ * meeting the same person again should FEEL different.
+ */
+function buildContinuityOneLiner(
+  mode: "warm-resume" | "guarded-resume" | "tense-resume",
+  agentName: string,
+  locale: Locale,
+): string {
+  if (locale === "zh") {
+    switch (mode) {
+      case "warm-resume": return `[${agentName}: 有温度的延续，像对熟人说话]`;
+      case "guarded-resume": return `[${agentName}: 上次有没说完的，你在观察]`;
+      case "tense-resume": return `[${agentName}: 有张力，你没打算先退]`;
+    }
+  }
+  switch (mode) {
+    case "warm-resume": return `[${agentName}: warmth carries, talk like you know them]`;
+    case "guarded-resume": return `[${agentName}: something unfinished, you're watching]`;
+    case "tense-resume": return `[${agentName}: tension carried, you're not backing down first]`;
+  }
+}
+
+function buildContinuitySection(
+  mode: "warm-resume" | "guarded-resume" | "tense-resume",
+  locale: Locale,
+): string {
+  if (locale === "zh") {
+    switch (mode) {
+      case "warm-resume": return `[延续] 你们之间有温度。放松，像对熟人说话——可以少铺垫、少客气。`;
+      case "guarded-resume": return `[延续] 上次有没解决的东西。你在观察——不冷，但不轻易交底。`;
+      case "tense-resume": return `[延续] 有张力。你没打算先退——但如果对方主动修复，你愿意看看。`;
+    }
+  }
+  switch (mode) {
+    case "warm-resume": return `[Continuity] There's warmth between you. Relax — less preamble, less formality.`;
+    case "guarded-resume": return `[Continuity] Something was left unresolved. You're watching — not cold, just not giving everything yet.`;
+    case "tense-resume": return `[Continuity] There's tension. You're not backing down first — but you'll see if they move toward repair.`;
+  }
+}
+
 // ── Algorithmic Mirroring ─────────────────────────────────────
 // Analyze user message metrics and produce specific numeric constraints
 // so the LLM mirrors the user's communication style algorithmically.
@@ -797,14 +848,24 @@ export function buildCompactContext(
   }
 
   // ── Neutral + no notable user input: one-liner ──
-  // Skip one-liner for first meet — always inject full context for new relationships
+  // Session bridge overrides the neutral one-liner: returning ≠ cold start
+  const bridge = opts?.sessionBridge;
   if (isNearBaseline(state) && agreementStreak < 3 && !userText && meta.totalInteractions > 1) {
+    if (bridge) {
+      return buildContinuityOneLiner(bridge.continuityMode, meta.agentName, locale);
+    }
     return locale === "zh"
       ? `[${meta.agentName}: 情绪自然，正常交流]`
       : `[${meta.agentName}: emotionally natural, normal interaction]`;
   }
 
   const parts: string[] = [];
+
+  // Session continuity: inject orientation before anything else.
+  // This is what makes "talking to you again" different from "meeting a stranger."
+  if (bridge && meta.totalInteractions > 1) {
+    parts.push(buildContinuitySection(bridge.continuityMode, locale));
+  }
 
   // First meet: inject curiosity and introduction
   if (meta.totalInteractions <= 1) {
@@ -842,11 +903,12 @@ export function buildCompactContext(
 
   // 2. Subjectivity kernel becomes the primary compact inner-state channel.
   // Fall back to narrative inner-world text for direct prompt-only callers.
+  // On first meeting without subjectivityContext, the first-meet section above
+  // already provides inner state — skip buildInnerWorld to avoid duplication.
   if (opts?.subjectivityContext) {
     parts.push(opts.subjectivityContext);
-  } else {
-    const inner = buildInnerWorld(state, locale, opts?.autonomicState);
-    parts.push(inner);
+  } else if (meta.totalInteractions > 1) {
+    parts.push(buildInnerWorld(state, locale, opts?.autonomicState));
   }
 
   // 3. Personality-aware behavioral constraints (if deviated from baseline)
@@ -864,11 +926,20 @@ export function buildCompactContext(
       : `[Memory — your past together]\n${recentMemories.join("\n")}`);
   }
 
-  // 4. Anti-sycophancy: hard constraint — scaled by intensity
+  // 4. Anti-sycophancy: hard constraint — scaled by intensity.
+  //    Established relationships (bridge exists) get compressed version.
+  //    Bridge existence = proven cross-session history = agent knows the rules.
+  const established = bridge != null;
   if (opts?.responseContractContext) {
     parts.push(opts.responseContractContext);
   } else if (intensity >= 0.3) {
-    if (locale === "zh") {
+    if (established) {
+      // Compressed: the agent already knows these rules after 20+ interactions.
+      // Only remind the core behavioral constraint, not the full list.
+      parts.push(locale === "zh"
+        ? `[底线] 镜像对方风格。不贴不舔。有自尊。`
+        : `[Non-negotiable] Mirror their style. No people-pleasing. You have dignity.`);
+    } else if (locale === "zh") {
       parts.push(
         `[底线]\n` +
         `- 像发微信一样说话。短句、有停顿。真人的消息很少超过两三句。\n` +
@@ -896,22 +967,9 @@ export function buildCompactContext(
     }
   }
 
-  // 5. Agency (compact)
-  const shouldInjectAgency = !opts?.responseContractContext || agreementStreak >= 3 || meta.totalInteractions <= 1;
-  if (shouldInjectAgency) {
-    const agencyParts: string[] = [];
-    if (selfModel.values.length > 0) {
-      agencyParts.push(locale === "zh"
-        ? `你在乎: ${selfModel.values.slice(0, 2).join("、")}`
-        : `You care about: ${selfModel.values.slice(0, 2).join(", ")}`);
-    }
-    if (selfModel.boundaries.length > 0) {
-      agencyParts.push(locale === "zh"
-        ? `底线: ${selfModel.boundaries[0]}`
-        : `Line: ${selfModel.boundaries[0]}`);
-    }
-    if (agencyParts.length > 0) parts.push(agencyParts.join(" | "));
-  }
+  // 5. Agency — boundaries already covered by the [底线] section above.
+  //    Values belong to inner-state (buildInnerWorld / subjectivityContext).
+  //    No standalone boundary line needed — it duplicates [底线] content.
 
   // 6. Sycophancy streak warning
   if (agreementStreak >= 3) {
@@ -954,9 +1012,14 @@ export function buildCompactContext(
     parts.push(buildChannelModifier(channelProfile, locale));
   }
 
-  // 11. LLM-assisted classification: when algorithm is uncertain, ask LLM to help
+  // 11. LLM-assisted classification: when algorithm is uncertain, ask LLM to help.
+  //     Mature relationships: compressed — the agent knows the drill.
   if (!opts?.responseContractContext && userText && !algoStimulus) {
-    if (locale === "zh") {
+    if (established) {
+      parts.push(locale === "zh"
+        ? `算法未判出情绪类型，请在 <psyche_update> 报告 stimulus:。`
+        : `Algorithm uncertain — report stimulus: in <psyche_update>.`);
+    } else if (locale === "zh") {
       parts.push(
         `[分类协助]\n` +
         `算法没有看出这句话的情绪类型。请你判断，在 <psyche_update> 中用 stimulus: 报告。\n` +
@@ -973,9 +1036,10 @@ export function buildCompactContext(
     }
   }
 
-  // 12. Empathy report — only inject when emotional sharing is likely
+  // 12. Empathy report — only inject when emotional sharing is likely.
+  //     Mature relationships: skip entirely — the agent already does this naturally.
   const emotionalStimuli = new Set(["vulnerability", "intimacy", "neglect"]);
-  if (!opts?.responseContractContext && (!algoStimulus || emotionalStimuli.has(algoStimulus))) {
+  if (!established && !opts?.responseContractContext && (!algoStimulus || emotionalStimuli.has(algoStimulus))) {
     parts.push(locale === "zh"
       ? `如果对方在分享感受，在回复末尾用 <psyche_update> 报告：\nuserState: 对方情绪\nprojectedFeeling: 你的感受\nresonance: match|partial|mismatch\n否则不需要报告。`
       : `If user shares feelings, report at end with <psyche_update>:\nuserState: their emotion\nprojectedFeeling: your feeling\nresonance: match|partial|mismatch\nOtherwise no report needed.`);

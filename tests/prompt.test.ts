@@ -642,3 +642,94 @@ describe("buildCompactContext personalityIntensity bottom-line constraints", () 
     assert.ok(ctx.includes("Style") || ctx.includes("friendly"), "English low intensity should include friendlier style");
   });
 });
+
+// ── Session continuity orientation in buildCompactContext ─────
+
+describe("buildCompactContext session continuity", () => {
+  const warmBridge = {
+    closenessFloor: 0.3, safetyFloor: 0.4, guardFloor: 0.2, residueFloor: 0.1, continuityFloor: 0.3,
+    continuityMode: "warm-resume" as const, activeLoopTypes: [], sourceMemoryCount: 2,
+  };
+  const guardedBridge = { ...warmBridge, continuityMode: "guarded-resume" as const };
+  const tenseBridge = { ...warmBridge, continuityMode: "tense-resume" as const };
+
+  it("warm-resume one-liner replaces neutral one-liner (zh)", () => {
+    const state = makeState();
+    const ctx = buildCompactContext(state, undefined, { sessionBridge: warmBridge });
+    assert.ok(ctx.includes("有温度的延续"), `expected warm orientation, got: ${ctx}`);
+    assert.ok(!ctx.includes("情绪自然"), "should NOT fall through to neutral one-liner");
+  });
+
+  it("guarded-resume one-liner (zh)", () => {
+    const state = makeState();
+    const ctx = buildCompactContext(state, undefined, { sessionBridge: guardedBridge });
+    assert.ok(ctx.includes("没说完的"), `expected guarded orientation, got: ${ctx}`);
+  });
+
+  it("tense-resume one-liner (zh)", () => {
+    const state = makeState();
+    const ctx = buildCompactContext(state, undefined, { sessionBridge: tenseBridge });
+    assert.ok(ctx.includes("有张力"), `expected tense orientation, got: ${ctx}`);
+  });
+
+  it("warm-resume one-liner includes agent name (en)", () => {
+    const state = makeState({
+      meta: { agentName: "Echo", createdAt: new Date().toISOString(), totalInteractions: 5, locale: "en", mode: "natural" as const },
+    });
+    const ctx = buildCompactContext(state, undefined, { sessionBridge: warmBridge });
+    assert.ok(ctx.includes("Echo"), "should include agent name");
+    assert.ok(ctx.includes("warmth carries"), `expected English warm, got: ${ctx}`);
+  });
+
+  it("continuity section injected in full compact path (zh)", () => {
+    const state = makeState();
+    const ctx = buildCompactContext(state, undefined, { userText: "你好", sessionBridge: warmBridge });
+    assert.ok(ctx.includes("[延续]"), `expected continuity section, got: ${ctx}`);
+    assert.ok(ctx.includes("像对熟人说话"), `expected warm section content, got: ${ctx}`);
+  });
+
+  it("established relationship compresses boilerplate (zh)", () => {
+    const state = makeState();
+    const ctx = buildCompactContext(state, undefined, { userText: "你好", sessionBridge: warmBridge });
+    // Bridge exists → compressed bottom-line, no full 5-rule list
+    assert.ok(!ctx.includes("像发微信一样说话"), `established should not have full boilerplate, got: ${ctx}`);
+    assert.ok(ctx.includes("不贴不舔"), `should have compressed bottom-line, got: ${ctx}`);
+  });
+
+  it("no bridge = full boilerplate (zh)", () => {
+    const state = makeState();
+    const ctx = buildCompactContext(state, undefined, { userText: "你好" });
+    assert.ok(ctx.includes("像发微信一样说话"), `no bridge should have full boilerplate, got: ${ctx}`);
+  });
+
+  it("guarded continuity section in full compact path (en)", () => {
+    const state = makeState({
+      meta: { agentName: "TestBot", createdAt: new Date().toISOString(), totalInteractions: 5, locale: "en", mode: "natural" as const },
+    });
+    const ctx = buildCompactContext(state, undefined, { userText: "hey", sessionBridge: guardedBridge });
+    assert.ok(ctx.includes("[Continuity]"), `expected continuity header, got: ${ctx}`);
+    assert.ok(ctx.includes("unresolved"), `expected guarded content, got: ${ctx}`);
+  });
+
+  it("tense continuity section mentions repair (en)", () => {
+    const state = makeState({
+      meta: { agentName: "TestBot", createdAt: new Date().toISOString(), totalInteractions: 5, locale: "en", mode: "natural" as const },
+    });
+    const ctx = buildCompactContext(state, undefined, { userText: "hey", sessionBridge: tenseBridge });
+    assert.ok(ctx.includes("repair"), `expected tense section with repair, got: ${ctx}`);
+  });
+
+  it("no continuity injection on first meeting even with bridge", () => {
+    const state = makeState({
+      meta: { agentName: "TestBot", createdAt: new Date().toISOString(), totalInteractions: 1, locale: "zh", mode: "natural" as const },
+    });
+    const ctx = buildCompactContext(state, undefined, { userText: "你好", sessionBridge: warmBridge });
+    assert.ok(!ctx.includes("[延续]"), `first meet should not have continuity section, got: ${ctx}`);
+  });
+
+  it("no continuity without bridge — neutral one-liner preserved", () => {
+    const state = makeState();
+    const ctx = buildCompactContext(state, undefined, {});
+    assert.ok(ctx.includes("情绪自然"), `should be neutral without bridge, got: ${ctx}`);
+  });
+});

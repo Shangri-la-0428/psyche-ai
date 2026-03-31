@@ -95,16 +95,29 @@ Do not add new signal kinds.
 
 ### 7. Principal gate checklist
 
-Turn the institutional AI-principal gate into a concrete evaluation checklist.
+Formal specification now lives in [AI_PRINCIPAL_GATE.md](AI_PRINCIPAL_GATE.md).
+
+Remaining work:
+
+- fill threshold values in the threshold table once operational data exists
+- implement gate evaluation as an executable protocol (not just a document)
+- wire Psyche self-continuity evidence (session coherence score, trait drift trajectory, corruption detection) into a machine-readable report
+- wire Thronglets execution chain evidence (signed trace completeness, cross-session linkage) into a machine-readable report
+- define and test revocation propagation end-to-end across all four layers
+- run at least one demonstration evaluation (expected result: fail, with specific condition gaps identified)
 
 ### 8. Diagnostics by layer
 
-Split diagnostics explicitly by:
+Implemented in `src/diagnostics.ts`. Every `DiagnosticIssue` now carries a `layer` field. Report includes `layeredIssues` and `layerHealth`.
 
-- subjective continuity
-- delegate continuity
-- policy/orchestration
-- public fact/finality
+Layers:
+
+- `subjective-continuity` (L1): chemistry, drives, classifier, trait drift, dyadic coherence, energy — fully implemented
+- `delegate-continuity` (L2): writeback calibration, Thronglets export boundary — fully implemented
+- `policy-orchestration` (L3): structural interface defined, implementation lives in Oasyce Net
+- `public-truth` (L4): structural interface defined, implementation lives in Oasyce Chain
+
+`LayerHealthSummary` provides per-layer status (healthy/degraded/failing) plus L1/L2 measurements (chemistryDeviation, traitDriftEstablished, predictionError, writebackLoopActive, calibrationEffects, etc.).
 
 ### 9. Add causal audit chain without widening control ABI
 

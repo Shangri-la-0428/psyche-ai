@@ -8,8 +8,9 @@ import {
   formatReport,
   toGitHubIssueBody,
   formatLogEntry,
+  computeLayerHealthSummary,
 } from "../src/diagnostics.js";
-import type { SessionMetrics, DiagnosticReport } from "../src/diagnostics.js";
+import type { SessionMetrics, DiagnosticReport, DiagnosticLayer } from "../src/diagnostics.js";
 import type { PsycheState, ChemicalState, InnateDrives } from "../src/types.js";
 import {
   DEFAULT_DRIVES,
@@ -410,5 +411,202 @@ describe("formatLogEntry", () => {
     const parsed = JSON.parse(formatLogEntry(report));
     const criticals = parsed.issues.filter((i: string) => i.startsWith("c:"));
     assert.ok(criticals.length > 0, "should have critical issues with 'c:' prefix");
+  });
+});
+
+// ── Layered Diagnostics ────────────────────────────────────
+
+describe("layered diagnostics", () => {
+  it("every issue has a layer field", () => {
+    const state = makeState({
+      current: { ...BASELINE, DA: 105 },
+      meta: { agentName: "A", createdAt: "", totalInteractions: 20, locale: "zh" },
+    });
+    const issues = runHealthCheck(state);
+    for (const issue of issues) {
+      assert.ok(issue.layer, `Issue ${issue.id} should have a layer`);
+      assert.ok(
+        ["subjective-continuity", "delegate-continuity", "policy-orchestration", "public-truth"].includes(issue.layer),
+        `Issue ${issue.id} has invalid layer: ${issue.layer}`,
+      );
+    }
+  });
+
+  it("existing checks are all L1 (subjective-continuity)", () => {
+    const state = makeState({
+      current: { ...BASELINE, DA: 105 },
+      agreementStreak: 15,
+      lastDisagreement: null,
+      meta: { agentName: "A", createdAt: "", totalInteractions: 20, locale: "zh" },
+    });
+    const issues = runHealthCheck(state);
+    const nonL1 = issues.filter(i => i.layer !== "subjective-continuity" && i.layer !== "delegate-continuity");
+    // All existing checks should be L1 or L2
+    for (const issue of nonL1) {
+      assert.fail(`Issue ${issue.id} is ${issue.layer}, expected L1 or L2`);
+    }
+  });
+
+  it("detects trait drift stagnation", () => {
+    const state = makeState({
+      traitDrift: {
+        accumulators: { praiseExposure: 5, pressureExposure: 3, neglectExposure: 0, connectionExposure: 2, conflictExposure: 0 },
+        sessionCount: 10,
+        baselineDelta: { DA: 0.1 },
+        decayRateModifiers: {},
+        sensitivityModifiers: {},
+      },
+    });
+    const issues = runHealthCheck(state);
+    const stagnant = issues.find(i => i.id === "DRIFT_STAGNANT");
+    assert.ok(stagnant, "should detect DRIFT_STAGNANT");
+    assert.equal(stagnant!.layer, "subjective-continuity");
+  });
+
+  it("detects dyadic field incoherence", () => {
+    const state = makeState({
+      dyadicFields: {
+        alice: {
+          perceivedCloseness: 0.85,
+          feltSafety: 0.6,
+          expectationGap: 0.3,
+          repairCapacity: 0.5,
+          repairMemory: 0,
+          backslidePressure: 0,
+          repairFatigue: 0,
+          misattunementLoad: 0,
+          boundaryPressure: 0.8,
+          unfinishedTension: 0.02,
+          silentCarry: 0,
+          sharedHistoryDensity: 0.5,
+          interpretiveCharity: 0.5,
+          openLoops: [],
+          lastMove: "bid" as any,
+          updatedAt: new Date().toISOString(),
+        },
+      },
+    });
+    const issues = runHealthCheck(state);
+    const incoherent = issues.find(i => i.id === "DYADIC_INCOHERENT");
+    assert.ok(incoherent, "should detect DYADIC_INCOHERENT");
+    assert.equal(incoherent!.layer, "subjective-continuity");
+  });
+
+  it("detects energy depletion", () => {
+    const state = makeState({
+      energyBudgets: { attention: 5, socialEnergy: 3, decisionCapacity: 50 },
+    });
+    const issues = runHealthCheck(state);
+    const depleted = issues.find(i => i.id === "ENERGY_DEPLETED");
+    assert.ok(depleted, "should detect ENERGY_DEPLETED");
+    assert.equal(depleted!.layer, "subjective-continuity");
+  });
+
+  it("detects writeback divergence", () => {
+    const state = makeState({
+      lastWritebackFeedback: [
+        { signal: "trust_up" as any, effect: "diverging", metric: "trust" as any, baseline: 0.5, current: 0.4, delta: -0.1, confidence: 0.7 },
+        { signal: "repair_attempt" as any, effect: "diverging", metric: "repair" as any, baseline: 0.6, current: 0.45, delta: -0.15, confidence: 0.8 },
+        { signal: "closeness_invite" as any, effect: "converging", metric: "closeness" as any, baseline: 0.3, current: 0.35, delta: 0.05, confidence: 0.6 },
+      ],
+    });
+    const issues = runHealthCheck(state);
+    const diverging = issues.find(i => i.id === "WRITEBACK_DIVERGING");
+    assert.ok(diverging, "should detect WRITEBACK_DIVERGING");
+    assert.equal(diverging!.layer, "delegate-continuity");
+  });
+});
+
+// ── Layer Health Summary ───────────────────────────────────
+
+describe("computeLayerHealthSummary", () => {
+  it("returns healthy for clean state", () => {
+    const state = makeState({ meta: { agentName: "A", createdAt: "", totalInteractions: 3, locale: "zh" } });
+    const issues = runHealthCheck(state);
+    const summary = computeLayerHealthSummary(state, issues);
+
+    assert.equal(summary["subjective-continuity"].status, "healthy");
+    assert.equal(summary["delegate-continuity"].status, "healthy");
+    assert.equal(summary["policy-orchestration"].status, "healthy");
+    assert.equal(summary["public-truth"].status, "healthy");
+  });
+
+  it("returns failing for L1 critical issues", () => {
+    const state = makeState({
+      current: { ...BASELINE, DA: 105 },
+    });
+    const issues = runHealthCheck(state);
+    const summary = computeLayerHealthSummary(state, issues);
+
+    assert.equal(summary["subjective-continuity"].status, "failing");
+    assert.equal(summary["subjective-continuity"].worstSeverity, "critical");
+  });
+
+  it("measures chemistry deviation", () => {
+    const state = makeState({
+      current: { DA: 80, HT: 65, CORT: 35, OT: 35, NE: 55, END: 45 },
+    });
+    const issues = runHealthCheck(state);
+    const summary = computeLayerHealthSummary(state, issues);
+    assert.equal(summary["subjective-continuity"].chemistryDeviation, 30); // DA off by 30
+  });
+
+  it("detects trait drift establishment", () => {
+    const state = makeState({
+      traitDrift: {
+        accumulators: { praiseExposure: 20, pressureExposure: 5, neglectExposure: 0, connectionExposure: 10, conflictExposure: 0 },
+        sessionCount: 5,
+        baselineDelta: { DA: 3 },
+        decayRateModifiers: {},
+        sensitivityModifiers: {},
+      },
+    });
+    const issues = runHealthCheck(state);
+    const summary = computeLayerHealthSummary(state, issues);
+    assert.equal(summary["subjective-continuity"].traitDriftEstablished, true);
+  });
+
+  it("measures writeback calibration effects", () => {
+    const state = makeState({
+      lastWritebackFeedback: [
+        { signal: "trust_up" as any, effect: "converging", metric: "trust" as any, baseline: 0.5, current: 0.55, delta: 0.05, confidence: 0.8 },
+        { signal: "repair_attempt" as any, effect: "holding", metric: "repair" as any, baseline: 0.6, current: 0.6, delta: 0, confidence: 0.7 },
+      ],
+    });
+    const issues = runHealthCheck(state);
+    const summary = computeLayerHealthSummary(state, issues);
+    assert.equal(summary["delegate-continuity"].writebackLoopActive, true);
+    assert.equal(summary["delegate-continuity"].calibrationEffects.converging, 1);
+    assert.equal(summary["delegate-continuity"].calibrationEffects.holding, 1);
+    assert.equal(summary["delegate-continuity"].calibrationEffects.diverging, 0);
+  });
+});
+
+// ── Report includes layered data ───────────────────────────
+
+describe("layered report structure", () => {
+  it("report includes layeredIssues and layerHealth", () => {
+    const state = makeState({
+      current: { ...BASELINE, DA: 105 },
+      meta: { agentName: "A", createdAt: "", totalInteractions: 20, locale: "zh" },
+    });
+    const report = generateReport(state, makeMetrics(), PACKAGE_VERSION);
+
+    assert.ok(report.layeredIssues, "should have layeredIssues");
+    assert.ok(report.layerHealth, "should have layerHealth");
+    assert.ok(report.layeredIssues["subjective-continuity"].length > 0, "should have L1 issues");
+    assert.equal(report.layerHealth["subjective-continuity"].status, "failing");
+  });
+
+  it("formatReport shows layer health overview", () => {
+    const state = makeState({ meta: { agentName: "A", createdAt: "", totalInteractions: 3, locale: "zh" } });
+    const report = generateReport(state, makeMetrics(), PACKAGE_VERSION);
+    const text = formatReport(report);
+
+    assert.ok(text.includes("layer health:"), "should show layer health section");
+    assert.ok(text.includes("L1 subjective-continuity"), "should show L1 label");
+    assert.ok(text.includes("L2 delegate-continuity"), "should show L2 label");
+    assert.ok(text.includes("L1 detail:"), "should show L1 detail");
+    assert.ok(text.includes("L2 detail:"), "should show L2 detail");
   });
 });
