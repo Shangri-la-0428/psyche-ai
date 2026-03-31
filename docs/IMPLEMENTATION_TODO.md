@@ -95,9 +95,20 @@ Split diagnostics explicitly by:
 - policy/orchestration
 - public fact/finality
 
+### 9. Add causal audit chain without widening control ABI
+
+Observability is now good enough for single-turn control and attribution, but not yet for full auditability.
+The next hardening step is:
+
+- cross-turn / cross-session causal linking
+- machine-verifiable evidence pointers for rule ids and scoring sources
+- one normalized mapping from `observability` into external tracing / telemetry
+
+Keep this as an audit layer, not a second control surface.
+
 ## Continuous Discipline
 
-### 9. Reject new identity objects by default
+### 10. Reject new identity objects by default
 
 When a new concept appears, try in order:
 
@@ -108,7 +119,7 @@ When a new concept appears, try in order:
 
 Only if all fail should a new top-level identity object even be discussed.
 
-### 10. Keep collectives environmental
+### 11. Keep collectives environmental
 
 Prefer:
 
@@ -119,7 +130,7 @@ Prefer:
 
 Avoid introducing anthropomorphic collective entities unless absolutely forced by reality.
 
-### 11. Re-check the frozen blueprint before new features
+### 12. Re-check the frozen blueprint before new features
 
 Before identity-related work lands, confirm it still preserves:
 

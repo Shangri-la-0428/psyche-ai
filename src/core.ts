@@ -12,7 +12,7 @@
 // Orchestrates: chemistry, classify, prompt, profiles, guards, learning
 // ============================================================
 
-import type { PsycheState, StimulusType, Locale, MBTIType, ChemicalState, OutcomeScore, PsycheMode, PersonalityTraits, PolicyModifiers, ClassifierProvider, SubjectivityKernel, ResponseContract, GenerationControls, SessionBridgeState, ThrongletsExport, WritebackCalibrationFeedback, WritebackSignalType, ExternalContinuityEnvelope } from "./types.js";
+import type { PsycheState, StimulusType, Locale, MBTIType, ChemicalState, OutcomeScore, PsycheMode, PersonalityTraits, PolicyModifiers, ClassifierProvider, SubjectivityKernel, ResponseContract, GenerationControls, SessionBridgeState, ThrongletsExport, TurnObservability, WritebackCalibrationFeedback, WritebackSignalType, ExternalContinuityEnvelope } from "./types.js";
 import { DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE, DEFAULT_ENERGY_BUDGETS, DEFAULT_TRAIT_DRIFT, DEFAULT_SUBJECT_RESIDUE, DEFAULT_DYADIC_FIELD } from "./types.js";
 import type { StorageAdapter } from "./storage.js";
 import { MemoryStorageAdapter } from "./storage.js";
@@ -45,6 +45,7 @@ import type { DerivedReplyEnvelope, ReplyEnvelope } from "./reply-envelope.js";
 import { deriveReplyEnvelope } from "./reply-envelope.js";
 import { buildExternalContinuityEnvelope } from "./external-continuity.js";
 import { deriveThrongletsExports } from "./thronglets-export.js";
+import { buildTurnObservability } from "./observability.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -104,6 +105,8 @@ export interface ProcessInputResult {
   externalContinuity?: ExternalContinuityEnvelope<ThrongletsExport>;
   /** v9.2.8: sparse low-frequency export surface suitable for Thronglets */
   throngletsExports?: ThrongletsExport[];
+  /** v9.2.10: low-cost side channel for control boundary, state layers, and output attribution */
+  observability?: TurnObservability;
   /**
    * Legacy compatibility alias: ready-to-use prompt fragment summarizing raw policy modifiers.
    *
@@ -712,6 +715,17 @@ export class PsycheEngine {
       responseContractContext: derivedReplyEnvelope.responseContractContext,
       policyContext: derivedReplyEnvelope.policyContext || undefined,
     };
+    const observability = buildTurnObservability(state, {
+      replyEnvelope,
+      promptRenderInputs,
+      compactMode: this.cfg.compactMode,
+      stimulus: appliedStimulus,
+      userText: text || undefined,
+      sessionBridge,
+      writebackFeedback,
+      relationContext: relationalTurn.relationContext,
+      externalContinuityExports: throngletsExports.length,
+    });
 
     if (this.cfg.compactMode) {
       const externalContinuity = buildExternalContinuityEnvelope(throngletsExports);
@@ -729,6 +743,7 @@ export class PsycheEngine {
         writebackFeedback,
         externalContinuity,
         throngletsExports,
+        observability,
         policyContext: derivedReplyEnvelope.policyContext,
       };
     }
@@ -748,6 +763,7 @@ export class PsycheEngine {
       writebackFeedback,
       externalContinuity,
       throngletsExports,
+      observability,
       policyContext: derivedReplyEnvelope.policyContext,
     };
   }

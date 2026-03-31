@@ -29,6 +29,9 @@ export type {
   RegulationStrategyType, DefenseMechanismType,
   PersonhoodState, PersistedCausalInsight, GrowthDirection,
   PersonalityTraits, PsycheMode, PolicyModifiers, SubjectivityKernel, ResponseContract, GenerationControls,
+  TurnControlPlane, TurnControlDriver, ControlBoundaryObservation, StateLayerKind, StateLayerObservation,
+  PromptRenderInputName, RuntimeHookName, OutputAttributionObservation, StateReconciliationObservation,
+  DecisionCandidateName, DecisionCandidateObservation, DecisionRationaleObservation, TurnObservability,
   AppraisalAxes, SubjectResidue, TaskPlaneState, SubjectPlaneState, RelationPlaneState,
   AmbiguityPlaneState, RelationMoveType, RelationMove, OpenLoopType, OpenLoopState, PendingRelationSignalState, DyadicFieldState,
   SessionBridgeState, ThrongletsExportSubject, ThrongletsExportPrimitive, ThrongletsExportBase, RelationMilestoneExport,
@@ -107,6 +110,7 @@ export { computeResponseContract, buildResponseContractContext } from "./respons
 export { deriveGenerationControls } from "./host-controls.js";
 export { deriveReplyEnvelope } from "./reply-envelope.js";
 export type { ReplyEnvelope } from "./reply-envelope.js";
+export { buildTurnObservability } from "./observability.js";
 export { computeAppraisalAxes, mergeAppraisalResidue, getResidueIntensity } from "./appraisal.js";
 export {
   computeRelationMove, evolveDyadicField, evolvePendingRelationSignals, getLoopPressure,

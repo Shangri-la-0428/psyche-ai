@@ -317,6 +317,10 @@ describe("createPsycheServer (HTTP)", () => {
     assert.ok(Array.isArray(data.externalContinuity?.exports));
     assert.ok(Array.isArray(data.externalContinuity?.signals));
     assert.ok(Array.isArray(data.externalContinuity?.traces));
+    assert.equal(data.observability?.outputAttribution?.canonicalSurface, "reply-envelope");
+    assert.ok(Array.isArray(data.observability?.stateLayers));
+    assert.ok(data.observability?.stateReconciliation);
+    assert.ok(Array.isArray(data.observability?.decisionRationale?.candidates));
   });
 
   it("POST /process-output strips tags", async () => {

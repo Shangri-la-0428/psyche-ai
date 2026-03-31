@@ -183,6 +183,15 @@ v9.0 把“反向 baseline test”引入主体性方向。v9.2.9 则进一步把
 
 当前主线里，`processInput()` 会直接返回 `replyEnvelope` 作为规范主接口；`subjectivityKernel`、`responseContract`、`generationControls` 继续保留为兼容别名，`policyModifiers` 则降级为 legacy raw vector。
 
+在这个主接口之外，还有一个刻意做薄的 `observability` side-channel。它不参与主控制，只提供：
+
+- `controlBoundary`：当前哪一个 control plane / driver 在主导
+- `stateReconciliation`：turn、writeback、session bridge、persisted relationship 如何完成当轮对账
+- `decisionRationale`：`work/private` 选择的触发条件、候选集、最终接受项
+- `outputAttribution`：哪些 render inputs 和 runtime hooks 参与了输出形成
+
+第一性原则是：**控制和观测必须分开**。`replyEnvelope` 继续是唯一规范控制面；`observability` 只负责让别的 agent 和宿主验证“为什么会这样”，而不是参与“下一步该怎么做”。
+
 ### 3. AI-first ABI + 双回应 profile (`subjectivity.ts`, `response-contract.ts`, `host-controls.ts`)
 
 `processInput()` 现在除了 prompt 文本，还会直接返回：

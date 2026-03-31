@@ -896,6 +896,113 @@ export interface ResponseContract {
   updateMode: "none" | "stimulus" | "empathy" | "stimulus+empathy";
 }
 
+export type TurnControlPlane = "task" | "subject" | "relation" | "ambiguity";
+
+export type TurnControlDriver =
+  | "task-focus"
+  | "discipline"
+  | "attachment"
+  | "guardedness"
+  | "identity-strain"
+  | "residue"
+  | "closeness"
+  | "loop-pressure"
+  | "repair-readiness"
+  | "repair-friction"
+  | "hysteresis"
+  | "silent-carry"
+  | "conflict-load"
+  | "expression-inhibition"
+  | "naming-uncertainty";
+
+export interface ControlBoundaryObservation {
+  dominantPlane: TurnControlPlane;
+  dominantDriver: TurnControlDriver;
+  strength: number;
+  replyProfile: ResponseContract["replyProfile"];
+  replyProfileBasis: ResponseContract["replyProfileBasis"];
+  overrideWindow: ResponseContract["overrideWindow"];
+}
+
+export type StateLayerKind =
+  | "current-turn"
+  | "writeback-feedback"
+  | "session-bridge"
+  | "persisted-relationship";
+
+export interface StateLayerObservation {
+  layer: StateLayerKind;
+  precedence: number;
+  scope: "turn" | "session" | "persistent";
+  active: boolean;
+  summary: string;
+}
+
+export type PromptRenderInputName =
+  | "sensing"
+  | "subjectivity"
+  | "response-contract"
+  | "metacognition"
+  | "decision"
+  | "ethics"
+  | "shared-intentionality"
+  | "experiential"
+  | "autonomic"
+  | "primary-systems"
+  | "policy";
+
+export type RuntimeHookName =
+  | "appraisal"
+  | "relation-dynamics"
+  | "writeback-evaluation"
+  | "reply-envelope"
+  | "prompt-renderer"
+  | "external-continuity";
+
+export interface OutputAttributionObservation {
+  canonicalSurface: "reply-envelope";
+  promptRenderer: "compact" | "dynamic";
+  renderInputs: PromptRenderInputName[];
+  runtimeHooks: RuntimeHookName[];
+  externalContinuityExports: number;
+  writebackFeedbackCount: number;
+}
+
+export interface StateReconciliationObservation {
+  governingLayer: StateLayerKind;
+  activeLayers: StateLayerKind[];
+  carryLayers: StateLayerKind[];
+  resolution:
+    | "current-turn-dominant"
+    | "writeback-adjusted"
+    | "session-bridge-biased"
+    | "persistent-baseline";
+  notes: string[];
+}
+
+export type DecisionCandidateName = "work-profile" | "private-profile";
+
+export interface DecisionCandidateObservation {
+  candidate: DecisionCandidateName;
+  score: number;
+  accepted: boolean;
+  reasons: string[];
+}
+
+export interface DecisionRationaleObservation {
+  selected: DecisionCandidateName;
+  triggerConditions: string[];
+  candidates: DecisionCandidateObservation[];
+}
+
+export interface TurnObservability {
+  controlBoundary: ControlBoundaryObservation;
+  stateLayers: StateLayerObservation[];
+  stateReconciliation: StateReconciliationObservation;
+  decisionRationale: DecisionRationaleObservation;
+  outputAttribution: OutputAttributionObservation;
+}
+
 /** Sparse agent-authored writeback signals. */
 export type WritebackSignalType =
   | "trust_up"

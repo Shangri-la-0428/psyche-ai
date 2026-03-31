@@ -1,5 +1,13 @@
 # 更新日志 / Changelog
 
+## Unreleased
+
+- **可观测性侧边信道**：`processInput()` 现在会可选返回 `observability`，但仍严格把它放在 `replyEnvelope` 之外，不让观测和控制混成第二套主接口。
+- **层间对账视图**：新增 `stateReconciliation`，让当前 turn、writeback、session bridge、persisted relationship 的优先级与生效层次可直接读取，不再要求宿主自己拼推导。
+- **策略理由结构体**：新增 `decisionRationale`，用触发条件、候选 profile、接受结果说明为什么这轮落在 `work` 或 `private`，减少“看得见结果、看不见理由”的黑箱感。
+
+---
+
 ## v9.2.9 — Runtime Proof + 发布硬闸
 
 - **运行时自证**：新增 `psyche probe --json`，真实执行一次 `processInput()` / `processOutput()` 并返回版本、加载路径、主接口可用性。以后任何 agent 如果声称“已经在用 Psyche”，都必须先拿出 probe 结果。

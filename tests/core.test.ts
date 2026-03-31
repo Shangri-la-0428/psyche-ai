@@ -141,6 +141,28 @@ describe("PsycheEngine", () => {
     assert.ok((result.generationControls?.maxTokens ?? 0) >= 160, `got ${result.generationControls?.maxTokens}`);
   });
 
+  it("surfaces a low-cost observability side-channel for control boundary and attribution", async () => {
+    const result = await engine.processInput("请按应用日志、网关、数据库三层给我一份登录接口 500 的排查思路，并说明每层先看什么。");
+    assert.ok(result.observability, "expected observability side-channel");
+    assert.equal(result.observability?.controlBoundary.dominantPlane, "task");
+    assert.equal(result.observability?.controlBoundary.replyProfileBasis, "task-focus+discipline");
+    assert.equal(result.observability?.stateLayers[0]?.layer, "current-turn");
+    assert.equal(result.observability?.stateLayers[0]?.active, true);
+    assert.equal(result.observability?.stateReconciliation.governingLayer, "current-turn");
+    assert.equal(result.observability?.stateReconciliation.resolution, "current-turn-dominant");
+    assert.ok(result.observability?.decisionRationale.triggerConditions.includes("task-focus>=0.62"));
+    assert.equal(result.observability?.decisionRationale.selected, "work-profile");
+    assert.ok(result.observability?.decisionRationale.candidates.some((candidate) => candidate.accepted && candidate.candidate === "work-profile"));
+    const acceptedWorkCandidate = result.observability?.decisionRationale.candidates.find((candidate) => candidate.accepted);
+    const rejectedPrivateCandidate = result.observability?.decisionRationale.candidates.find((candidate) => !candidate.accepted);
+    assert.ok((acceptedWorkCandidate?.score ?? 0) >= (rejectedPrivateCandidate?.score ?? 0));
+    assert.equal(result.observability?.outputAttribution.canonicalSurface, "reply-envelope");
+    assert.equal(result.observability?.outputAttribution.promptRenderer, "dynamic");
+    assert.ok(result.observability?.outputAttribution.renderInputs.includes("subjectivity"));
+    assert.ok(result.observability?.outputAttribution.renderInputs.includes("response-contract"));
+    assert.ok(result.observability?.outputAttribution.runtimeHooks.includes("reply-envelope"));
+  });
+
   it("processInput updates relationship gradually based on stimulus valence", async () => {
     const before = { ...engine.getState().relationships._default };
 
@@ -853,6 +875,12 @@ END: 75 (happy)
     assert.ok(result.writebackFeedback && result.writebackFeedback.length > 0, "expected writeback feedback");
     assert.equal(result.writebackFeedback?.[0].signal, "trust_up");
     assert.equal(result.writebackFeedback?.[0].effect, "converging");
+    const writebackLayer = result.observability?.stateLayers.find((layer) => layer.layer === "writeback-feedback");
+    assert.ok(writebackLayer?.active, "expected writeback layer to be active");
+    assert.equal(writebackLayer?.summary, "trust_up:converging");
+    assert.equal(result.observability?.stateReconciliation.governingLayer, "current-turn");
+    assert.equal(result.observability?.stateReconciliation.resolution, "writeback-adjusted");
+    assert.ok(result.observability?.stateReconciliation.notes.some((note) => note === "writeback-feedback:trust_up:converging"));
     assert.ok(
       result.throngletsExports?.some(
         (event) => event.kind === "writeback-calibration"

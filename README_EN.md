@@ -253,6 +253,14 @@ The point is not extra abstraction. It is less scattered orchestration and a mor
 
 On the current mainline, `processInput()` returns `replyEnvelope` as the canonical host surface; the older sibling fields remain as compatibility aliases so existing hosts do not break. `policyModifiers` no longer belongs to the canonical surface and survives only as a legacy raw vector.
 
+Outside that canonical host surface, `processInput()` may also return a thin `observability` side-channel. It is not a second control ABI and it does not compete with `replyEnvelope`; it only makes three things legible:
+
+- which control plane dominated this turn
+- how current-turn, writeback, session-bridge, and persisted-relationship layers reconciled
+- why the reply path landed on `work` or `private`
+
+That lets other agents and hosts verify control boundaries and strategy selection without turning the main runtime path into a second prompt protocol.
+
 ---
 
 ## MCP — Any AI Can Discover Psyche
