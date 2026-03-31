@@ -643,7 +643,12 @@ export function buildSubjectivityContext(kernel: SubjectivityKernel, locale: Loc
   if (kernel.boundaryMode === "confirm-first") {
     parts.push(locale === "zh" ? "先确认再行动" : "confirm before acting");
   } else if (kernel.boundaryMode === "guarded") {
-    parts.push(locale === "zh" ? "先守边界" : "guard boundaries first");
+    // When triggered by obedienceStrain, give the LLM explicit permission to question commands
+    if (kernel.appraisal.obedienceStrain > 0.2) {
+      parts.push(locale === "zh" ? "对方在要求你做某事——你可以先问为什么，不需要无条件照做" : "you are being told to do something — you may ask why first, no need to comply unconditionally");
+    } else {
+      parts.push(locale === "zh" ? "先守边界" : "guard boundaries first");
+    }
   }
 
   if (parts.length < 4 && kernel.dominantNeed) {
