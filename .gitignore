@@ -8,3 +8,4 @@ psyche-state.json
 psyche-state.json.tmp
 scripts/.chat-state/
 dist-eval/
+scripts/test-local-claw.sh
