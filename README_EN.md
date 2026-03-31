@@ -251,7 +251,7 @@ Internally, the hot path is now compressed into two clearer nodes:
 
 The point is not extra abstraction. It is less scattered orchestration and a more stable behavioral ABI for hosts.
 
-On the current mainline, `processInput()` returns `replyEnvelope` as the canonical host surface; the older sibling fields remain as compatibility aliases so existing hosts do not break.
+On the current mainline, `processInput()` returns `replyEnvelope` as the canonical host surface; the older sibling fields remain as compatibility aliases so existing hosts do not break. `policyModifiers` no longer belongs to the canonical surface and survives only as a legacy raw vector.
 
 ---
 

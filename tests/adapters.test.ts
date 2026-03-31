@@ -307,6 +307,7 @@ describe("createPsycheServer (HTTP)", () => {
     assert.ok(data.subjectivityKernel);
     assert.ok(data.responseContract);
     assert.ok(data.generationControls);
+    assert.equal("policyModifiers" in data.replyEnvelope, false);
     assert.deepEqual(data.replyEnvelope.subjectivityKernel, data.subjectivityKernel);
     assert.deepEqual(data.replyEnvelope.responseContract, data.responseContract);
     assert.deepEqual(data.replyEnvelope.generationControls, data.generationControls);

@@ -22,10 +22,15 @@ import { buildResponseContractContext, computeResponseContract } from "./respons
 import { buildSubjectivityContext, computeSubjectivityKernel } from "./subjectivity.js";
 
 export interface ReplyEnvelope {
-  policyModifiers: PolicyModifiers;
   subjectivityKernel: SubjectivityKernel;
   responseContract: ResponseContract;
   generationControls: GenerationControls;
+}
+
+export interface DerivedReplyEnvelope extends ReplyEnvelope {
+  /** Legacy/internal control vector kept for compatibility and prompt derivation. */
+  policyModifiers: PolicyModifiers;
+  /** Legacy/internal compact prose derived from policyModifiers. */
   policyContext: string;
   subjectivityContext: string;
   responseContractContext: string;
@@ -42,7 +47,7 @@ export function deriveReplyEnvelope(
     personalityIntensity?: number;
     relationContext?: ResolvedRelationContext;
   },
-): ReplyEnvelope {
+): DerivedReplyEnvelope {
   const policyModifiers = computePolicyModifiers(state);
   const subjectivityKernel = computeSubjectivityKernel(
     state,
@@ -66,10 +71,10 @@ export function deriveReplyEnvelope(
   const responseContractContext = buildResponseContractContext(responseContract, opts.locale);
 
   return {
-    policyModifiers,
     subjectivityKernel,
     responseContract,
     generationControls,
+    policyModifiers,
     policyContext,
     subjectivityContext,
     responseContractContext,

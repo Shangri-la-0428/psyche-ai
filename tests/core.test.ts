@@ -1291,6 +1291,7 @@ describe("pluggable classifier in PsycheEngine", () => {
     assert.ok(result.replyEnvelope, "replyEnvelope should be present");
     assert.ok(result.subjectivityKernel, "subjectivityKernel should be present");
     assert.ok(result.responseContract, "responseContract should be present");
+    assert.equal("policyModifiers" in (result.replyEnvelope ?? {}), false);
     assert.deepEqual(result.replyEnvelope?.subjectivityKernel, result.subjectivityKernel);
     assert.deepEqual(result.replyEnvelope?.responseContract, result.responseContract);
     assert.deepEqual(result.replyEnvelope?.generationControls, result.generationControls);

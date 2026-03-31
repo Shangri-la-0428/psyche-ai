@@ -50,7 +50,7 @@ import {
   gatePrimarySystemsByAutonomic, describeBehavioralTendencies,
 } from "./primary-systems.js";
 import { applyRelationalTurn, applySessionBridge, applyWritebackSignals, createWritebackCalibrations, evaluateWritebackCalibrations } from "./relation-dynamics.js";
-import type { ReplyEnvelope } from "./reply-envelope.js";
+import type { DerivedReplyEnvelope, ReplyEnvelope } from "./reply-envelope.js";
 import { deriveReplyEnvelope } from "./reply-envelope.js";
 import { buildExternalContinuityEnvelope } from "./external-continuity.js";
 import { deriveThrongletsExports } from "./thronglets-export.js";
@@ -95,7 +95,7 @@ export interface ProcessInputResult {
   stimulus: StimulusType | null;
   /** Confidence of the primary algorithmic stimulus guess, if any */
   stimulusConfidence?: number;
-  /** v9: Structured behavioral policy modifiers — machine-readable "off baseline" signals */
+  /** Legacy compatibility alias: raw policy vector behind the canonical replyEnvelope. */
   policyModifiers?: PolicyModifiers;
   /** v9.3+: canonical host-facing reply surface */
   replyEnvelope?: ReplyEnvelope;
@@ -114,7 +114,7 @@ export interface ProcessInputResult {
   /** v9.2.8: sparse low-frequency export surface suitable for Thronglets */
   throngletsExports?: ThrongletsExport[];
   /**
-   * v9: Ready-to-use LLM prompt fragment summarizing current behavioral policy.
+   * Legacy compatibility alias: ready-to-use prompt fragment summarizing raw policy modifiers.
    *
    * This is the output of `buildPolicyContext(policyModifiers, locale)` —
    * a human-readable string like "[行为策略] 简短回复、被动应答为主".
@@ -833,7 +833,7 @@ export class PsycheEngine {
     const experientialNarrative = experientialField?.narrative || undefined;
 
     // v9: Compute structured policy modifiers
-    const replyEnvelope = deriveReplyEnvelope(state, appraisalAxes, {
+    const derivedReplyEnvelope: DerivedReplyEnvelope = deriveReplyEnvelope(state, appraisalAxes, {
       locale,
       userText: text || undefined,
       algorithmStimulus: appliedStimulus,
@@ -841,6 +841,11 @@ export class PsycheEngine {
       personalityIntensity: this.cfg.personalityIntensity,
       relationContext: relationalTurn.relationContext,
     });
+    const replyEnvelope: ReplyEnvelope = {
+      subjectivityKernel: derivedReplyEnvelope.subjectivityKernel,
+      responseContract: derivedReplyEnvelope.responseContract,
+      generationControls: derivedReplyEnvelope.generationControls,
+    };
 
     // P10: Append processing depth info to autonomic description when depth is low
     let autonomicDesc: string | undefined;
@@ -870,14 +875,14 @@ export class PsycheEngine {
           autonomicDescription: autonomicDesc,
           autonomicState: autonomicResult.state,
           primarySystemsDescription: primarySystemsDescription || undefined,
-          subjectivityContext: replyEnvelope.subjectivityContext,
-          responseContractContext: replyEnvelope.responseContractContext,
-          policyContext: replyEnvelope.policyContext || undefined,
+          subjectivityContext: derivedReplyEnvelope.subjectivityContext,
+          responseContractContext: derivedReplyEnvelope.responseContractContext,
+          policyContext: derivedReplyEnvelope.policyContext || undefined,
         }),
         stimulus: appliedStimulus,
         stimulusConfidence: this.lastStimulusAssessment?.confidence,
         replyEnvelope,
-        policyModifiers: replyEnvelope.policyModifiers,
+        policyModifiers: derivedReplyEnvelope.policyModifiers,
         subjectivityKernel: replyEnvelope.subjectivityKernel,
         responseContract: replyEnvelope.responseContract,
         generationControls: replyEnvelope.generationControls,
@@ -885,7 +890,7 @@ export class PsycheEngine {
         writebackFeedback,
         externalContinuity,
         throngletsExports,
-        policyContext: replyEnvelope.policyContext,
+        policyContext: derivedReplyEnvelope.policyContext,
       };
     }
 
@@ -901,12 +906,12 @@ export class PsycheEngine {
         autonomicDescription: autonomicDesc,
         autonomicState: autonomicResult.state,
         primarySystemsDescription: primarySystemsDescription || undefined,
-        policyContext: replyEnvelope.policyContext || undefined,
+        policyContext: derivedReplyEnvelope.policyContext || undefined,
       }),
       stimulus: appliedStimulus,
       stimulusConfidence: this.lastStimulusAssessment?.confidence,
       replyEnvelope,
-      policyModifiers: replyEnvelope.policyModifiers,
+      policyModifiers: derivedReplyEnvelope.policyModifiers,
       subjectivityKernel: replyEnvelope.subjectivityKernel,
       responseContract: replyEnvelope.responseContract,
       generationControls: replyEnvelope.generationControls,
@@ -914,7 +919,7 @@ export class PsycheEngine {
       writebackFeedback,
       externalContinuity,
       throngletsExports,
-      policyContext: replyEnvelope.policyContext,
+      policyContext: derivedReplyEnvelope.policyContext,
     };
   }
 
