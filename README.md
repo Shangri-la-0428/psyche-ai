@@ -49,7 +49,7 @@ Psyche 要解决的不可压缩问题只有一个：
 
 ## 冻结身份蓝图
 
-跨 Psyche / Thronglets / Oasyce Net / Oasyce Chain 的身份抽象现在冻结成 4 个对象：
+跨 Psyche / Thronglets / Oasyce SDK / Oasyce Chain 的身份抽象现在冻结成 4 个对象：
 
 1. `principal`：持续主体
 2. `account`：资产与结算容器
@@ -60,11 +60,11 @@ Psyche 要解决的不可压缩问题只有一个：
 
 - `Psyche = subjective continuity substrate`
 - `Thronglets = delegate continuity + session traces/coordination + emergent collective intelligence`
-- `Oasyce Net = policy, operations, and resource orchestration`
+- `Oasyce SDK = agent runtime, policy, and resource orchestration`
 - `Oasyce Chain = account truth, authorization truth, commitments, settlement, and public finality`
 
 授权真相流也固定成单向：
-`Chain -> Net -> Thronglets -> Psyche`
+`Chain -> SDK -> Thronglets -> Psyche`
 
 也就是说，`Psyche` 不判断“谁被授权”，它只读取已经成立的执行边界结果。
 
