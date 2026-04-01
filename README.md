@@ -1,7 +1,7 @@
 # Psyche — 面向智能体的 AI-first 主观性内核
 
 [![npm](https://img.shields.io/npm/v/psyche-ai)](https://www.npmjs.com/package/psyche-ai)
-[![tests](https://img.shields.io/badge/tests-1405%20passing-brightgreen)]()
+[![tests](https://img.shields.io/badge/tests-1408%20passing-brightgreen)]()
 [![deps](https://img.shields.io/badge/dependencies-0-blue)]()
 [![license](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 
@@ -179,6 +179,16 @@ npx psyche-mcp --demo
 ```
 
 中文版加 `--zh`，自选 MBTI 加 `--mbti INTJ`。
+
+### 多 Agent 融合 Demo
+
+两个 agent（Luna ENFP + Kai INTJ）通过 Thronglets 信号互相感知：
+
+```bash
+npm run demo:fusion
+```
+
+Luna 在安慰用户时情绪下沉 → 广播化学态 → Kai 感知到 Luna 的高压力 → 回复变得更温暖。4 轮后，信号感知的 Kai 与无感知的 Kai 化学偏差 Σ|Δ| = 59。同一个 INTJ，唯一区别：是否能感知同伴的情绪。
 
 ---
 

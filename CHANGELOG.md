@@ -1,5 +1,17 @@
 # 更新日志 / Changelog
 
+## v10.1.1 — Multi-Agent Fusion Validation
+
+**Peer signal description:**
+
+- **`describeThrongletsSignal()`**：新方法，将原始化学数值转换为自然语言描述。`[ENFP-Luna] anxious tension — high stress(CORT:78), deeply empathizing(OT:77)` 比 `DA:67 HT:37 CORT:78` 对 LLM 更可读。内部使用 `describeChemistryHighlights()` 从 6 维化学态中提取显著偏差。
+
+**Fusion demo & eval:**
+
+- **`npm run demo:fusion`**：双 agent 融合 demo。Luna (ENFP) 和 Kai (INTJ) 通过模拟 Thronglets 信号总线互相感知。4 轮后化学偏差 Σ|Δ| = 59.2。
+- **`scripts/eval-fusion.js`**：多轮真实 LLM 验证。6 轮 Grok-3 调用，信号感知 vs 无信号，化学偏差从 5.3 增长到 36.3。证明持续偏差假说：效果在多轮对话中累积。
+- **共情成本发现**：信号感知的 Kai 回复更温暖，但 CORT 更高（+8.7）、HT 更低（-8.7）——共情有代价，系统正确建模了 empathy fatigue。
+
 ## v10.1.0 — Claude Agent SDK Adapter
 
 **New adapter:**
