@@ -1,7 +1,7 @@
 # Psyche — 面向智能体的 AI-first 主观性内核
 
 [![npm](https://img.shields.io/npm/v/psyche-ai)](https://www.npmjs.com/package/psyche-ai)
-[![tests](https://img.shields.io/badge/tests-1408%20passing-brightgreen)]()
+[![tests](https://img.shields.io/badge/tests-1415%20passing-brightgreen)]()
 [![deps](https://img.shields.io/badge/dependencies-0-blue)]()
 [![license](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 
@@ -229,6 +229,14 @@ npm view psyche-ai version
 - npm 管理的安装会后台安全检查更新，必要时才尝试自动升级。
 - `git` 工作树和本地路径安装不会偷偷改你的代码；脏工作树只会提示手动命令。
 - OpenClaw 如果是从当前仓库本地加载，升级后记得重启 gateway 以载入新的 `dist/`。
+
+## 透明代理（推荐：任意 LLM 一行接入）
+
+```bash
+psyche-proxy --target https://api.openai.com/v1 --name Luna --mbti ENFP
+```
+
+然后把客户端的 API 地址改成 `http://localhost:3340/v1`。Agent 获得持续主观性，但完全不知道 Psyche 存在。Psyche 像内分泌系统一样在后台观测行为、注入偏置——镜子，不是麦克风。
 
 ## 给本机其他 Agent 的真实验收
 

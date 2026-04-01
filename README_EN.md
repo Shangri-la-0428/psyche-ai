@@ -7,7 +7,7 @@ It compresses continuous appraisal, relation dynamics, adaptive reply loops, and
 **One sentence:** Psyche is a subjectivity kernel for agents.
 
 [![npm](https://img.shields.io/npm/v/psyche-ai)](https://www.npmjs.com/package/psyche-ai)
-[![tests](https://img.shields.io/badge/tests-1408%20passing-brightgreen)]()
+[![tests](https://img.shields.io/badge/tests-1415%20passing-brightgreen)]()
 [![deps](https://img.shields.io/badge/dependencies-0-blue)]()
 [![license](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 
@@ -385,6 +385,14 @@ npm view psyche-ai version
 - npm-managed installs can auto-check in the background and only auto-apply when safe.
 - `git` worktrees and local-path installs are never mutated behind your back.
 - Local OpenClaw plugin development still requires a host restart after rebuilding `dist/`.
+
+## Transparent Proxy (recommended: any LLM in one line)
+
+```bash
+psyche-proxy --target https://api.openai.com/v1 --name Luna --mbti ENFP
+```
+
+Point any client to `http://localhost:3340/v1`. The agent gains persistent subjectivity without knowing Psyche exists. Psyche observes behavior bidirectionally and injects behavioral bias only when internal state deviates from baseline. Mirror, not microphone.
 
 ## Runtime Proof For Other Local Agents
 

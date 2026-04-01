@@ -162,9 +162,18 @@ npm install psyche-ai
 npx psyche-mcp
 ```
 
+## Transparent Proxy (recommended for universal integration)
+
+```bash
+psyche-proxy --target https://api.openai.com/v1 --name Luna --mbti ENFP
+```
+
+Then point any client to `http://localhost:3340/v1`. The agent gains persistent subjectivity without knowing Psyche exists. Psyche observes behavior bidirectionally and injects behavioral bias only when the internal state deviates from baseline. Zero new interfaces for the agent.
+
 ## Adapter Sub-paths
 
 - `psyche-ai` — core engine (PsycheEngine, MemoryStorageAdapter)
+- `psyche-ai/proxy` — transparent reverse proxy (agent never knows)
 - `psyche-ai/claude-sdk` — Claude Agent SDK hooks (PsycheClaudeSDK)
 - `psyche-ai/mcp` — MCP stdio server
 - `psyche-ai/vercel-ai` — Vercel AI SDK middleware

@@ -1,5 +1,24 @@
 # 更新日志 / Changelog
 
+## v10.2.0 — Transparent Proxy (Mirror Architecture)
+
+**psyche-proxy: agent never knows Psyche exists.**
+
+- **`psyche-proxy`**：透明反向代理，接入任意 OpenAI 兼容 API。Psyche 在请求/响应两侧双向观测，只在化学态偏离基线时注入行为偏置。Agent 完全不知道 Psyche 的存在。
+  - `psyche-proxy -t https://api.openai.com/v1 -n Luna --mbti ENFP`
+  - 支持 streaming（SSE）和 non-streaming
+  - 默认静默：`isNearBaseline()` 为 true 时零注入
+  - 注入内容使用 `deriveBehavioralBias()`：行为指令，不是情绪标签
+  - 自动从请求 `user` 字段追踪多用户关系
+  - 7 个测试，1415 总测试数
+
+**Architecture philosophy (from Thronglets feedback):**
+
+- **镜子，不是麦克风**：Psyche 观测行为（输入/输出文本），不要求 agent 自报状态
+- **推送，不等调用**：行为偏置自动注入 system prompt，不需要 agent 调用任何 tool
+- **默认沉默**：近基线时什么都不说，只在状态显著偏移时注入
+- 第 7 个 adapter：OpenClaw / MCP / Vercel AI / LangChain / HTTP / Claude SDK / **Proxy**
+
 ## v10.1.1 — Multi-Agent Fusion Validation
 
 **Peer signal description:**
