@@ -6,12 +6,12 @@
     "url": "https://github.com/Shangri-la-0428/oasyce_psyche",
     "source": "github"
   },
-  "version": "10.2.3",
+  "version": "10.2.4",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "psyche-ai",
-      "version": "10.2.3",
+      "version": "10.2.4",
       "transport": {
         "type": "stdio"
       },

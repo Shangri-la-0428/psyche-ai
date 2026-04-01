@@ -753,11 +753,12 @@ Examples:
   psyche profiles
   psyche profiles --mbti ENFP
 
-  # Auto-configure all MCP clients
-  psyche setup --mbti ENFP --name Luna
+  # Auto-configure all MCP clients (one command, done)
+  psyche setup
+  psyche setup --name Luna
 
   # Universal proxy — works with any agent using OpenAI SDK
-  psyche setup --proxy -t https://api.openai.com/v1 --mbti ENFP
+  psyche setup --proxy -t https://api.openai.com/v1
 
   # Check for new package versions without applying them
   psyche upgrade --check

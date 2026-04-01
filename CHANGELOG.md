@@ -1,5 +1,10 @@
 # 更新日志 / Changelog
 
+## v10.2.4 — Zero-Arg Setup
+
+- **`npx psyche-ai setup`** — 不需要任何参数。MBTI 不再是前置条件，人格从交互中涌现。
+- README/CLI 示例全部简化为零参数形态。
+
 ## v10.2.3 — One Command, Every Agent
 
 - **Claude Code 即时生效**：`psyche setup` 使用 `claude mcp add` 热加载，不需要重启
