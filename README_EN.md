@@ -1,4 +1,4 @@
-# Psyche — An AI-first subjectivity kernel for agents
+# Psyche — The subjectivity kernel that gives AI a self
 
 Psyche is not an emotion-themed UI layer.
 
