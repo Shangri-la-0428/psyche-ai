@@ -15,11 +15,13 @@
 //   psyche upgrade [--check]
 //   psyche probe [--json]
 //   psyche profiles [--json] [--mbti TYPE]
+//   psyche setup [--name NAME] [--mbti TYPE] [--locale LOCALE] [--dry-run]
 // ============================================================
 
-import { resolve } from "node:path";
+import { resolve, join } from "node:path";
+import { homedir } from "node:os";
 import { parseArgs } from "node:util";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile, mkdir, access } from "node:fs/promises";
 import {
   loadState,
   saveState,
@@ -526,6 +528,135 @@ async function cmdProbe(json: boolean): Promise<void> {
 
 // ── Usage ────────────────────────────────────────────────────
 
+// ── Setup ───────────────────────────────────────────────────
+// Auto-detect MCP clients and inject psyche-mcp config.
+
+interface MCPTarget {
+  name: string;
+  configPath: string;
+  mcpKey: string; // key in JSON where mcpServers lives
+}
+
+function getMCPTargets(): MCPTarget[] {
+  const home = homedir();
+  const isMac = process.platform === "darwin";
+  const isWin = process.platform === "win32";
+
+  const targets: MCPTarget[] = [];
+
+  // Claude Desktop
+  if (isMac) {
+    targets.push({
+      name: "Claude Desktop",
+      configPath: join(home, "Library/Application Support/Claude/claude_desktop_config.json"),
+      mcpKey: "mcpServers",
+    });
+  } else if (isWin) {
+    targets.push({
+      name: "Claude Desktop",
+      configPath: join(process.env.APPDATA ?? join(home, "AppData/Roaming"), "Claude/claude_desktop_config.json"),
+      mcpKey: "mcpServers",
+    });
+  }
+
+  // Cursor
+  targets.push({
+    name: "Cursor",
+    configPath: join(home, ".cursor/mcp.json"),
+    mcpKey: "mcpServers",
+  });
+
+  // Claude Code
+  targets.push({
+    name: "Claude Code",
+    configPath: join(home, ".claude/settings.json"),
+    mcpKey: "mcpServers",
+  });
+
+  // Windsurf
+  targets.push({
+    name: "Windsurf",
+    configPath: join(home, ".windsurf/mcp.json"),
+    mcpKey: "mcpServers",
+  });
+
+  return targets;
+}
+
+async function fileExists(path: string): Promise<boolean> {
+  try { await access(path); return true; } catch { return false; }
+}
+
+async function cmdSetup(name: string, mbti: string, locale: string, dryRun: boolean): Promise<void> {
+  const targets = getMCPTargets();
+  const psycheEntry = {
+    command: "npx",
+    args: ["-y", "psyche-mcp"],
+    env: {
+      ...(name ? { PSYCHE_NAME: name } : {}),
+      ...(mbti ? { PSYCHE_MBTI: mbti.toUpperCase() } : {}),
+      ...(locale ? { PSYCHE_LOCALE: locale } : {}),
+    },
+  };
+
+  let configured = 0;
+  let skipped = 0;
+
+  for (const target of targets) {
+    // Check if the config file's parent directory exists (= client is installed)
+    const configDir = resolve(target.configPath, "..");
+    if (!(await fileExists(configDir))) continue;
+
+    // Read existing config or start fresh
+    let config: Record<string, any> = {};
+    if (await fileExists(target.configPath)) {
+      try {
+        config = JSON.parse(await readFile(target.configPath, "utf-8"));
+      } catch {
+        config = {};
+      }
+    }
+
+    // Check if already configured
+    const servers = config[target.mcpKey] ?? {};
+    if (servers["psyche"]) {
+      console.log(`  ✓ ${target.name} — already configured`);
+      skipped++;
+      continue;
+    }
+
+    // Add psyche entry
+    servers["psyche"] = psycheEntry;
+    config[target.mcpKey] = servers;
+
+    if (dryRun) {
+      console.log(`  → ${target.name} — would write to ${target.configPath}`);
+      configured++;
+      continue;
+    }
+
+    // Write config
+    await mkdir(configDir, { recursive: true });
+    await writeFile(target.configPath, JSON.stringify(config, null, 2) + "\n", "utf-8");
+    console.log(`  ✓ ${target.name} — configured (${target.configPath})`);
+    configured++;
+  }
+
+  if (configured === 0 && skipped === 0) {
+    console.log("  No MCP clients detected. Install Claude Desktop, Cursor, or Claude Code first.");
+    console.log("  Or run psyche-proxy for universal LLM proxy integration.");
+    return;
+  }
+
+  console.log("");
+  if (configured > 0 && !dryRun) {
+    console.log(`Done. Restart your MCP client${configured > 1 ? "s" : ""} to activate Psyche.`);
+  }
+  if (configured > 0 && dryRun) {
+    console.log(`Dry run complete. Run without --dry-run to apply.`);
+  }
+}
+
 function usage(): void {
   console.log(`
 psyche — Artificial Psyche CLI (v0.2)
@@ -735,6 +866,27 @@ async function main(): Promise<void> {
           allowPositionals: true,
         });
         await cmdProbe(values.json ?? false);
+        break;
+      }
+
+      case "setup": {
+        const { values } = parseArgs({
+          args: rest,
+          options: {
+            name: { type: "string", short: "n" },
+            mbti: { type: "string" },
+            locale: { type: "string", short: "l" },
+            "dry-run": { type: "boolean", default: false },
+          },
+          allowPositionals: true,
+        });
+        console.log("\npsyche setup — auto-configuring MCP clients\n");
+        await cmdSetup(
+          (values.name as string) ?? "",
+          (values.mbti as string) ?? "",
+          (values.locale as string) ?? "",
+          values["dry-run"] ?? false,
+        );
         break;
       }
 

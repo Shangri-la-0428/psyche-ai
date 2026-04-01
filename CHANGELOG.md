@@ -1,5 +1,10 @@
 # 更新日志 / Changelog
 
+## v10.2.1 — Zero-Config Setup
+
+- **`psyche setup`**：一条命令自动配置所有 MCP 客户端。检测 Claude Desktop / Cursor / Claude Code / Windsurf，自动写入 `psyche-mcp` 配置。`npx psyche-ai setup --name Luna --mbti ENFP`。支持 `--dry-run`。
+- 用户不需要知道 config 文件在哪、格式是什么。安装后一条命令，重启生效。
+
 ## v10.2.0 — Transparent Proxy (Mirror Architecture)
 
 **psyche-proxy: agent never knows Psyche exists.**
