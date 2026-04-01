@@ -13,6 +13,7 @@ import DiscoveryPage from '../layouts/DiscoveryPage.astro';
   leadEn="Psyche does not behave the same under every install mode. Making that explicit reduces a lot of friction and confusion around upgrades."
   stats={[
     { value: '3', labelCn: '安装形态', labelEn: 'install modes', noteCn: 'npm / git worktree / local path', noteEn: 'npm / git worktree / local path' },
+    { value: '6', labelCn: '适配器', labelEn: 'adapters', noteCn: 'OpenClaw / MCP / Vercel AI / LangChain / HTTP / Claude SDK', noteEn: 'OpenClaw / MCP / Vercel AI / LangChain / HTTP / Claude SDK' },
     { value: '1', labelCn: '自动应用更新', labelEn: 'auto-applies updates', noteCn: '默认只对 npm install 生效', noteEn: 'default only for npm installs' },
   ]}
   links={[
@@ -56,6 +57,51 @@ import DiscoveryPage from '../layouts/DiscoveryPage.astro';
     <div class="code-shell"><pre><code>psyche upgrade --check
 psyche upgrade
 npm view psyche-ai version</code></pre></div>
+  </section>
+
+  <section class="discovery-section">
+    <h2 class="section-label"><span class="cn">六个适配器</span><span class="en">Six adapters</span></h2>
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th><span class="cn">适配器</span><span class="en">Adapter</span></th>
+          <th><span class="cn">导入路径</span><span class="en">Import</span></th>
+          <th><span class="cn">适合场景</span><span class="en">Best for</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>OpenClaw</td>
+          <td><code>psyche-ai/openclaw</code></td>
+          <td><span class="cn">本地 live agent 循环</span><span class="en">local live agent loops</span></td>
+        </tr>
+        <tr>
+          <td>MCP</td>
+          <td><code>psyche-ai/mcp</code></td>
+          <td><span class="cn">Claude Desktop / Cursor / Windsurf 等 MCP 宿主</span><span class="en">Claude Desktop / Cursor / Windsurf and MCP hosts</span></td>
+        </tr>
+        <tr>
+          <td>Vercel AI</td>
+          <td><code>psyche-ai/vercel-ai</code></td>
+          <td><span class="cn">Vercel AI SDK middleware</span><span class="en">Vercel AI SDK middleware</span></td>
+        </tr>
+        <tr>
+          <td>LangChain</td>
+          <td><code>psyche-ai/langchain</code></td>
+          <td><span class="cn">LangChain.js 工具链</span><span class="en">LangChain.js tool chain</span></td>
+        </tr>
+        <tr>
+          <td>HTTP</td>
+          <td><code>psyche-ai/http</code></td>
+          <td><span class="cn">任意 HTTP 框架（Express / Fastify 等）</span><span class="en">any HTTP framework (Express / Fastify etc.)</span></td>
+        </tr>
+        <tr>
+          <td>Claude SDK</td>
+          <td><code>psyche-ai/claude-sdk</code></td>
+          <td><span class="cn">Claude Agent SDK — Hook 注入情感上下文 + Thronglets trace 导出</span><span class="en">Claude Agent SDK — Hook-based emotional injection + Thronglets trace export</span></td>
+        </tr>
+      </tbody>
+    </table>
   </section>
 
   <section class="discovery-section">

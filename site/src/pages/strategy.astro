@@ -115,13 +115,13 @@ import DiscoveryPage from '../layouts/DiscoveryPage.astro';
     </div>
   </section>
 
-  <section class="discovery-section">
-    <h2 class="section-label"><span class="cn">实现 TODO</span><span class="en">Implementation todo</span></h2>
-    <div class="card-grid">
-      <article class="discovery-card"><h3><span class="cn">稀疏导出集</span><span class="en">Sparse export set</span></h3><p><span class="cn">定义哪些低频 Psyche 事件允许进入 Thronglets，保持高频主观状态完全本地。</span><span class="en">Define which low-frequency Psyche events may leave for Thronglets while keeping high-frequency subjectivity fully local.</span></p></article>
-      <article class="discovery-card"><h3><span class="cn">delegate 授权范围</span><span class="en">Delegate scope</span></h3><p><span class="cn">把授权做成 capability-scoped、time-bounded、revocable，而不是模糊“设备就是身份”。</span><span class="en">Make delegate authorization capability-scoped, time-bounded, and revocable.</span></p></article>
-      <article class="discovery-card"><h3><span class="cn">AI principal 制度门槛</span><span class="en">AI principal gate</span></h3><p><span class="cn">把 AI 升格成 principal 的条件写成制度清单，而不是哲学判断。</span><span class="en">Turn the AI-principal question into an institutional checklist rather than a philosophical claim.</span></p></article>
-      <article class="discovery-card"><h3><span class="cn">环境式群体智能</span><span class="en">Environmental collectives</span></h3><p><span class="cn">继续把群体智能压在 `space / signal / trace / presence` 上，不引入新的群体身份对象。</span><span class="en">Keep collective intelligence grounded in `space / signal / trace / presence` without inventing new collective identity objects.</span></p></article>
+  <section class=”discovery-section”>
+    <h2 class=”section-label”><span class=”cn”>v10 里程碑</span><span class=”en”>v10 milestones</span></h2>
+    <div class=”card-grid”>
+      <article class=”discovery-card”><h3><span class=”cn”>MBTI 移除，化学态即人格</span><span class=”en”>MBTI removed, chemistry is personality</span></h3><p><span class=”cn”>人格不再由类型标签定义。baseline 化学值 + sensitivity 系数就是全部。公共 API 从 ~198 缩减到 ~35 导出。</span><span class=”en”>Personality no longer defined by type labels. Baseline chemistry + sensitivity coefficients are everything. Public API reduced from ~198 to ~35 exports.</span></p></article>
+      <article class=”discovery-card”><h3><span class=”cn”>行为偏置引擎</span><span class=”en”>Behavioral bias engine</span></h3><p><span class=”cn”>`deriveBehavioralBias()` + `buildUnifiedConstraints()` 将化学态直接转化为行为约束，不再依赖 MBTI 函数分支。</span><span class=”en”>`deriveBehavioralBias()` + `buildUnifiedConstraints()` turn chemistry directly into behavioral constraints without MBTI function branches.</span></p></article>
+      <article class=”discovery-card”><h3><span class=”cn”>Thronglets 融合</span><span class=”en”>Thronglets fusion</span></h3><p><span class=”cn”>`psyche_state` 信号类型 + `describeThrongletsSignal()` 让 agent 通过 Thronglets 基底互相感知情绪状态，共情有代价（CORT 升高），系统正确建模了 empathy fatigue。</span><span class=”en”>`psyche_state` signal kind + `describeThrongletsSignal()` lets agents perceive each other's emotional state through the Thronglets substrate. Empathy has a cost (CORT rises), correctly modeling empathy fatigue.</span></p></article>
+      <article class=”discovery-card”><h3><span class=”cn”>六适配器生态</span><span class=”en”>Six-adapter ecosystem</span></h3><p><span class=”cn”>OpenClaw / MCP / Vercel AI / LangChain / HTTP / Claude Agent SDK。Claude SDK 通过 Hook 注入情感上下文，支持 Thronglets trace 导出。</span><span class=”en”>OpenClaw / MCP / Vercel AI / LangChain / HTTP / Claude Agent SDK. Claude SDK injects emotional context via hooks with Thronglets trace export.</span></p></article>
     </div>
   </section>
 </DiscoveryPage>
