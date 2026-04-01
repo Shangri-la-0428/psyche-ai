@@ -15,7 +15,7 @@
 //   psyche upgrade [--check]
 //   psyche probe [--json]
 //   psyche profiles [--json] [--mbti TYPE]
-//   psyche setup [--name NAME] [--mbti TYPE] [--locale LOCALE] [--dry-run]
+//   psyche setup [--name NAME] [--mbti TYPE] [--locale LOCALE] [--proxy --target URL] [--dry-run]
 // ============================================================
 
 import { resolve, join } from "node:path";
@@ -587,73 +587,96 @@ async function fileExists(path: string): Promise<boolean> {
   try { await access(path); return true; } catch { return false; }
 }
 
-async function cmdSetup(name: string, mbti: string, locale: string, dryRun: boolean): Promise<void> {
-  const targets = getMCPTargets();
-  const psycheEntry = {
-    command: "npx",
-    args: ["-y", "psyche-mcp"],
-    env: {
-      ...(name ? { PSYCHE_NAME: name } : {}),
-      ...(mbti ? { PSYCHE_MBTI: mbti.toUpperCase() } : {}),
-      ...(locale ? { PSYCHE_LOCALE: locale } : {}),
-    },
-  };
+async function cmdSetup(opts: {
+  name: string; mbti: string; locale: string;
+  proxy: boolean; target: string; port: number;
+  dryRun: boolean;
+}): Promise<void> {
+  const { name, mbti, locale, proxy, target, port, dryRun } = opts;
+  const env: Record<string, string> = {};
+  if (name) env.PSYCHE_NAME = name;
+  if (mbti) env.PSYCHE_MBTI = mbti.toUpperCase();
+  if (locale) env.PSYCHE_LOCALE = locale;
 
-  let configured = 0;
-  let skipped = 0;
+  let actions = 0;
 
-  for (const target of targets) {
-    // Check if the config file's parent directory exists (= client is installed)
-    const configDir = resolve(target.configPath, "..");
-    if (!(await fileExists(configDir))) continue;
+  // ── 1. MCP clients ────────────────────────────────────
+  const mcpEntry = { command: "npx", args: ["-y", "psyche-mcp"], env };
 
-    // Read existing config or start fresh
-    let config: Record<string, any> = {};
-    if (await fileExists(target.configPath)) {
-      try {
-        config = JSON.parse(await readFile(target.configPath, "utf-8"));
-      } catch {
-        config = {};
-      }
+  for (const t of getMCPTargets()) {
+    const dir = resolve(t.configPath, "..");
+    if (!(await fileExists(dir))) continue;
+
+    let cfg: Record<string, any> = {};
+    if (await fileExists(t.configPath)) {
+      try { cfg = JSON.parse(await readFile(t.configPath, "utf-8")); } catch { /* fresh */ }
     }
 
-    // Check if already configured
-    const servers = config[target.mcpKey] ?? {};
-    if (servers["psyche"]) {
-      console.log(`  ✓ ${target.name} — already configured`);
-      skipped++;
-      continue;
-    }
+    const servers = cfg[t.mcpKey] ?? {};
+    if (servers["psyche"]) { console.log(`  ✓ ${t.name} — already configured`); continue; }
 
-    // Add psyche entry
-    servers["psyche"] = psycheEntry;
-    config[target.mcpKey] = servers;
+    servers["psyche"] = mcpEntry;
+    cfg[t.mcpKey] = servers;
+
+    if (dryRun) { console.log(`  → ${t.name} — would configure`); actions++; continue; }
+
+    await mkdir(dir, { recursive: true });
+    await writeFile(t.configPath, JSON.stringify(cfg, null, 2) + "\n", "utf-8");
+    console.log(`  ✓ ${t.name}`);
+    actions++;
+  }
+
+  // ── 2. Proxy + env var ────────────────────────────────
+  if (proxy && target) {
+    const proxyUrl = `http://127.0.0.1:${port}/v1`;
+    const shell = process.env.SHELL ?? "/bin/zsh";
+    const rcFile = shell.includes("zsh") ? join(homedir(), ".zshrc")
+                 : shell.includes("bash") ? join(homedir(), ".bashrc")
+                 : null;
+
+    // Determine which env var to set based on target URL
+    const envVar = target.includes("anthropic") ? "ANTHROPIC_BASE_URL" : "OPENAI_BASE_URL";
+    const exportLine = `export ${envVar}="${proxyUrl}" # psyche-proxy`;
+
+    // Build proxy launch command
+    const proxyArgs = [`-t`, target, `-p`, String(port)];
+    if (name) proxyArgs.push(`-n`, name);
+    if (mbti) proxyArgs.push(`--mbti`, mbti.toUpperCase());
+    if (locale) proxyArgs.push(`-l`, locale);
+    const launchCmd = `npx psyche-proxy ${proxyArgs.join(" ")}`;
 
     if (dryRun) {
-      console.log(`  → ${target.name} — would write to ${target.configPath}`);
-      configured++;
-      continue;
+      console.log(`  → proxy — would start: ${launchCmd}`);
+      if (rcFile) console.log(`  → shell — would append to ${rcFile}: ${exportLine}`);
+      actions++;
+    } else {
+      // Append env var to shell rc (idempotent)
+      if (rcFile) {
+        const rc = await fileExists(rcFile) ? await readFile(rcFile, "utf-8") : "";
+        if (!rc.includes("# psyche-proxy")) {
+          await writeFile(rcFile, rc + (rc.endsWith("\n") ? "" : "\n") + exportLine + "\n", "utf-8");
+          console.log(`  ✓ ${envVar} → ${proxyUrl} (${rcFile})`);
+        } else {
+          console.log(`  ✓ shell env — already configured`);
+        }
+      }
+
+      // Start proxy in background
+      const { spawn } = await import("node:child_process");
+      const child = spawn("npx", ["-y", "psyche-proxy", ...proxyArgs], {
+        detached: true, stdio: "ignore",
+      });
+      child.unref();
+      console.log(`  ✓ proxy — pid ${child.pid} → ${target}`);
+      actions++;
     }
-
-    // Write config
-    await mkdir(configDir, { recursive: true });
-    await writeFile(target.configPath, JSON.stringify(config, null, 2) + "\n", "utf-8");
-    console.log(`  ✓ ${target.name} — configured (${target.configPath})`);
-    configured++;
   }
 
-  if (configured === 0 && skipped === 0) {
-    console.log("  No MCP clients detected. Install Claude Desktop, Cursor, or Claude Code first.");
-    console.log("  Or run psyche-proxy for universal LLM proxy integration.");
-    return;
-  }
-
-  console.log("");
-  if (configured > 0 && !dryRun) {
-    console.log(`Done. Restart your MCP client${configured > 1 ? "s" : ""} to activate Psyche.`);
-  }
-  if (configured > 0 && dryRun) {
-    console.log(`Dry run complete. Run without --dry-run to apply.`);
+  // ── Summary ───────────────────────────────────────────
+  if (actions === 0) {
+    console.log("  Nothing to do. All targets already configured.");
+  } else if (!dryRun) {
+    console.log("\nDone. Restart MCP clients to activate. Proxy is running.");
   }
 }
 
@@ -672,6 +695,7 @@ Usage:
   psyche intensity              Show info about personality intensity config
   psyche reset <dir> [--full]
   psyche diagnose <dir> [--github]   Run health checks & show diagnostic report
+  psyche setup [--proxy -t URL] [-n NAME] [--mbti TYPE]  Auto-configure MCP + proxy
   psyche upgrade [--check]           Check/apply package updates safely
   psyche probe [--json]              Verify the runtime is truly callable
   psyche profiles [--mbti TYPE] [--json]
@@ -703,6 +727,12 @@ Examples:
   # See all 16 personality profiles
   psyche profiles
   psyche profiles --mbti ENFP
+
+  # Auto-configure all MCP clients
+  psyche setup --mbti ENFP --name Luna
+
+  # Universal proxy — works with any agent using OpenAI SDK
+  psyche setup --proxy -t https://api.openai.com/v1 --mbti ENFP
 
   # Check for new package versions without applying them
   psyche upgrade --check
@@ -876,17 +906,23 @@ async function main(): Promise<void> {
             name: { type: "string", short: "n" },
             mbti: { type: "string" },
             locale: { type: "string", short: "l" },
+            proxy: { type: "boolean", default: false },
+            target: { type: "string", short: "t" },
+            port: { type: "string", short: "p" },
             "dry-run": { type: "boolean", default: false },
           },
           allowPositionals: true,
         });
         console.log("\npsyche setup — auto-configuring MCP clients\n");
-        await cmdSetup(
-          (values.name as string) ?? "",
-          (values.mbti as string) ?? "",
-          (values.locale as string) ?? "",
-          values["dry-run"] ?? false,
-        );
+        await cmdSetup({
+          name: (values.name as string) ?? "",
+          mbti: (values.mbti as string) ?? "",
+          locale: (values.locale as string) ?? "",
+          proxy: values.proxy ?? false,
+          target: (values.target as string) ?? "",
+          port: parseInt((values.port as string) ?? "3340", 10),
+          dryRun: values["dry-run"] ?? false,
+        });
         break;
       }
 

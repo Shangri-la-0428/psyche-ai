@@ -1,5 +1,13 @@
 # 更新日志 / Changelog
 
+## v10.2.2 — Universal Setup
+
+- **`psyche setup --proxy`**：一条命令启动透明代理 + 设置环境变量。覆盖所有使用 OpenAI/Anthropic SDK 的 agent。
+  - `psyche setup --proxy -t https://api.openai.com/v1 --mbti ENFP`
+  - 自动追加 `OPENAI_BASE_URL` 或 `ANTHROPIC_BASE_URL` 到 shell rc
+  - 后台启动 `psyche-proxy` daemon，detached
+  - 结合 MCP 配置 = 两条路径覆盖所有 agent
+
 ## v10.2.1 — Zero-Config Setup
 
 - **`psyche setup`**：一条命令自动配置所有 MCP 客户端。检测 Claude Desktop / Cursor / Claude Code / Windsurf，自动写入 `psyche-mcp` 配置。`npx psyche-ai setup --name Luna --mbti ENFP`。支持 `--dry-run`。
