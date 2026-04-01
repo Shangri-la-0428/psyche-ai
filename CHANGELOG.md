@@ -1,5 +1,11 @@
 # 更新日志 / Changelog
 
+## v10.2.3 — One Command, Every Agent
+
+- **Claude Code 即时生效**：`psyche setup` 使用 `claude mcp add` 热加载，不需要重启
+- **README 重写**：一条命令 onboarding，覆盖路径表，去掉所有手动 JSON 编辑步骤
+- 用户看到 GitHub 链接 → README → `npx psyche-ai setup` → 完事
+
 ## v10.2.2 — Universal Setup
 
 - **`psyche setup --proxy`**：一条命令启动透明代理 + 设置环境变量。覆盖所有使用 OpenAI/Anthropic SDK 的 agent。

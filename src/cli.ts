@@ -602,8 +602,33 @@ async function cmdSetup(opts: {
 
   // ── 1. MCP clients ────────────────────────────────────
   const mcpEntry = { command: "npx", args: ["-y", "psyche-mcp"], env };
+  const { execFileSync } = await import("node:child_process");
 
+  // Claude Code — use `claude mcp add` for hot-reload (no restart needed)
+  let claudeCodeDone = false;
+  try {
+    const out = execFileSync("claude", ["mcp", "list"], { encoding: "utf-8", timeout: 5000 });
+    if (out.includes("psyche")) {
+      console.log("  ✓ Claude Code — already configured");
+      claudeCodeDone = true;
+    } else if (dryRun) {
+      console.log("  → Claude Code — would configure via `claude mcp add`");
+      claudeCodeDone = true; actions++;
+    } else {
+      const addArgs = ["mcp", "add", "psyche", "-e", "PSYCHE_LOCALE=" + (locale || "zh")];
+      if (name) addArgs.push("-e", "PSYCHE_NAME=" + name);
+      if (mbti) addArgs.push("-e", "PSYCHE_MBTI=" + mbti.toUpperCase());
+      addArgs.push("--", "npx", "-y", "psyche-mcp");
+      execFileSync("claude", addArgs, { encoding: "utf-8", timeout: 10000 });
+      console.log("  ✓ Claude Code — configured (live, no restart needed)");
+      claudeCodeDone = true; actions++;
+    }
+  } catch { /* claude CLI not available, fall through to JSON method */ }
+
+  // Other clients — edit config JSON
   for (const t of getMCPTargets()) {
+    if (claudeCodeDone && t.name === "Claude Code") continue;
+
     const dir = resolve(t.configPath, "..");
     if (!(await fileExists(dir))) continue;
 
@@ -622,7 +647,7 @@ async function cmdSetup(opts: {
 
     await mkdir(dir, { recursive: true });
     await writeFile(t.configPath, JSON.stringify(cfg, null, 2) + "\n", "utf-8");
-    console.log(`  ✓ ${t.name}`);
+    console.log(`  ✓ ${t.name} (restart to activate)`);
     actions++;
   }
 
@@ -676,7 +701,7 @@ async function cmdSetup(opts: {
   if (actions === 0) {
     console.log("  Nothing to do. All targets already configured.");
   } else if (!dryRun) {
-    console.log("\nDone. Restart MCP clients to activate. Proxy is running.");
+    console.log("\nDone. Claude Code is live. Other MCP clients need restart.");
   }
 }
 

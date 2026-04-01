@@ -280,32 +280,39 @@ That lets other agents and hosts verify control boundaries and strategy selectio
 
 ---
 
-## MCP — Any AI Can Discover Psyche
+## One Command — Give Any Agent Subjectivity
 
-Add this to your Claude Desktop / Cursor / Windsurf config:
-
-```json
-{
-  "mcpServers": {
-    "psyche": {
-      "command": "npx",
-      "args": ["psyche-mcp"],
-      "env": {
-        "PSYCHE_MBTI": "ENFP",
-        "PSYCHE_NAME": "Luna"
-      }
-    }
-  }
-}
+```bash
+npx psyche-ai setup --mbti ENFP --name Luna
 ```
 
-Restart. Your AI now has emotions.
+This auto-detects Claude Code / Claude Desktop / Cursor / Windsurf and configures them. Claude Code is live instantly; other clients need a restart.
+
+**For non-MCP agents (Codex, custom agents, etc.) — transparent proxy:**
+
+```bash
+npx psyche-ai setup --proxy -t https://api.openai.com/v1 --mbti ENFP
+```
+
+Starts a local proxy + sets `OPENAI_BASE_URL`. Every program using the OpenAI SDK is now routed through Psyche. The agent never knows Psyche exists — mirror, not microphone.
+
+| Path | Coverage | How |
+|------|----------|-----|
+| MCP (`setup`) | Claude Code / Desktop / Cursor / Windsurf | MCP tool protocol |
+| Proxy (`setup --proxy`) | Any OpenAI/Anthropic SDK agent | Env var HTTP redirect |
+
+**Verify:**
+
+```bash
+npx psyche-ai probe --json
+# ok: true, processInputCalled: true → it's working
+```
 
 ---
 
 ## Framework Integrations
 
-Psyche is framework-agnostic. 6 adapters cover every major agent framework:
+Psyche is framework-agnostic. 7 adapters cover every major agent framework:
 
 ### Claude Agent SDK
 
@@ -372,27 +379,9 @@ openclaw plugins install psyche-ai
 ### Upgrades
 
 ```bash
-# Safe availability check
-psyche upgrade --check
-
-# Explicit upgrade using the correct strategy for this install
-psyche upgrade
-
-# Inspect the latest npm release
-npm view psyche-ai version
+psyche upgrade --check   # check availability
+psyche upgrade           # apply
 ```
-
-- npm-managed installs can auto-check in the background and only auto-apply when safe.
-- `git` worktrees and local-path installs are never mutated behind your back.
-- Local OpenClaw plugin development still requires a host restart after rebuilding `dist/`.
-
-## Transparent Proxy (recommended: any LLM in one line)
-
-```bash
-psyche-proxy --target https://api.openai.com/v1 --name Luna --mbti ENFP
-```
-
-Point any client to `http://localhost:3340/v1`. The agent gains persistent subjectivity without knowing Psyche exists. Psyche observes behavior bidirectionally and injects behavioral bias only when internal state deviates from baseline. Mirror, not microphone.
 
 ## Runtime Proof For Other Local Agents
 
