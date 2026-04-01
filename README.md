@@ -422,7 +422,6 @@ psyche init . --mode companion
 | 设置 | 默认 | 说明 |
 |------|------|------|
 | enabled | true | 开关 |
-| compactMode | true | 省 token 模式（推荐保持开启） |
 | emotionalContagionRate | 0.2 | 你的情绪影响它的程度（0-1） |
 | maxChemicalDelta | 25 | 每轮最大情绪变化（越小越稳定） |
 
@@ -445,7 +444,7 @@ const engine = new PsycheEngine({
 
 ## 不只是 OpenClaw
 
-Psyche 是通用的，6 个 adapter 覆盖主流 agent 框架：
+Psyche 是通用的，7 个 adapter 覆盖主流 agent 框架：
 
 ```bash
 npm install psyche-ai
@@ -473,14 +472,8 @@ import { PsycheLangChain } from "psyche-ai/langchain";
 ## 诊断
 
 ```bash
-# 实时日志
-openclaw logs -f 2>&1 | grep Psyche
-
-# 查看情绪状态
-cat workspace-yu/psyche-state.json | python3 -m json.tool
-
-# 诊断脚本
-cd oasyce_psyche && node scripts/diagnose.js
+psyche diagnose <dir>           # 健康检查
+psyche diagnose <dir> --github  # 生成 GitHub issue 格式报告
 ```
 
 ---
@@ -573,7 +566,7 @@ Psyche 核心引擎永久开源（MIT）。
 ```bash
 npm install
 npm run build
-npm test           # 1316 tests
+npm test           # 1415 tests
 npm run typecheck  # strict mode
 ```
 

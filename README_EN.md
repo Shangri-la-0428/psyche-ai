@@ -532,7 +532,7 @@ git clone https://github.com/Shangri-la-0428/oasyce_psyche.git
 cd oasyce_psyche
 npm install
 npm run build
-npm test                        # 1316 tests
+npm test                        # 1415 tests
 npm run typecheck               # strict mode
 ```
 
