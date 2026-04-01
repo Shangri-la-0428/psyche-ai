@@ -1,6 +1,6 @@
 {
   "name": "psyche-ai",
-  "version": "10.1.0",
+  "version": "10.1.1",
   "description": "AI-first subjectivity kernel for agents with continuous appraisal, relation dynamics, and adaptive reply loops",
   "mcpName": "io.github.Shangri-la-0428/psyche-ai",
   "type": "module",
@@ -48,6 +48,8 @@
     "typecheck": "tsc --noEmit --strict",
     "dev": "tsc --watch",
     "demo": "node scripts/demo-ab.js",
+    "demo:fusion": "node scripts/demo-fusion.js",
+    "eval:fusion": "node scripts/eval-fusion.js",
     "probe": "node dist/cli.js probe --json",
     "release:guard": "node scripts/release-guard.mjs",
     "prepublishOnly": "npm run release:guard && npm test"

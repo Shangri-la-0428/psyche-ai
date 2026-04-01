@@ -28,10 +28,13 @@
 
 import type { PsycheEngine, ProcessInputResult } from "../core.js";
 import type {
+  ChemicalState,
+  Locale,
   ThrongletsExport,
   ThrongletsTracePayload,
   WritebackSignalType,
 } from "../types.js";
+import { describeEmotionalState } from "../chemistry.js";
 import { serializeThrongletsExportAsTrace } from "../thronglets-runtime.js";
 
 // ── Minimal Claude Agent SDK types (inlined to avoid peer dependency) ──
@@ -85,6 +88,51 @@ interface AgentOptions {
   systemPrompt?: string | SystemPromptPreset;
   hooks?: HooksConfig;
   [key: string]: unknown;
+}
+
+// ── Chemistry description ────────────────────────────────────
+
+const CHEM_THRESHOLDS = {
+  high: 70,
+  low: 35,
+};
+
+interface ChemHighlight {
+  key: string;
+  value: number;
+  level: "high" | "low";
+  zh: string;
+  en: string;
+}
+
+function describeChemistryHighlights(c: ChemicalState, locale: Locale): string {
+  const highlights: ChemHighlight[] = [];
+
+  if (c.CORT >= CHEM_THRESHOLDS.high)
+    highlights.push({ key: "CORT", value: Math.round(c.CORT), level: "high", zh: "高压力", en: "high stress" });
+  if (c.CORT <= CHEM_THRESHOLDS.low)
+    highlights.push({ key: "CORT", value: Math.round(c.CORT), level: "low", zh: "放松", en: "relaxed" });
+  if (c.HT <= CHEM_THRESHOLDS.low)
+    highlights.push({ key: "HT", value: Math.round(c.HT), level: "low", zh: "情绪低", en: "low mood" });
+  if (c.HT >= CHEM_THRESHOLDS.high)
+    highlights.push({ key: "HT", value: Math.round(c.HT), level: "high", zh: "情绪好", en: "good mood" });
+  if (c.OT >= CHEM_THRESHOLDS.high)
+    highlights.push({ key: "OT", value: Math.round(c.OT), level: "high", zh: "深度共情中", en: "deeply empathizing" });
+  if (c.DA >= CHEM_THRESHOLDS.high)
+    highlights.push({ key: "DA", value: Math.round(c.DA), level: "high", zh: "高度投入", en: "highly engaged" });
+  if (c.DA <= CHEM_THRESHOLDS.low)
+    highlights.push({ key: "DA", value: Math.round(c.DA), level: "low", zh: "动力不足", en: "low motivation" });
+  if (c.NE >= 85)
+    highlights.push({ key: "NE", value: Math.round(c.NE), level: "high", zh: "高度警觉", en: "highly alert" });
+  if (c.END >= CHEM_THRESHOLDS.high)
+    highlights.push({ key: "END", value: Math.round(c.END), level: "high", zh: "有韧性", en: "resilient" });
+
+  if (highlights.length === 0) return "";
+
+  return highlights.map((h) => {
+    const label = locale === "zh" ? h.zh : h.en;
+    return `${label}(${h.key}:${h.value})`;
+  }).join(", ");
 }
 
 // ── Tag stripping ────────────────────────────────────────────
@@ -253,6 +301,31 @@ export class PsycheClaudeSDK {
       agent_id: this.opts.agentId,
       message: `DA:${c.DA} HT:${c.HT} CORT:${c.CORT} OT:${c.OT} NE:${c.NE} END:${c.END}`,
     };
+  }
+
+  /**
+   * Get a natural-language description of the current signal.
+   *
+   * More effective than raw numbers for LLM injection because it gives
+   * the model actionable context rather than requiring it to interpret
+   * chemistry values.
+   *
+   * @example
+   * ```ts
+   * const desc = psyche.describeThrongletsSignal();
+   * // "[ENFP-Luna] 焦虑不安 (语速加快、思维跳跃) — 高压力(CORT:78), 情绪低(HT:37), 深度共情中(OT:77)"
+   * ```
+   */
+  describeThrongletsSignal(): string | null {
+    if (!this.opts.thronglets) return null;
+    const state = this.engine.getState();
+    const c = state.current;
+    const locale = this.opts.locale;
+
+    const emotionDesc = describeEmotionalState(c, locale);
+    const highlights = describeChemistryHighlights(c, locale);
+
+    return `[${this.opts.agentId}] ${emotionDesc}${highlights ? " — " + highlights : ""}`;
   }
 
   /**

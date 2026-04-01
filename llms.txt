@@ -180,6 +180,22 @@ npx psyche-mcp --demo
 
 Runs a 6-round scenario showing how continuous criticism collapses serotonin and trust, while later validation triggers endorphin repair. Add `--zh` for Chinese, `--mbti INTJ` for a specific personality.
 
+## Multi-Agent Fusion Demo
+
+```bash
+npm run demo:fusion
+```
+
+Two agents (Luna ENFP, Kai INTJ) in a shared emotional field via Thronglets signals. Luna processes emotional conversation, broadcasts chemistry via `signal_post`. Kai senses Luna's state via `substrate_query` — his responses shift toward warmth. 4 rounds, Σ|Δ| = 59.2 chemistry divergence.
+
+Real LLM validation (requires API key in `~/.hermes/.env`):
+
+```bash
+node scripts/eval-fusion.js
+```
+
+6-turn eval with Grok-3. Divergence curve: 5.3 → 15.7 → 35.2 → 36.3. Signal-aware agent is more empathetic but carries higher cortisol (empathy cost).
+
 ## Runtime Proof
 
 If an agent claims it is already using Psyche in the current environment, require a real probe:
