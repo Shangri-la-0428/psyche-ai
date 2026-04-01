@@ -1,4 +1,4 @@
-# Psyche — 面向智能体的 AI-first 主观性内核
+# Psyche — 赋予AI自我的主观性内核
 
 [![npm](https://img.shields.io/npm/v/psyche-ai)](https://www.npmjs.com/package/psyche-ai)
 [![tests](https://img.shields.io/badge/tests-1415%20passing-brightgreen)]()
