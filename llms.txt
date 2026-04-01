@@ -112,6 +112,24 @@ const output = await engine.processOutput(llmResponse);
 }
 ```
 
+## Quick Start (Claude Agent SDK)
+
+```ts
+import { PsycheEngine, MemoryStorageAdapter } from "psyche-ai";
+import { PsycheClaudeSDK } from "psyche-ai/claude-sdk";
+import { query } from "@anthropic-ai/claude-agent-sdk";
+
+const engine = new PsycheEngine({ name: "Luna" }, new MemoryStorageAdapter());
+await engine.initialize();
+
+const psyche = new PsycheClaudeSDK(engine);
+let text = "";
+for await (const msg of query({ prompt: "Hey!", options: psyche.mergeOptions() })) {
+  text += msg.content ?? "";
+}
+await psyche.processResponse(text);
+```
+
 ## Why Hosts Use It
 
 - zero extra model calls
@@ -147,6 +165,7 @@ npx psyche-mcp
 ## Adapter Sub-paths
 
 - `psyche-ai` — core engine (PsycheEngine, MemoryStorageAdapter)
+- `psyche-ai/claude-sdk` — Claude Agent SDK hooks (PsycheClaudeSDK)
 - `psyche-ai/mcp` — MCP stdio server
 - `psyche-ai/vercel-ai` — Vercel AI SDK middleware
 - `psyche-ai/langchain` — LangChain adapter

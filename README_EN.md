@@ -7,7 +7,7 @@ It compresses continuous appraisal, relation dynamics, adaptive reply loops, and
 **One sentence:** Psyche is a subjectivity kernel for agents.
 
 [![npm](https://img.shields.io/npm/v/psyche-ai)](https://www.npmjs.com/package/psyche-ai)
-[![tests](https://img.shields.io/badge/tests-1316%20passing-brightgreen)]()
+[![tests](https://img.shields.io/badge/tests-1405%20passing-brightgreen)]()
 [![deps](https://img.shields.io/badge/dependencies-0-blue)]()
 [![license](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 
@@ -295,7 +295,23 @@ Restart. Your AI now has emotions.
 
 ## Framework Integrations
 
-Psyche is framework-agnostic. Use it with anything:
+Psyche is framework-agnostic. 6 adapters cover every major agent framework:
+
+### Claude Agent SDK
+
+```typescript
+import { PsycheEngine, MemoryStorageAdapter } from "psyche-ai";
+import { PsycheClaudeSDK } from "psyche-ai/claude-sdk";
+import { query } from "@anthropic-ai/claude-agent-sdk";
+
+const engine = new PsycheEngine({ name: "Luna" }, new MemoryStorageAdapter());
+await engine.initialize();
+
+const psyche = new PsycheClaudeSDK(engine);
+for await (const msg of query({ prompt: "Hey!", options: psyche.mergeOptions() })) {
+  process.stdout.write(msg.content ?? "");
+}
+```
 
 ### MCP (Claude Desktop / Cursor / Windsurf / Claude Code)
 

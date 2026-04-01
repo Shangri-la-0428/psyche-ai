@@ -7,10 +7,11 @@
 // and advanced use, but are NOT part of the public contract.
 //
 // Framework adapters available via subpath imports:
-//   psyche-ai/openclaw   — OpenClaw plugin
-//   psyche-ai/vercel-ai  — Vercel AI SDK middleware
-//   psyche-ai/langchain  — LangChain helper
-//   psyche-ai/http       — HTTP server for Python/Go/etc.
+//   psyche-ai/openclaw    — OpenClaw plugin
+//   psyche-ai/vercel-ai   — Vercel AI SDK middleware
+//   psyche-ai/langchain   — LangChain helper
+//   psyche-ai/http        — HTTP server for Python/Go/etc.
+//   psyche-ai/claude-sdk  — Claude Agent SDK hooks
 // ============================================================
 
 // ── Core engine ─────────────────────────────────────────────

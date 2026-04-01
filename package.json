@@ -1,6 +1,6 @@
 {
   "name": "psyche-ai",
-  "version": "10.0.4",
+  "version": "10.1.0",
   "description": "AI-first subjectivity kernel for agents with continuous appraisal, relation dynamics, and adaptive reply loops",
   "mcpName": "io.github.Shangri-la-0428/psyche-ai",
   "type": "module",
@@ -30,6 +30,10 @@
     "./mcp": {
       "types": "./dist/adapters/mcp.d.ts",
       "default": "./dist/adapters/mcp.js"
+    },
+    "./claude-sdk": {
+      "types": "./dist/adapters/claude-sdk.d.ts",
+      "default": "./dist/adapters/claude-sdk.js"
     }
   },
   "bin": {

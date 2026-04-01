@@ -357,7 +357,7 @@ describe("PsycheEngine", () => {
 
   it("processInput returns compact context in dynamicContext", async () => {
     const result = await engine.processInput("hi");
-    assert.ok(result.dynamicContext.includes("TestBot") || result.dynamicContext.includes("情绪感知") || result.dynamicContext.includes("情绪自然"));
+    assert.ok(result.dynamicContext.includes("TestBot") || result.dynamicContext.includes("主观内核") || result.dynamicContext.includes("情绪自然") || result.dynamicContext.includes("回应契约"));
   });
 
   // ── processOutput ───────────────────────────────────────
@@ -504,7 +504,7 @@ END: 75 (happy)
     await e.initialize();
     const result = await e.processInput("hi");
     assert.equal(result.systemContext, "");
-    assert.ok(result.dynamicContext.includes("Luna") || result.dynamicContext.includes("情绪感知"));
+    assert.ok(result.dynamicContext.includes("Luna") || result.dynamicContext.includes("主观内核") || result.dynamicContext.includes("回应契约"));
   });
 
   it("compact mode returns one-liner for empty input neutral state", async () => {
@@ -537,13 +537,14 @@ END: 75 (happy)
     assert.ok(result.dynamicContext.includes("emotionally natural"), `Got: ${result.dynamicContext}`);
   });
 
-  it("compact mode does not repeat raw user text when response contract is present", async () => {
+  it("compact mode omits sensing section when response contract is present", async () => {
     const s = new MemoryStorageAdapter();
     const e = new PsycheEngine({ mbti: "ENFP", name: "Luna", locale: "zh" }, s);
     await e.initialize();
     const result = await e.processInput("滚");
-    assert.ok(result.dynamicContext.includes("情绪感知"), "Should have emotional sensing section");
-    assert.ok(!result.dynamicContext.includes("滚"), `Should avoid echoing raw user text, got: ${result.dynamicContext}`);
+    // v10.1: sensing is redundant when SubjectivityKernel + ResponseContract present
+    assert.ok(!result.dynamicContext.includes("情绪感知"), "Sensing should be removed when kernel present");
+    assert.ok(!result.dynamicContext.includes("滚"), `Should not echo raw user text, got: ${result.dynamicContext}`);
   });
 
   it("compact mode includes anti-sycophancy constraint", async () => {
@@ -554,13 +555,15 @@ END: 75 (happy)
     assert.ok(result.dynamicContext.includes("不贴不舔"), "Should include anti-sycophancy rule");
   });
 
-  it("compact mode shows algorithm hint when stimulus detected", async () => {
+  it("compact mode encodes stimulus consequence in kernel, not raw label", async () => {
     const s = new MemoryStorageAdapter();
     const e = new PsycheEngine({ mbti: "ENFP", name: "Luna", locale: "zh" }, s);
     await e.initialize();
     const result = await e.processInput("你太棒了！");
-    assert.ok(result.dynamicContext.includes("算法初判"), "Should include algorithm hint");
-    assert.ok(result.dynamicContext.includes("praise"), "Should show praise stimulus");
+    // v10.1: stimulus consequence is in SubjectivityKernel, not sensing section
+    assert.ok(!result.dynamicContext.includes("算法初判"), "Should not have legacy algorithm hint");
+    assert.ok(result.dynamicContext.includes("主观内核") || result.dynamicContext.includes("回应契约"),
+      "Should have kernel or contract instead");
   });
 
   it("compact mode returns mechanical generation controls", async () => {

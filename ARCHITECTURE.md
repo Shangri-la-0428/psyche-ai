@@ -1,4 +1,4 @@
-# 架构 — Psyche AI v9.2.9
+# 架构 — Psyche AI v10.1
 
 [English version below](#architecture--psyche-ai-v929)
 
@@ -36,10 +36,10 @@ v9.0 把“反向 baseline test”引入主体性方向。v9.2.9 则进一步把
 │  自主神经(+双过程) · 昼夜节律(+能量) · 记忆固化 · 建构情绪  │
 │  策略输出(PolicyModifiers) · 主观内核 · 回应契约 · 宿主控制 │
 │  连续 appraisal · subjectResidue · 特质漂移(TraitDrift)     │
-├────────────┬────────────┬────────────────────────────────────┤
-│  OpenClaw  │  Vercel AI │  LangChain │ HTTP                  │
-│  Adapter   │  Middleware│  Adapter   │ API                   │
-└────────────┴────────────┴────────────────────────────────────┘
+├───────────┬───────────┬───────────┬───────┬─────┬───────────┤
+│  OpenClaw │ Vercel AI │ LangChain │ HTTP  │ MCP │ Claude SDK│
+│  Plugin   │ Middleware│  Helper   │ REST  │ Srv │   Hooks   │
+└───────────┴───────────┴───────────┴───────┴─────┴───────────┘
          ▲                        ▲
     StorageAdapter           任何 LLM
   (文件系统 / 内存 / 自定义)

@@ -1,5 +1,26 @@
 # 更新日志 / Changelog
 
+## v10.1.0 — Claude Agent SDK Adapter
+
+**New adapter:**
+
+- **`psyche-ai/claude-sdk`**：Claude Agent SDK 集成。第 6 个 adapter，基于 Hook 系统注入情感上下文。
+  - `PsycheClaudeSDK` 类：`getProtocol()` 返回稳定协��（放入 `systemPrompt.append`），`getHooks()` 返回 `UserPromptSubmit` hook（自动调 `processInput` 并通过 `systemMessage` 注入 dynamicContext），`processResponse()` 剥离 `<psyche_update>` 标签并更新化学态。
+  - `mergeOptions(base?)` 一行合并 hooks + systemPrompt 到 SDK options。
+  - Thronglets trace 导出：`thronglets: true` 时，每轮自动缓存 `ThrongletsExport`，通过 `getThrongletsTraces()` 获取序列化后的 trace payloads，可直接传给 `mcp__thronglets__trace_record`。
+  - `stripPsycheTags()` 独立导出，供不使用 `processResponse` 的场景。
+  - 无 peer dependency：SDK 类型内联定义，不依赖 `@anthropic-ai/claude-agent-sdk`。
+
+**Token optimization:**
+
+- **移除 sensing section（engine path）**：当 SubjectivityKernel + ResponseContract 存在时，`[情绪感知]` 区块不再注入。此前 sensing 回显 user text 并邀请 LLM "你终判"——但 kernel 在此之前已经算完，"终判"是假授权。stimulus 的后果（pressure、warmth、boundary state）已编码进 kernel，比原始标签更精确。每轮省 ~15 tokens（engine path）。Legacy 无 ResponseContract 路径保留不变。
+
+**Architecture notes:**
+
+- Claude Agent SDK 没有 middleware 接口（不像 Vercel AI），扩展点是 lifecycle hooks。
+- Hooks 无法修改 assistant 输出文本，因此 `processResponse()` 必须由 host 显式调用。
+- `UserPromptSubmit` hook 返回 `{ systemMessage }` 注入对话上下文，模型可见。
+
 ## v10.0.4 — Obedience Boundary (Reverse Baseline Fix)
 
 **Fixes:**

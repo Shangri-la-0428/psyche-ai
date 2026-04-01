@@ -451,13 +451,15 @@ describe("buildCompactContext", () => {
     assert.ok(!ctx.includes("[行为策略]"), `got: ${ctx}`);
   });
 
-  it("does not echo raw user text when responseContractContext is present", () => {
+  it("omits sensing section entirely when responseContractContext is present", () => {
     const ctx = buildCompactContext(makeState(), undefined, {
       userText: "你真的让我有点失望",
       responseContractContext: "[回应契约] 最多2句；不贴不舔。",
     });
-    assert.ok(ctx.includes("情绪感知"));
-    assert.ok(!ctx.includes("你真的让我有点失望"), `got: ${ctx}`);
+    // v10.1: SubjectivityKernel already encodes stimulus consequences,
+    // sensing section is redundant when kernel + contract are present
+    assert.ok(!ctx.includes("情绪感知"), `sensing should be removed, got: ${ctx}`);
+    assert.ok(!ctx.includes("你真的让我有点失望"), `user text echo should be gone, got: ${ctx}`);
   });
 
   it("omits experiential narrative when subjectivityContext is present", () => {

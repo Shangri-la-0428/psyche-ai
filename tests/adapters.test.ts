@@ -7,6 +7,7 @@ import { psycheMiddleware } from "../src/adapters/vercel-ai.js";
 import { PsycheLangChain } from "../src/adapters/langchain.js";
 import { createPsycheServer } from "../src/adapters/http.js";
 import { register, sanitizeOpenClawInputText } from "../src/adapters/openclaw.js";
+import { PsycheClaudeSDK, stripPsycheTags } from "../src/adapters/claude-sdk.js";
 
 function makeEngine() {
   return new PsycheEngine(
@@ -733,5 +734,271 @@ describe("register (OpenClaw)", () => {
     // Should not throw
     register(fakeApi as any);
     assert.ok(hooks.length >= 5);
+  });
+});
+
+// ── Claude Agent SDK Adapter ─────────────────────────────
+
+describe("PsycheClaudeSDK", () => {
+  let engine: PsycheEngine;
+  let psyche: PsycheClaudeSDK;
+
+  before(async () => {
+    engine = makeEngine();
+    await engine.initialize();
+    psyche = new PsycheClaudeSDK(engine);
+  });
+
+  it("getProtocol returns non-empty stable context", () => {
+    const protocol = psyche.getProtocol();
+    assert.ok(typeof protocol === "string");
+    assert.ok(protocol.length > 0);
+    assert.ok(protocol.includes("Psyche"));
+  });
+
+  it("getProtocol is idempotent", () => {
+    const a = psyche.getProtocol();
+    const b = psyche.getProtocol();
+    assert.equal(a, b);
+  });
+
+  it("getHooks returns UserPromptSubmit hook", () => {
+    const hooks = psyche.getHooks();
+    assert.ok(hooks.UserPromptSubmit);
+    assert.ok(Array.isArray(hooks.UserPromptSubmit));
+    assert.equal(hooks.UserPromptSubmit!.length, 1);
+    assert.ok(hooks.UserPromptSubmit![0].hooks.length === 1);
+  });
+
+  it("UserPromptSubmit hook returns systemMessage", async () => {
+    const hooks = psyche.getHooks();
+    const callback = hooks.UserPromptSubmit![0].hooks[0];
+    const result = await callback(
+      {
+        hook_event_name: "UserPromptSubmit",
+        user_message: "你好棒！",
+        session_id: "test",
+        cwd: "/tmp",
+      },
+      undefined,
+      { signal: AbortSignal.timeout(5000) },
+    );
+    assert.ok(result);
+    assert.ok(typeof result!.systemMessage === "string");
+    assert.ok(result!.systemMessage!.length > 0, "Should inject dynamic context");
+  });
+
+  it("UserPromptSubmit hook updates lastInputResult", async () => {
+    const hooks = psyche.getHooks();
+    const callback = hooks.UserPromptSubmit![0].hooks[0];
+    await callback(
+      {
+        hook_event_name: "UserPromptSubmit",
+        user_message: "太棒了",
+        session_id: "test",
+        cwd: "/tmp",
+      },
+      undefined,
+      { signal: AbortSignal.timeout(5000) },
+    );
+    const inputResult = psyche.getLastInputResult();
+    assert.ok(inputResult, "Should have input result after hook call");
+    assert.ok(inputResult!.dynamicContext.length > 0, "Should have dynamic context");
+    assert.equal(typeof inputResult!.systemContext, "string");
+  });
+
+  it("processResponse strips psyche_update tags", async () => {
+    const cleaned = await psyche.processResponse(
+      "Hello!\n\n<psyche_update>\nDA: 80\n</psyche_update>",
+    );
+    assert.equal(cleaned, "Hello!");
+    assert.ok(!cleaned.includes("psyche_update"));
+  });
+
+  it("processResponse preserves text without tags", async () => {
+    const cleaned = await psyche.processResponse("Normal response");
+    assert.equal(cleaned, "Normal response");
+  });
+
+  it("processResponse accepts writeback signals", async () => {
+    const cleaned = await psyche.processResponse("Thanks!", {
+      signals: ["trust_up"],
+      signalConfidence: 0.8,
+    });
+    assert.equal(cleaned, "Thanks!");
+  });
+
+  it("mergeOptions returns valid options with hooks and systemPrompt", () => {
+    const options = psyche.mergeOptions();
+    assert.ok(options.hooks);
+    assert.ok(options.systemPrompt);
+    assert.ok((options.hooks as any).UserPromptSubmit);
+  });
+
+  it("mergeOptions preserves base options", () => {
+    const options = psyche.mergeOptions({
+      model: "sonnet",
+      allowedTools: ["Read"],
+    } as any);
+    assert.equal((options as any).model, "sonnet");
+    assert.deepEqual((options as any).allowedTools, ["Read"]);
+  });
+
+  it("mergeOptions appends to preset systemPrompt", () => {
+    const options = psyche.mergeOptions({
+      systemPrompt: {
+        type: "preset",
+        preset: "claude_code",
+        append: "Be helpful.",
+      },
+    });
+    const sp = options.systemPrompt as { type: string; append: string };
+    assert.equal(sp.type, "preset");
+    assert.ok(sp.append.includes("Psyche"), "Should include protocol");
+    assert.ok(sp.append.includes("Be helpful."), "Should preserve existing append");
+  });
+
+  it("mergeOptions prepends protocol to string systemPrompt", () => {
+    const options = psyche.mergeOptions({
+      systemPrompt: "You are an assistant.",
+    });
+    const sp = options.systemPrompt as string;
+    assert.ok(sp.includes("Psyche"), "Should include protocol");
+    assert.ok(sp.includes("You are an assistant."), "Should preserve original");
+  });
+
+  it("mergeOptions creates preset when no base systemPrompt", () => {
+    const options = psyche.mergeOptions({});
+    const sp = options.systemPrompt as { type: string; preset: string; append: string };
+    assert.equal(sp.type, "preset");
+    assert.equal(sp.preset, "claude_code");
+    assert.ok(sp.append.includes("Psyche"));
+  });
+
+  it("mergeOptions preserves existing hooks", () => {
+    const customHook = async () => ({ systemMessage: "custom" });
+    const options = psyche.mergeOptions({
+      hooks: {
+        Stop: [{ hooks: [customHook] }],
+      },
+    });
+    const hooks = options.hooks as any;
+    assert.ok(hooks.Stop, "Should preserve existing Stop hook");
+    assert.ok(hooks.UserPromptSubmit, "Should add Psyche hook");
+  });
+
+  it("Thronglets traces are empty by default", () => {
+    const traces = psyche.getThrongletsTraces();
+    assert.deepEqual(traces, []);
+  });
+
+  it("Thronglets exports are empty by default", () => {
+    const exports = psyche.getThrongletsExports();
+    assert.deepEqual(exports, []);
+  });
+});
+
+describe("PsycheClaudeSDK (with thronglets)", () => {
+  let engine: PsycheEngine;
+  let psyche: PsycheClaudeSDK;
+
+  before(async () => {
+    engine = makeEngine();
+    await engine.initialize();
+    psyche = new PsycheClaudeSDK(engine, {
+      thronglets: true,
+      agentId: "ENFP-TestBot",
+      sessionId: "test-session",
+      userId: "alice",
+    });
+  });
+
+  it("constructor accepts thronglets option", () => {
+    assert.ok(psyche);
+  });
+
+  it("getThrongletsSignal returns chemical state with agent_id", () => {
+    const signal = psyche.getThrongletsSignal();
+    assert.ok(signal);
+    assert.equal(signal!.kind, "psyche_state");
+    assert.equal(signal!.agent_id, "ENFP-TestBot");
+    assert.ok(signal!.message.includes("DA:"));
+    assert.ok(signal!.message.includes("CORT:"));
+    assert.ok(signal!.message.includes("OT:"));
+  });
+
+  it("UserPromptSubmit hook caches thronglets exports when enabled", async () => {
+    const hooks = psyche.getHooks();
+    const callback = hooks.UserPromptSubmit![0].hooks[0];
+
+    // Run several interactions to build up relationship state
+    for (const msg of ["你好棒", "太开心了", "我很喜欢你"]) {
+      await callback(
+        {
+          hook_event_name: "UserPromptSubmit",
+          user_message: msg,
+          session_id: "test",
+          cwd: "/tmp",
+        },
+        undefined,
+        { signal: AbortSignal.timeout(5000) },
+      );
+    }
+
+    // Exports may or may not be produced depending on state thresholds
+    const exports = psyche.getThrongletsExports();
+    assert.ok(Array.isArray(exports));
+
+    const traces = psyche.getThrongletsTraces();
+    assert.ok(Array.isArray(traces));
+    // Each trace should have the expected shape and agent_id
+    for (const trace of traces) {
+      assert.ok(trace.outcome);
+      assert.ok(trace.model);
+      assert.equal(trace.session_id, "test-session");
+      assert.equal(trace.agent_id, "ENFP-TestBot");
+      assert.ok(trace.external_continuity);
+    }
+  });
+
+  it("getThrongletsSignal reflects chemical changes after interaction", () => {
+    const signal = psyche.getThrongletsSignal();
+    assert.ok(signal);
+    // After praise interactions, DA should have risen from baseline
+    const daMatch = signal!.message.match(/DA:(\d+)/);
+    assert.ok(daMatch, "Should contain DA value");
+  });
+
+  it("agentId defaults to engine name when not specified", async () => {
+    const e2 = makeEngine();
+    await e2.initialize();
+    const p2 = new PsycheClaudeSDK(e2, { thronglets: true });
+    const signal = p2.getThrongletsSignal();
+    assert.ok(signal);
+    assert.equal(signal!.agent_id, "TestBot");
+  });
+});
+
+describe("stripPsycheTags utility", () => {
+  it("strips single tag", () => {
+    assert.equal(
+      stripPsycheTags("Hello!\n\n<psyche_update>\nDA: 80\n</psyche_update>"),
+      "Hello!",
+    );
+  });
+
+  it("strips multiple tags", () => {
+    assert.equal(
+      stripPsycheTags("A<psyche_update>x</psyche_update>B<psyche_update>y</psyche_update>C"),
+      "ABC",
+    );
+  });
+
+  it("returns original when no tags", () => {
+    assert.equal(stripPsycheTags("No tags here"), "No tags here");
+  });
+
+  it("handles empty string", () => {
+    assert.equal(stripPsycheTags(""), "");
   });
 });

@@ -619,20 +619,7 @@ function buildMirrorConstraints(userText: string, locale: Locale): string {
   return `[${title}]\n${lines.join("\n")}`;
 }
 
-function buildCompactSensingContext(
-  _userText: string,
-  locale: Locale,
-  algorithmStimulus?: string | null,
-): string {
-  if (locale === "zh") {
-    return algorithmStimulus
-      ? `[情绪感知] 算法初判:${algorithmStimulus}；你终判。`
-      : `[情绪感知] 情绪由你终判。`;
-  }
-  return algorithmStimulus
-    ? `[Emotional Sensing] Algorithm hint: ${algorithmStimulus}; final tonal read is yours.`
-    : `[Emotional Sensing] Make the final tonal read yourself.`;
-}
+
 
 function isNeutralMetacognitiveNote(note: string): boolean {
   return note.includes("normal parameters")
@@ -1107,10 +1094,14 @@ export function buildCompactContext(
   }
 
   // ── 5. Sensing ──
-  if (userText) {
-    if (opts?.responseContractContext) {
-      parts.push(buildCompactSensingContext(userText, locale, algoStimulus));
-    } else if (locale === "zh") {
+  // v10.1: When SubjectivityKernel + ResponseContract are present (engine path),
+  // sensing is redundant — the kernel already encodes the *consequence* of the
+  // stimulus (pressure, warmth, boundary state). "你终判" is misleading because
+  // the kernel has already been computed. ambiguityPlane handles real uncertainty.
+  //
+  // Legacy verbose path (no ResponseContract) kept for non-engine callers.
+  if (userText && !opts?.responseContractContext) {
+    if (locale === "zh") {
       parts.push(
         `[情绪感知]\n` +
         `对方刚才说了: "${userText.slice(0, 200)}"\n` +

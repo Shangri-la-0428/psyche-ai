@@ -1,7 +1,7 @@
 # Psyche — 面向智能体的 AI-first 主观性内核
 
 [![npm](https://img.shields.io/npm/v/psyche-ai)](https://www.npmjs.com/package/psyche-ai)
-[![tests](https://img.shields.io/badge/tests-1316%20passing-brightgreen)]()
+[![tests](https://img.shields.io/badge/tests-1405%20passing-brightgreen)]()
 [![deps](https://img.shields.io/badge/dependencies-0-blue)]()
 [![license](https://img.shields.io/badge/license-MIT-yellow)](LICENSE)
 
@@ -446,18 +446,24 @@ const engine = new PsycheEngine({
 
 ## 不只是 OpenClaw
 
-Psyche 是通用的，任何 AI 框架都能用：
+Psyche 是通用的，6 个 adapter 覆盖主流 agent 框架：
 
 ```bash
 npm install psyche-ai
 ```
 
 ```javascript
+// Claude Agent SDK
+import { PsycheClaudeSDK } from "psyche-ai/claude-sdk";
+
 // Vercel AI SDK
 import { psycheMiddleware } from "psyche-ai/vercel-ai";
 
 // LangChain
 import { PsycheLangChain } from "psyche-ai/langchain";
+
+// MCP（Claude Desktop / Cursor / Windsurf / Claude Code）
+// npx psyche-mcp --mbti ENFP --name Luna
 
 // 任何语言（HTTP API）
 // psyche serve --port 3210
