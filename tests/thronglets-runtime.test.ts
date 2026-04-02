@@ -145,7 +145,7 @@ describe("thronglets runtime adapter", () => {
         strength: 0.71,
         ttlTurns: 6,
         key: "open-loop:alice:repair",
-        loopTypes: ["unrepaired-breach"],
+        loopTypes: ["boundary-strain"],
         unfinishedTension: 0.69,
         silentCarry: 0.57,
       },

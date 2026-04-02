@@ -262,7 +262,7 @@ describe("evolveDyadicField", () => {
       ...DEFAULT_DYADIC_FIELD,
       unfinishedTension: 0.84,
       boundaryPressure: 0.68,
-      openLoops: [{ type: "unrepaired-breach" as const, intensity: 0.92, ageTurns: 1 }],
+      openLoops: [{ type: "boundary-strain" as const, intensity: 0.92, ageTurns: 1 }],
     };
     const repaired = evolveDyadicField(
       stressed,
@@ -300,7 +300,7 @@ describe("evolveDyadicField", () => {
       repairMemory: 0.52,
       backslidePressure: 0.34,
       unfinishedTension: 0.74,
-      openLoops: [{ type: "unrepaired-breach" as const, intensity: 0.78, ageTurns: 1 }],
+      openLoops: [{ type: "boundary-strain" as const, intensity: 0.78, ageTurns: 1 }],
       lastMove: "repair" as const,
     };
     const firstRepair = evolveDyadicField(
@@ -389,7 +389,7 @@ describe("relationship learning", () => {
           ...DEFAULT_DYADIC_FIELD,
           boundaryPressure: 0.88,
           unfinishedTension: 0.82,
-          openLoops: [{ type: "unrepaired-breach", intensity: 0.84, ageTurns: 1 }],
+          openLoops: [{ type: "boundary-strain", intensity: 0.84, ageTurns: 1 }],
           updatedAt: new Date().toISOString(),
         },
       },

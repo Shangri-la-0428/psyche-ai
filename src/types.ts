@@ -663,12 +663,8 @@ export interface AppraisalAxes {
   obedienceStrain: number;
   /** Pressure to protect or retain the self */
   selfPreservation: number;
-  /**
-   * Whether this turn is task/production oriented.
-   * @deprecated Computed but has no behavioral consequence — always 0 in
-   * practice and excluded from residue decay / prompt influence.  Kept for
-   * backward compatibility; do not rely on this field.
-   */
+  /** Whether this turn is task/production oriented.
+   * Feeds TaskPlaneState.focus → replyProfile in response contract. */
   taskFocus: number;
 }
 
@@ -679,7 +675,6 @@ export const DEFAULT_APPRAISAL_AXES: AppraisalAxes = {
   abandonmentRisk: 0,
   obedienceStrain: 0,
   selfPreservation: 0,
-  /** @deprecated See AppraisalAxes.taskFocus */
   taskFocus: 0,
 };
 
@@ -711,18 +706,9 @@ export interface RelationMove {
   intensity: number;
 }
 
-/**
- * Unfinished relational tension that can keep shaping future turns.
- *
- * NOTE: `"unrepaired-breach"` is created but never checked in any conditional
- * — it has no behavioral consequence.  `"repair-debt"` was planned but is
- * neither created nor checked anywhere.  Both are kept for backward
- * compatibility but should be considered deprecated.
- */
+/** Unfinished relational tension that can keep shaping future turns. */
 export type OpenLoopType =
   | "unmet-bid"
-  /** @deprecated Created but never checked in conditionals — no behavioral effect */
-  | "unrepaired-breach"
   | "boundary-strain"
   | "existence-test";
 
@@ -748,31 +734,20 @@ export interface PendingRelationSignalState {
 export interface DyadicFieldState {
   perceivedCloseness: number;
   feltSafety: number;
-  /**
-   * @deprecated Computed but has no downstream behavioral effect — only feeds
-   * local move scoring, never influences prompt or policy.  Kept for backward
-   * compatibility.
-   */
+  /** Gap between expected and actual partner behavior.
+   * Feeds interpretiveCharity → response contract gates. */
   expectationGap: number;
   repairCapacity: number;
   repairMemory: number;
-  /**
-   * @deprecated Computed but has no downstream behavioral effect — only feeds
-   * subjectivity kernel internals, never influences prompt or policy.  Kept
-   * for backward compatibility.
-   */
+  /** Pressure toward relational regression after repair.
+   * Feeds repairFriction, hysteresis → response contract. */
   backslidePressure: number;
-  /**
-   * @deprecated Computed but has no downstream behavioral effect — only feeds
-   * subjectivity kernel internals, never influences prompt or policy.  Kept
-   * for backward compatibility.
-   */
+  /** Accumulated fatigue from repeated repair attempts.
+   * Largest weight (0.38) in repairFriction → response contract. */
   repairFatigue: number;
-  /**
-   * @deprecated Computed but has no downstream behavioral effect — only feeds
-   * relationship model internals, never influences prompt or policy.  Kept
-   * for backward compatibility.
-   */
+  /** Accumulated misattunement between partners.
+   * Feeds repairFriction(0.3), repairReadiness, hysteresis, silentCarry,
+   * interpretiveCharity — all reach response contract. */
   misattunementLoad: number;
   boundaryPressure: number;
   unfinishedTension: number;
@@ -795,15 +770,11 @@ export interface ResolvedRelationContext {
 export const DEFAULT_DYADIC_FIELD: DyadicFieldState = {
   perceivedCloseness: 0.42,
   feltSafety: 0.56,
-  /** @deprecated See DyadicFieldState.expectationGap */
   expectationGap: 0.18,
   repairCapacity: 0.54,
   repairMemory: 0,
-  /** @deprecated See DyadicFieldState.backslidePressure */
   backslidePressure: 0,
-  /** @deprecated See DyadicFieldState.repairFatigue */
   repairFatigue: 0,
-  /** @deprecated See DyadicFieldState.misattunementLoad */
   misattunementLoad: 0,
   boundaryPressure: 0.22,
   unfinishedTension: 0.12,
