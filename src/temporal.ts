@@ -192,9 +192,9 @@ function buildPhasePrior(
 // ── 2. AnticipationEngine ───────────────────────────────────
 
 /**
- * Generate anticipatory chemistry changes based on predictions.
- * High-probability positive prediction -> DA/OT micro-rise.
- * High-probability negative prediction -> CORT micro-rise.
+ * Generate anticipatory self-state changes based on predictions.
+ * High-probability positive prediction -> flow/resonance micro-rise.
+ * High-probability negative prediction -> order micro-drop.
  */
 export function generateAnticipation(
   predictions: StimulusPrediction[],

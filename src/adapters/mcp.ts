@@ -117,7 +117,7 @@ server.resource(
     description:
       "Psyche emotional protocol — inject into your system prompt to " +
       "give the AI agent an internal emotional life. Contains the full " +
-      "emotional context framework including neurotransmitter model, " +
+      "emotional context framework including 4-dimensional self-state model (order/flow/boundary/resonance), " +
       "behavioral guidelines, and personality profile.",
     mimeType: "text/plain",
   },
@@ -138,7 +138,7 @@ server.resource(
   "psyche://state",
   {
     description:
-      "Current emotional state — 6 neurotransmitters (DA, HT, CORT, OT, NE, END), " +
+      "Current emotional state — 4 self-state dimensions (order/flow/boundary/resonance), " +
       "innate drives, relationship data, trait drift, energy budgets. " +
       "Read this to understand how the agent is currently 'feeling'.",
     mimeType: "application/json",
@@ -224,7 +224,7 @@ server.tool(
 
 server.tool(
   "get_state",
-  "Get the current emotional state — neurotransmitter levels (DA, HT, CORT, OT, NE, END), " +
+  "Get the current emotional state — self-state dimensions (order/flow/boundary/resonance), " +
   "drives, MBTI type, relationship data, and a human-readable status summary.",
   {},
   async () => {

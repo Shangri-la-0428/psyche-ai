@@ -69,7 +69,7 @@ function resolveConfig(raw?: Record<string, unknown>): OpenClawPsycheConfig {
     enabled: (raw?.enabled as boolean) ?? true,
     stripUpdateTags: (raw?.stripUpdateTags as boolean) ?? true,
     emotionalContagionRate: (raw?.emotionalContagionRate as number) ?? 0.2,
-    maxDimensionDelta: (raw?.maxDimensionDelta as number) ?? (raw?.maxChemicalDelta as number) ?? 25,
+    maxDimensionDelta: (raw?.maxDimensionDelta as number) ?? 25,
     compactMode: (raw?.compactMode as boolean) ?? true,
     mode: isPsycheMode(raw?.mode) ? raw.mode : "natural",
     personalityIntensity: (raw?.personalityIntensity as number) ?? 0.7,

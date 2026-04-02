@@ -530,9 +530,9 @@ function attemptStrategicExpression(
 }
 
 /**
- * SelfSoothing — micro-adjust chemistry toward baseline when state is extreme.
+ * SelfSoothing — micro-adjust self-state toward baseline when state is extreme.
  *
- * Triggers when: any chemical is significantly deviated from baseline.
+ * Triggers when: any dimension is significantly deviated from baseline.
  * Applies gentle corrections (small deltas) to prevent emotional runaway.
  * This is the "homeostatic pull" — the psyche wanting to return to equilibrium.
  */

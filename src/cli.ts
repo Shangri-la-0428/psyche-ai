@@ -7,7 +7,7 @@
 //   psyche status <dir> [--json] [--user ID]
 //   psyche inject <dir> [--protocol] [--json] [--lang LOCALE] [--user ID]
 //   psyche decay <dir>
-//   psyche update <dir> '{"DA":80,"CORT":45}' [--user ID]
+//   psyche update <dir> '{"order":80,"flow":65}' [--user ID]
 //   psyche mode <dir> <natural|work|companion>
 //   psyche intensity              Show info about personality intensity config
 //   psyche reset <dir> [--full]
@@ -715,7 +715,7 @@ Usage:
   psyche status <dir> [--json] [--user ID]
   psyche inject <dir> [--protocol] [--json] [--lang LOCALE] [--user ID]
   psyche decay <dir>
-  psyche update <dir> '{"DA":80,"CORT":45}' [--user ID]
+  psyche update <dir> '{"order":80,"flow":65}' [--user ID]
   psyche mode <dir> <natural|work|companion>
   psyche intensity              Show info about personality intensity config
   psyche reset <dir> [--full]
@@ -748,7 +748,7 @@ Examples:
   psyche inject ./workspace-yu --protocol --lang en
 
   # After a conversation, update the emotional state
-  psyche update ./workspace-yu '{"DA":85,"CORT":20,"OT":70}'
+  psyche update ./workspace-yu '{"order":70,"flow":85,"boundary":50,"resonance":65}'
 
   # See all 16 personality profiles
   psyche profiles

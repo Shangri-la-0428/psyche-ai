@@ -31,7 +31,7 @@ export interface CausalInsight {
   trait: string;
   /** The causal reason, e.g. "Early interactions involved criticism" */
   because: string;
-  /** Supporting evidence from chemical/learning data */
+  /** Supporting evidence from self-state/learning data */
   evidence: string;
   /** Confidence in this insight, 0-1 */
   confidence: number;
@@ -180,7 +180,7 @@ export function predictSelfReaction(
 /**
  * Detect conflicts between subsystems of the psyche.
  *
- * Examines drive levels, chemical state, attachment data, and
+ * Examines drive levels, self-state, attachment data, and
  * self-model for contradictions that create internal tension.
  */
 export function detectInternalConflicts(
@@ -593,8 +593,8 @@ function computeGrowthArc(state: PsycheState, locale: Locale): GrowthArc {
 // ── Internal: Core Trait Description ────────────────────────
 
 /**
- * Describe the agent's core personality traits from baseline chemistry
- * and current chemical signature.
+ * Describe the agent's core personality traits from baseline
+ * and current self-state signature.
  */
 function describeCoreTraits(state: PsycheState, isZh: boolean): string {
   const s = state.current;
@@ -662,7 +662,7 @@ function describeCoreTraits(state: PsycheState, isZh: boolean): string {
 // ── Internal: Emotion Labeling ──────────────────────────────
 
 /**
- * Label the dominant emotion from a chemical state.
+ * Label the dominant emotion from a self-state.
  * Simplified version that doesn't depend on the full EmotionPattern
  * condition functions (avoids circular dependencies).
  */
@@ -728,7 +728,7 @@ function labelDominantEmotion(s: SelfState, locale: Locale): string {
   return isZh ? "平静" : "calm";
 }
 
-// ── Internal: Chemical Spike Analysis ───────────────────────
+// ── Internal: Dimension Spike Analysis ──────────────────────
 
 interface SpikeAnalysis {
   total: number;

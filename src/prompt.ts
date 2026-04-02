@@ -249,12 +249,12 @@ ${t("protocol.no_sycophancy", locale)}
 ${t("protocol.no_mirror", locale)}
 ${t("protocol.can_initiate", locale)}
 
-${t("protocol.chem_map_title", locale)}
-${t("protocol.chem_da_high", locale)}
-${t("protocol.chem_cort_high", locale)}
-${t("protocol.chem_ot_high", locale)}
-${t("protocol.chem_ht_low", locale)}
-${t("protocol.chem_end_high", locale)}
+${t("protocol.dim_map_title", locale)}
+${t("protocol.dim_flow_high", locale)}
+${t("protocol.dim_order_low", locale)}
+${t("protocol.dim_resonance_high", locale)}
+${t("protocol.dim_boundary_high", locale)}
+${t("protocol.dim_flow_order_high", locale)}
 
 ${t("protocol.empathy", locale)}`;
 }
@@ -281,7 +281,7 @@ function buildBehavioralConstraints(state: PsycheState, locale: Locale): string 
   const social = isSocial(baseline); // High flow baseline → socially expressive
   const constraints: string[] = [];
 
-  // Low order → stressed (inverse of old CORT > 60), but how you show it depends on who you are
+  // Low order → stressed, but how you show it depends on who you are
   if (current.order < 40) {
     if (locale === "zh") {
       constraints.push(warm
@@ -359,7 +359,7 @@ function buildBehavioralConstraints(state: PsycheState, locale: Locale): string 
     }
   }
 
-  // Low flow = burnout (DA + NE both mapped to flow), different flavors
+  // Low flow = burnout, different flavors
   if (current.flow < 40) {
     if (locale === "zh") {
       constraints.push(warm

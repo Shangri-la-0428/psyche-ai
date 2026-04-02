@@ -69,7 +69,7 @@ export type { LayerHealthSummary, LayerHealthDetail, LayerStatus, DiagnosticLaye
 // module paths for tests and advanced integrations:
 //
 // types.js (constants & defaults):
-//   CHEMICAL_KEYS, CHEMICAL_NAMES, CHEMICAL_NAMES_ZH, DRIVE_KEYS,
+//   DIMENSION_KEYS, DIMENSION_NAMES, DRIVE_KEYS,
 //   DRIVE_NAMES_ZH, DEFAULT_RELATIONSHIP, DEFAULT_DRIVES,
 //   DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE,
 //   DEFAULT_PERSONHOOD_STATE, DEFAULT_ATTACHMENT,
@@ -78,7 +78,7 @@ export type { LayerHealthSummary, LayerHealthDetail, LayerStatus, DiagnosticLaye
 //   DEFAULT_DYADIC_FIELD
 //
 // types.js (internal type aliases):
-//   ChemicalSnapshot, SelfModel, RelationshipState, EmpathyEntry,
+//   StateSnapshot, SelfModel, RelationshipState, EmpathyEntry,
 //   EmotionPattern, DriveType, InnateDrives, LearningState,
 //   LearnedVectorAdjustment, PredictionRecord, OutcomeScore,
 //   OutcomeSignals, AttachmentStyle, AttachmentData,

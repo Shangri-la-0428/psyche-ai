@@ -555,8 +555,8 @@ interface UnnamedEmotion {
  * experiential qualities — novel states that need descriptive phrases
  * rather than labels.
  *
- * Mapping from old 6-chemical to 4D:
- *   CORT→(inverse order), DA→flow, OT→resonance, HT→order, NE→flow, END→(absorbed)
+ * Uses the 4D self-state dimensions (order, flow, boundary, resonance)
+ * to identify configurations outside known experiential patterns.
  */
 export function detectUnnamedEmotion(
   state: SelfState,

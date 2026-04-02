@@ -2,7 +2,7 @@
 // Autonomic Nervous System — Polyvagal Theory Implementation
 // ============================================================
 //
-// Maps chemical state + innate drives to autonomic nervous system
+// Maps self-state dimensions + innate drives to autonomic nervous system
 // states based on Stephen Porges' Polyvagal Theory:
 //
 // - Ventral vagal: social engagement, safety (default)

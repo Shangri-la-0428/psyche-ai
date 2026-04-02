@@ -266,7 +266,7 @@ export function compressSnapshots(snapshots: StateSnapshot[]): string {
 }
 
 /**
- * Push a chemical snapshot to emotional history, keeping max entries.
+ * Push a state snapshot to emotional history, keeping max entries.
  * When history overflows, compresses removed entries into relationship memory.
  */
 export function pushSnapshot(
@@ -577,8 +577,8 @@ export function consolidateHistory(
 }
 
 /**
- * Retrieve memories related to current chemistry and stimulus.
- * Uses chemical similarity + stimulus matching + core memory bonus.
+ * Retrieve memories related to current self-state and stimulus.
+ * Uses state similarity + stimulus matching + core memory bonus.
  */
 export function retrieveRelatedMemories(
   history: StateSnapshot[],

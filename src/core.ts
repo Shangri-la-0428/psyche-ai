@@ -192,7 +192,7 @@ function applyRepairLag(
 ): SelfState {
   if (!REPAIRING_STIMULI.has(stimulus)) return next;
 
-  // Low order = high stress (inverse of old CORT). Stress = baseline.order - previous.order.
+  // Low order = high stress. Stress = baseline.order - previous.order.
   const stressLoad = Math.max(0, baseline.order - previous.order);
   if (stressLoad < 15) return next;
 
@@ -807,9 +807,9 @@ export class PsycheEngine {
         stateChanged = true;
 
         // v9.2 P4: Autonomic recovery — expressing vulnerable/comforting emotions
-        // while stressed triggers parasympathetic relief (post-cry cortisol drop).
-        // Biology: emotional expression activates vagal brake, releasing endorphins
-        // and lowering cortisol. The more stressed you are, the more relief you get.
+        // while stressed triggers parasympathetic relief (autonomic recovery).
+        // Biology: emotional expression activates vagal brake, restoring order
+        // and raising resonance. The more stressed you are, the more relief you get.
         const RELEASE_TYPES: ReadonlySet<StimulusType> = new Set<StimulusType>([
           "vulnerability", "intimacy", "validation",
         ]);

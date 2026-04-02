@@ -19,7 +19,7 @@ export interface SelfReflection {
 /**
  * Compute a self-reflection from the agent's emotional history.
  *
- * Analyzes stimulus frequencies, dominant emotions, and chemical trends
+ * Analyzes stimulus frequencies, dominant emotions, and dimension trends
  * to build an awareness of recurring patterns.
  */
 export function computeSelfReflection(history: StateSnapshot[], locale: Locale): SelfReflection {
@@ -74,9 +74,9 @@ export function computeSelfReflection(history: StateSnapshot[], locale: Locale):
 }
 
 /**
- * Compute the emotional tendency from chemical history.
+ * Compute the emotional tendency from state history.
  *
- * Compares first-half vs second-half averages for DA and CORT,
+ * Compares first-half vs second-half averages for flow and order,
  * checks variance for volatility, and detects oscillation patterns.
  */
 export function computeEmotionalTendency(history: StateSnapshot[]): SelfReflection["tendency"] {

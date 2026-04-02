@@ -109,7 +109,7 @@ function clamp(v: number): number {
  * Compute raw activation levels for all 7 primary systems
  * from chemistry, drives, and optional recent stimulus.
  *
- * Each system is a weighted combination of chemical values and drive states.
+ * Each system is a weighted combination of dimension values and drive states.
  * recentStimulus provides a small contextual boost.
  */
 export function computePrimarySystems(

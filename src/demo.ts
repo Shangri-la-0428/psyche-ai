@@ -14,7 +14,7 @@ import type { PsycheEngineConfig } from "./core.js";
 import { MemoryStorageAdapter } from "./storage.js";
 import { detectEmotions } from "./chemistry.js";
 import type { SelfState, Locale } from "./types.js";
-import { DIMENSION_KEYS } from "./types.js";
+import { DIMENSION_KEYS, DIMENSION_NAMES } from "./types.js";
 
 // ── ANSI helpers ─────────────────────────────────────────────
 
@@ -77,17 +77,6 @@ function describeMood(current: SelfState, locale: Locale): string {
     .map((e) => locale === "zh" ? e.nameZh : e.name)
     .join(" + ");
 }
-
-// ── Chemical names ───────────────────────────────────────────
-
-const NT_NAMES: Record<string, { short: string; en: string }> = {
-  DA:   { short: "DA  ", en: "Dopamine      " },
-  HT:   { short: "HT  ", en: "Serotonin     " },
-  CORT: { short: "CORT", en: "Cortisol      " },
-  OT:   { short: "OT  ", en: "Oxytocin      " },
-  NE:   { short: "NE  ", en: "Norepinephrine" },
-  END:  { short: "END ", en: "Endorphins    " },
-};
 
 // ── Demo scenario ────────────────────────────────────────────
 
@@ -163,10 +152,10 @@ function printChemistry(
   for (const key of DIMENSION_KEYS) {
     const p = Math.round(prev[key]);
     const v = Math.round(curr[key]);
-    const name = NT_NAMES[key];
+    const name = DIMENSION_NAMES[key].padEnd(9);
     const d = delta(p, v);
     process.stdout.write(
-      `  ${c(C.bold, name.short)} ${bar(v)} ${String(v).padStart(3)} ${d}\n`,
+      `  ${c(C.bold, name)} ${bar(v)} ${String(v).padStart(3)} ${d}\n`,
     );
   }
 }

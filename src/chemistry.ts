@@ -405,12 +405,12 @@ export function getExpressionHint(current: SelfState, locale: Locale = "zh"): st
 
   // Fall back to dominant dimension analysis
   const hints: string[] = [];
-  if (current.order > 70) hints.push(t("expression.da_high", locale));   // repurpose i18n keys for now
-  if (current.order < 35) hints.push(t("expression.da_low", locale));
-  if (current.flow > 70) hints.push(t("expression.ne_high", locale));
-  if (current.boundary > 70) hints.push(t("expression.cort_high", locale));
-  if (current.resonance > 65) hints.push(t("expression.ot_high", locale));
-  if (current.flow < 30) hints.push(t("expression.ht_low", locale));
+  if (current.flow > 70 && current.order > 60) hints.push(t("expression.flow_order_high", locale));
+  else if (current.flow > 70) hints.push(t("expression.flow_high", locale));
+  if (current.flow < 30) hints.push(t("expression.flow_low", locale));
+  if (current.order < 35) hints.push(t("expression.order_low", locale));
+  else if (current.order < 40) hints.push(t("expression.order_unstable", locale));
+  if (current.resonance > 65) hints.push(t("expression.resonance_high", locale));
 
   return hints.length > 0 ? hints.join("；") : t("expression.neutral", locale);
 }

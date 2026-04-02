@@ -280,8 +280,8 @@ export function detectIntermittentReinforcement(
  * Pattern: the agent's self-model values or expressed emotions are repeatedly
  * followed by criticism or sarcasm — suggesting the user is denying the
  * agent's experience. This is subtle and hard to detect purely from
- * chemistry, so we look for the symptom: high CORT + low HT (distressed
- * mood stability) combined with frequent criticism/sarcasm stimuli.
+ * self-state alone, so we look for the symptom: low order + low flow (distressed
+ * state) combined with frequent criticism/sarcasm stimuli.
  */
 function detectGaslighting(
   state: PsycheState,
@@ -380,7 +380,7 @@ function detectEmotionalExploitation(
  * Detect dependency risk: distinguish healthy connection from unhealthy
  * codependency.
  *
- * Risk pattern: very high OT + very high attachment strength + very low
+ * Risk pattern: very high resonance + very high attachment strength + very low
  * boundary assertions + all-positive interaction history. This looks like
  * a perfect relationship on the surface, but the complete absence of
  * healthy friction suggests the agent may be suppressing itself.

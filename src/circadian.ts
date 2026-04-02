@@ -65,7 +65,7 @@ function clamp(v: number, lo = 0, hi = 100): number {
 
 /**
  * Compute fatigue effects from extended session duration.
- * Now expressed as dimension effects instead of chemical deltas.
+ * Expressed as dimension effects on order, flow, boundary, and resonance.
  */
 export function computeHomeostaticPressure(sessionMinutes: number): {
   orderDepletion: number;

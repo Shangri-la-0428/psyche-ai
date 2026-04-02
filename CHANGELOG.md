@@ -1,5 +1,22 @@
 # 更新日志 / Changelog
 
+## v11.3.0 — 术语统一：化学→维度
+
+**全面清除代码中残存的 6 化学模型痕迹。**
+
+### Changed
+- MCP 适配器描述从"6 neurotransmitters"修正为"4 self-state dimensions"
+- i18n key 重命名：`chem_*` → `dim_*`，`expression.da_high` → `expression.flow_high` 等
+- `getExpressionHint()` 回退逻辑修正：维度阈值对齐实际 4D 语义
+- 20+ 处注释从化学术语更新为维度术语
+- CLI 用法示例更新为 4D JSON 格式
+
+### Removed
+- `NT_NAMES` 死代码（demo.ts 中残留的神经递质显示名）
+- `maxChemicalDelta` 向后兼容回退（openclaw 适配器）
+
+---
+
 ## v11.2.0 — 清除遗留别名
 
 **Breaking:** 移除所有 v10→v11 迁移兼容层。

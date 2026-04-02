@@ -289,8 +289,8 @@ export function predictState(
 /**
  * Compute the prediction error between predicted and actual chemistry.
  *
- * Euclidean distance across all 6 chemicals, normalized to 0-1 range.
- * Normalization factor: sqrt(6 * 100^2) = sqrt(60000) ~= 244.95
+ * Euclidean distance across all 4 dimensions, normalized to 0-1 range.
+ * Normalization factor: sqrt(4 * 100^2) = sqrt(40000) ~= 200
  */
 export function computePredictionError(
   predicted: SelfState,
