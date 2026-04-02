@@ -53,7 +53,7 @@ export interface RelationshipSummary {
   /** Average emotional valence of B's outputs toward A (-1 to 1) */
   averageValenceBtoA: number;
   /** How similar their current chemistry is (0-1, 1 = identical) */
-  chemicalSimilarity: number;
+  stateSimilarity: number;
   /** Dominant emotion patterns for each agent */
   emotionsA: string[];
   emotionsB: string[];
@@ -94,7 +94,7 @@ function stimulusValence(stimulus: StimulusType | null): number {
 }
 
 /** Cosine similarity between two SelfState vectors, normalized to 0-1 */
-function chemicalSimilarity(a: SelfState, b: SelfState): number {
+function stateSimilarity(a: SelfState, b: SelfState): number {
   let dotProduct = 0;
   let normA = 0;
   let normB = 0;
@@ -282,8 +282,8 @@ export class PsycheInteraction {
       ? bToARecords.reduce((sum, r) => sum + stimulusValence(r.stimulus), 0) / bToARecords.length
       : 0;
 
-    // Chemical similarity
-    const similarity = chemicalSimilarity(stateA.current, stateB.current);
+    // State similarity
+    const similarity = stateSimilarity(stateA.current, stateB.current);
 
     // Dominant emotions
     const emotionsA = detectEmotions(stateA.current).map((e) => e.name);
@@ -301,7 +301,7 @@ export class PsycheInteraction {
       phase,
       averageValenceAtoB,
       averageValenceBtoA,
-      chemicalSimilarity: similarity,
+      stateSimilarity: similarity,
       emotionsA,
       emotionsB,
       description,

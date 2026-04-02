@@ -28,7 +28,7 @@ export interface CustomProfileConfig {
   name: string;
   /** Optional description of the personality */
   description?: string;
-  /** Override specific chemicals; rest inherited from baseMBTI */
+  /** Override specific dimensions; rest inherited from baseMBTI */
   baseline?: Partial<SelfState>;
   /** Which MBTI to use as starting point (default: "INFJ") */
   baseMBTI?: MBTIType;
@@ -67,7 +67,7 @@ export interface ResolvedProfile {
 
 // ── Clamping helpers ────────────────────────────────────────
 
-function clampChemical(v: number): number {
+function clampDimension(v: number): number {
   return Math.max(0, Math.min(100, v));
 }
 
@@ -109,12 +109,12 @@ export function createCustomProfile(config: CustomProfileConfig): ResolvedProfil
   const baseSelfModel = getDefaultSelfModel(baseMBTI);
   const baseTemperament = defaultTemperamentFromMBTI(baseMBTI);
 
-  // Merge baseline: start from MBTI, override specific chemicals
+  // Merge baseline: start from MBTI, override specific dimensions
   const baseline: SelfState = { ...baseBaseline };
   if (config.baseline) {
     for (const key of DIMENSION_KEYS) {
       if (config.baseline[key] !== undefined) {
-        baseline[key] = clampChemical(config.baseline[key]!);
+        baseline[key] = clampDimension(config.baseline[key]!);
       }
     }
   }

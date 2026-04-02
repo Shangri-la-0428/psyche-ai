@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import {
-  decayDrives, feedDrives, detectExistentialThreat,
+  detectExistentialThreat,
   computeEffectiveBaseline, computeEffectiveSensitivity,
   computeMaslowWeights, buildDriveContext, hasCriticalDrive,
   updateTraitDrift, deriveDriveSatisfaction,
@@ -69,28 +69,6 @@ const ENFP_BASELINE: SelfState = { flow: 65, order: 55, boundary: 30, resonance:
 function makeDrives(overrides: Partial<InnateDrives> = {}): InnateDrives {
   return { ...DEFAULT_DRIVES, ...overrides };
 }
-
-// ── decayDrives ──────────────────────────────────────────────
-
-describe("decayDrives (deprecated no-op)", () => {
-  it("returns unchanged copy (no-op)", () => {
-    const drives = makeDrives();
-    const result = decayDrives(drives, 60);
-    assert.deepStrictEqual(result, drives);
-    assert.notEqual(result, drives, "should return a copy, not the same reference");
-  });
-});
-
-// ── feedDrives ───────────────────────────────────────────────
-
-describe("feedDrives (deprecated no-op)", () => {
-  it("returns unchanged copy (no-op)", () => {
-    const drives = makeDrives({ esteem: 40, safety: 50 });
-    const result = feedDrives(drives, "praise");
-    assert.deepStrictEqual(result, drives);
-    assert.notEqual(result, drives, "should return a copy, not the same reference");
-  });
-});
 
 // ── deriveDriveSatisfaction ────────────────────────────────────
 

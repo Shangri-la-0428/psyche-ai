@@ -243,8 +243,8 @@ describe("PsycheInteraction", () => {
 
     // Both engines start with identical default chemistry, so similarity should be very high
     assert.ok(
-      summary.chemicalSimilarity > 0.9,
-      `Identical-start engines should have high similarity, got ${summary.chemicalSimilarity}`,
+      summary.stateSimilarity > 0.9,
+      `Identical-start engines should have high similarity, got ${summary.stateSimilarity}`,
     );
   });
 

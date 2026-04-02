@@ -7,7 +7,7 @@
 //
 //   state position → derived drives → effective baseline → decay target
 //
-// No feedDrives(). No decayDrives(). Drives emerge.
+// Drives emerge from state position. They are never stored or mutated directly.
 // ============================================================
 
 import type {
@@ -239,18 +239,6 @@ export function buildDriveContext(drives: InnateDrives, locale: Locale): string 
 
 export function hasCriticalDrive(drives: InnateDrives): boolean {
   return DRIVE_KEYS.some((k) => drives[k] < DRIVE_UNSATISFIED_THRESHOLD);
-}
-
-// ── Deprecated (kept for backward compat) ───────────────────
-
-/** @deprecated Drives decay implicitly as dimensions decay toward baseline. */
-export function decayDrives(drives: InnateDrives, _minutesElapsed: number): InnateDrives {
-  return { ...drives };
-}
-
-/** @deprecated Stimuli now modify 4D state directly. Drives are derived. */
-export function feedDrives(drives: InnateDrives, _stimulus: StimulusType): InnateDrives {
-  return { ...drives };
 }
 
 // ── Trait Drift (v11: 4D trajectory) ────────────────────────
