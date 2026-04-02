@@ -28,8 +28,6 @@ export function isDimensionKey(s: string): s is keyof SelfState {
   return DIMENSION_KEY_SET.has(s);
 }
 
-/** @deprecated Use isDimensionKey */
-export const isChemicalKey = isDimensionKey;
 
 export function isStimulusType(s: string): s is StimulusType {
   return STIMULUS_TYPES.has(s);
@@ -46,8 +44,6 @@ export function isValidState(c: unknown): c is SelfState {
   return true;
 }
 
-/** @deprecated Use isValidState */
-export const isValidChemistry = isValidState;
 
 /** Validate locale string */
 export function isLocale(s: string): s is "zh" | "en" {

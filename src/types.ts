@@ -26,10 +26,6 @@ export const DIMENSION_KEYS: (keyof SelfState)[] = [
   "order", "flow", "boundary", "resonance",
 ];
 
-/** @deprecated Alias for migration. Use SelfState. */
-export type ChemicalState = SelfState;
-/** @deprecated Alias for migration. Use DIMENSION_KEYS. */
-export const CHEMICAL_KEYS = DIMENSION_KEYS;
 
 // ── Innate Drives (Maslow Hierarchy) ───────────────────────
 
@@ -82,10 +78,6 @@ export const DIMENSION_NAMES_ZH: Record<keyof SelfState, string> = {
   resonance: "振",
 };
 
-/** @deprecated Alias for migration. Use DIMENSION_NAMES. */
-export const CHEMICAL_NAMES = DIMENSION_NAMES;
-/** @deprecated Alias for migration. Use DIMENSION_NAMES_ZH. */
-export const CHEMICAL_NAMES_ZH = DIMENSION_NAMES_ZH;
 
 /** Runtime specification for a self-state dimension */
 export interface DimensionSpec {
@@ -129,12 +121,6 @@ export const DIMENSION_SPECS: Record<keyof SelfState, DimensionSpec> = {
   },
 };
 
-/** @deprecated Alias for migration. */
-export type ChemicalRuntimeSpec = DimensionSpec;
-/** @deprecated Alias for migration. */
-export type DecaySpeed = "fast" | "medium" | "slow";
-/** @deprecated Alias for migration. */
-export const DECAY_FACTORS: Record<DecaySpeed, number> = { fast: 0.75, medium: 0.82, slow: 0.95 };
 
 /** Psyche operating mode */
 export type PsycheMode = "natural" | "work" | "companion";
@@ -319,8 +305,6 @@ export interface StateSnapshot {
   isCoreMemory?: boolean;         // true if intensity >= 0.6 or repeatedly consolidated
 }
 
-/** @deprecated Alias for migration. Use StateSnapshot. */
-export type ChemicalSnapshot = StateSnapshot;
 
 /** Max history entries to keep (P11: raised from 10 to 30, intensity-filtered) */
 export const MAX_EMOTIONAL_HISTORY = 30;

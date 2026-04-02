@@ -1,5 +1,22 @@
 # 更新日志 / Changelog
 
+## v11.2.0 — 清除遗留别名
+
+**Breaking:** 移除所有 v10→v11 迁移兼容层。
+
+### Removed
+- `ChemicalState`, `CHEMICAL_KEYS`, `CHEMICAL_NAMES`, `CHEMICAL_NAMES_ZH`, `ChemicalSnapshot` 类型别名
+- `ChemicalRuntimeSpec`, `DecaySpeed`, `DECAY_FACTORS` 弃用导出
+- `isChemicalKey`, `isValidChemistry` 守卫别名
+- `decayDrives()`, `feedDrives()` 空操作存根
+
+### Changed
+- `chemicalSimilarity` → `stateSimilarity` (interaction.ts)
+- i18n 全面更新：所有「化学」「内分泌」描述改为四维自我状态术语
+- 诊断建议更新为当前架构
+
+---
+
 ## v11.0.0 — 4D Self-State (序/流/界/振)
 
 **Breaking change: 6 neurotransmitters → 4 self-state dimensions.**

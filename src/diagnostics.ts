@@ -165,7 +165,7 @@ export function runHealthCheck(state: PsycheState): DiagnosticIssue[] {
         layer: "subjective-continuity",
         severity: "critical",
         message: `Drive '${key}' out of bounds: ${val.toFixed(1)}`,
-        suggestion: `drives.ts feedDrives/decayDrives 缺少边界检查`,
+        suggestion: `drives deriveDriveSatisfaction 返回值越界——检查维度值是否在 [0, 100]`,
       });
     }
   }
@@ -178,7 +178,7 @@ export function runHealthCheck(state: PsycheState): DiagnosticIssue[] {
       layer: "subjective-continuity",
       severity: "warning",
       message: `${criticalDrives.length}/5 drives below 15: ${criticalDrives.join(", ")}`,
-      suggestion: `decayDrives 衰减太猛。考虑加一个下限（比如 10），或者在 initialize 时根据距上次对话时间做 recovery`,
+      suggestion: `维度衰减太猛导致 drives 全面坍塌。检查 baseline 和 decay 参数，或在 initialize 时根据距上次对话时间做 recovery`,
     });
   }
 

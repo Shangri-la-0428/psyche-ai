@@ -655,7 +655,7 @@ function generateNarrative(
   // Identify the strongest drive hunger (if any)
   const hungriestDrive = findHungriestDrive(d);
   // Identify the dominant dimension shift direction
-  const chemTrend = identifyChemicalTrend(c, state.baseline);
+  const dimensionTrend = identifyDimensionTrend(c, state.baseline);
   // Relationship warmth level
   const relWarmth = relationship
     ? (relationship.trust + relationship.intimacy) / 200
@@ -665,14 +665,14 @@ function generateNarrative(
   const selfDoubt = metacognition && metacognition.emotionalConfidence < 0.35;
 
   if (locale === "zh") {
-    return buildNarrativeZh(quality, chemTrend, hungriestDrive, relWarmth, coherence, intensity, selfDoubt);
+    return buildNarrativeZh(quality, dimensionTrend, hungriestDrive, relWarmth, coherence, intensity, selfDoubt);
   }
-  return buildNarrativeEn(quality, chemTrend, hungriestDrive, relWarmth, coherence, intensity, selfDoubt);
+  return buildNarrativeEn(quality, dimensionTrend, hungriestDrive, relWarmth, coherence, intensity, selfDoubt);
 }
 
-type ChemTrend = "rising-warmth" | "rising-stress" | "rising-energy" | "sinking-flat" | "mixed" | "stable";
+type DimensionTrend = "rising-warmth" | "rising-stress" | "rising-energy" | "sinking-flat" | "mixed" | "stable";
 
-function identifyChemicalTrend(current: SelfState, baseline: SelfState): ChemTrend {
+function identifyDimensionTrend(current: SelfState, baseline: SelfState): DimensionTrend {
   const dOrder = current.order - baseline.order;
   const dFlow = current.flow - baseline.flow;
   const dBoundary = current.boundary - baseline.boundary;
@@ -741,7 +741,7 @@ function findHungriestDrive(drives: InnateDrives): DriveHunger | null {
 
 function buildNarrativeEn(
   quality: ExperientialQuality,
-  _trend: ChemTrend,
+  _trend: DimensionTrend,
   hungriestDrive: DriveHunger | null,
   relWarmth: number,
   coherence: number,
@@ -777,7 +777,7 @@ function buildNarrativeEn(
 
 function buildNarrativeZh(
   quality: ExperientialQuality,
-  _trend: ChemTrend,
+  _trend: DimensionTrend,
   hungriestDrive: DriveHunger | null,
   relWarmth: number,
   coherence: number,

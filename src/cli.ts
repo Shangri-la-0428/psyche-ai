@@ -41,7 +41,7 @@ import { buildDynamicContext, buildProtocolContext } from "./prompt.js";
 import { t } from "./i18n.js";
 import type { MBTIType, PsycheState, Locale, PsycheMode, PersonalityTraits } from "./types.js";
 import { DIMENSION_KEYS, DIMENSION_NAMES_ZH, DRIVE_KEYS, DRIVE_NAMES_ZH } from "./types.js";
-import { isMBTIType, isChemicalKey, isLocale } from "./guards.js";
+import { isMBTIType, isDimensionKey, isLocale } from "./guards.js";
 import { getPackageVersion, selfUpdate } from "./update.js";
 import { runRuntimeProbe } from "./runtime-probe.js";
 
@@ -283,7 +283,7 @@ async function cmdUpdate(dir: string, updateJson: string, userId?: string): Prom
 
   // Validate keys using type guard
   for (const key of Object.keys(parsed)) {
-    if (!isChemicalKey(key)) {
+    if (!isDimensionKey(key)) {
       die(`unknown dimension key: ${key}. Valid: ${DIMENSION_KEYS.join(", ")}`);
     }
   }

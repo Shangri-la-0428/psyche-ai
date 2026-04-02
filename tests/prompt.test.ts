@@ -62,10 +62,10 @@ describe("buildProtocolContext", () => {
     assert.ok(protocol.includes("可主动"));
   });
 
-  it("includes chemistry mapping", () => {
+  it("includes dimension mapping", () => {
     const protocol = buildProtocolContext("zh");
-    assert.ok(protocol.includes("DA高"));
-    assert.ok(protocol.includes("CORT高"));
+    assert.ok(protocol.includes("流高"));
+    assert.ok(protocol.includes("序低"));
   });
 });
 
