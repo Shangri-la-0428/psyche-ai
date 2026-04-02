@@ -1,9 +1,10 @@
 // ============================================================
 // Decision Bias — P5: Decision Modulation
 //
-// Converts chemical state + drive state into bias vectors,
-// attention weights, and explore/exploit balance for downstream
-// decision-making. Pure math/heuristic, zero dependencies, no LLM.
+// Converts self-state dimensions (order/flow/boundary/resonance)
+// + drive state into bias vectors, attention weights, and
+// explore/exploit balance for downstream decision-making.
+// Pure math/heuristic, zero dependencies, no LLM.
 // ============================================================
 
 import type { PsycheState, InnateDrives, PolicyModifiers, Locale } from "./types.js";
@@ -11,12 +12,12 @@ import type { PsycheState, InnateDrives, PolicyModifiers, Locale } from "./types
 // ── Types ────────────────────────────────────────────────────
 
 export interface DecisionBiasVector {
-  explorationTendency: number;  // 0-1, curiosity drive + DA + NE
-  cautionLevel: number;         // 0-1, CORT + safety drive hunger
-  socialOrientation: number;    // 0-1, OT + connection drive
-  assertiveness: number;        // 0-1, NE + esteem drive satisfaction
-  creativityBias: number;       // 0-1, DA + END + low CORT
-  persistenceBias: number;      // 0-1, HT stability + drive satisfaction
+  explorationTendency: number;  // 0-1, curiosity drive + flow
+  cautionLevel: number;         // 0-1, low order + safety drive hunger
+  socialOrientation: number;    // 0-1, resonance + connection drive
+  assertiveness: number;        // 0-1, flow + boundary + esteem drive
+  creativityBias: number;       // 0-1, flow + high order (relaxed)
+  persistenceBias: number;      // 0-1, order stability + drive satisfaction
 }
 
 export interface AttentionWeights {
@@ -39,7 +40,7 @@ function sigmoid(x: number, steepness = 1): number {
   return 1 / (1 + Math.exp(-steepness * x));
 }
 
-/** Normalize a 0-100 chemical/drive value to 0-1 */
+/** Normalize a 0-100 dimension/drive value to 0-1 */
 function norm(v: number): number {
   return clamp01(v / 100);
 }
@@ -68,59 +69,59 @@ function meanDriveSatisfaction(drives: InnateDrives): number {
 /**
  * Compute a decision bias vector from the current psyche state.
  *
- * Each bias dimension is a weighted combination of relevant chemical
- * levels and drive states, normalized to [0, 1] where 0.5 is neutral.
+ * Each bias dimension is a weighted combination of relevant self-state
+ * dimensions and drive states, normalized to [0, 1] where 0.5 is neutral.
  */
 export function computeDecisionBias(state: PsycheState): DecisionBiasVector {
   const c = state.current;
   const d = state.drives;
 
-  // explorationTendency: curiosity drive + DA (reward-seeking) + NE (novelty)
-  // High curiosity hunger (low satisfaction) + high DA/NE → explore
+  // explorationTendency: curiosity drive + flow (exchange/novelty-seeking)
+  // High curiosity hunger (low satisfaction) + high flow → explore
   const curiosityHunger = 1 - norm(d.curiosity); // lower satisfaction = more hunger
   const explorationTendency = wavg(
-    [norm(c.DA), norm(c.NE), curiosityHunger, norm(d.curiosity)],
-    [0.25, 0.3, 0.25, 0.2],
-  );
-
-  // cautionLevel: CORT (stress) + safety drive hunger
-  // High CORT + low safety satisfaction → very cautious
-  const safetyHunger = 1 - norm(d.safety);
-  const survivalHunger = 1 - norm(d.survival);
-  const cautionLevel = wavg(
-    [norm(c.CORT), safetyHunger, survivalHunger],
-    [0.5, 0.3, 0.2],
-  );
-
-  // socialOrientation: OT (bonding) + connection drive satisfaction
-  // High OT + hungry for connection → strongly social
-  const connectionHunger = 1 - norm(d.connection);
-  const socialOrientation = wavg(
-    [norm(c.OT), norm(d.connection), connectionHunger, norm(c.END)],
-    [0.4, 0.2, 0.25, 0.15],
-  );
-
-  // assertiveness: NE (arousal/confidence) + esteem drive satisfaction
-  // High NE + satisfied esteem → assertive
-  const assertiveness = wavg(
-    [norm(c.NE), norm(d.esteem), norm(c.DA)],
+    [norm(c.flow), curiosityHunger, norm(d.curiosity)],
     [0.4, 0.35, 0.25],
   );
 
-  // creativityBias: DA (reward) + END (playfulness) + inverse CORT (low stress)
-  // Creativity flourishes when relaxed, rewarded, and playful
-  const inverseCort = 1 - norm(c.CORT);
-  const creativityBias = wavg(
-    [norm(c.DA), norm(c.END), inverseCort],
+  // cautionLevel: low order (disorder/stress) + safety drive hunger
+  // Low order + low safety satisfaction → very cautious
+  const inverseOrder = 1 - norm(c.order);
+  const safetyHunger = 1 - norm(d.safety);
+  const survivalHunger = 1 - norm(d.survival);
+  const cautionLevel = wavg(
+    [inverseOrder, safetyHunger, survivalHunger],
+    [0.5, 0.3, 0.2],
+  );
+
+  // socialOrientation: resonance (attunement) + connection drive
+  // High resonance + hungry for connection → strongly social
+  const connectionHunger = 1 - norm(d.connection);
+  const socialOrientation = wavg(
+    [norm(c.resonance), norm(d.connection), connectionHunger],
+    [0.45, 0.25, 0.3],
+  );
+
+  // assertiveness: flow (activation) + boundary (self-clarity) + esteem drive
+  // High flow + clear boundary + satisfied esteem → assertive
+  const assertiveness = wavg(
+    [norm(c.flow), norm(c.boundary), norm(d.esteem)],
     [0.35, 0.3, 0.35],
   );
 
-  // persistenceBias: HT stability (serotonin) + overall drive satisfaction
-  // Stable mood + satisfied drives → willingness to persist
+  // creativityBias: flow (exchange/reward) + order (relaxed coherence)
+  // Creativity flourishes when flowing and internally coherent
+  const creativityBias = wavg(
+    [norm(c.flow), norm(c.order)],
+    [0.55, 0.45],
+  );
+
+  // persistenceBias: order (stability) + overall drive satisfaction
+  // Stable internal coherence + satisfied drives → willingness to persist
   const overallSatisfaction = meanDriveSatisfaction(d);
   const persistenceBias = wavg(
-    [norm(c.HT), overallSatisfaction, inverseCort],
-    [0.45, 0.35, 0.2],
+    [norm(c.order), overallSatisfaction],
+    [0.55, 0.45],
   );
 
   return {
@@ -135,7 +136,7 @@ export function computeDecisionBias(state: PsycheState): DecisionBiasVector {
 
 /**
  * Compute attention weights that prioritize different conversation content
- * based on current chemical state.
+ * based on current self-state dimensions.
  *
  * Returns normalized weights (sum to ~1) for each content category.
  * Higher weight = higher priority for that type of content.
@@ -143,27 +144,28 @@ export function computeDecisionBias(state: PsycheState): DecisionBiasVector {
 export function computeAttentionWeights(state: PsycheState): AttentionWeights {
   const c = state.current;
 
-  // Raw scores based on chemical signatures
-  // High OT → prioritize relationship/social content
-  const socialRaw = norm(c.OT) * 0.6 + norm(c.END) * 0.2 + (1 - norm(c.CORT)) * 0.2;
+  // Raw scores based on self-state dimension signatures
+  // High resonance → prioritize relationship/social content
+  const socialRaw = norm(c.resonance) * 0.6 + norm(c.order) * 0.2 + norm(c.flow) * 0.2;
 
-  // High NE → prioritize intellectual/novel content
-  const intellectualRaw = norm(c.NE) * 0.5 + norm(c.DA) * 0.3 + norm(state.drives.curiosity) * 0.2;
+  // High flow → prioritize intellectual/novel content
+  const intellectualRaw = norm(c.flow) * 0.5 + norm(c.boundary) * 0.3 + norm(state.drives.curiosity) * 0.2;
 
-  // High CORT → prioritize threat/safety content
-  const threatRaw = norm(c.CORT) * 0.6 + norm(c.NE) * 0.2 + (1 - norm(state.drives.safety)) * 0.2;
+  // Low order (disorder/stress) → prioritize threat/safety content
+  const inverseOrder = 1 - norm(c.order);
+  const threatRaw = inverseOrder * 0.6 + norm(c.flow) * 0.2 + (1 - norm(state.drives.safety)) * 0.2;
 
-  // Emotional content weighted by overall emotional activation
+  // Emotional content weighted by overall dimensional activation
   const emotionalRaw = (
-    Math.abs(norm(c.DA) - 0.5)
-    + Math.abs(norm(c.HT) - 0.5)
-    + Math.abs(norm(c.CORT) - 0.5)
-    + Math.abs(norm(c.OT) - 0.5)
+    Math.abs(norm(c.order) - 0.5)
+    + Math.abs(norm(c.flow) - 0.5)
+    + Math.abs(norm(c.boundary) - 0.5)
+    + Math.abs(norm(c.resonance) - 0.5)
   ) / 2; // average deviation from neutral, scaled
 
   // Routine content is inverse of activation — when calm and stable, routine matters
-  const activation = (norm(c.NE) + norm(c.CORT) + Math.abs(norm(c.DA) - 0.5)) / 3;
-  const routineRaw = Math.max(0.1, 1 - activation) * norm(c.HT);
+  const activation = (norm(c.flow) + inverseOrder + Math.abs(norm(c.resonance) - 0.5)) / 3;
+  const routineRaw = Math.max(0.1, 1 - activation) * norm(c.order);
 
   // Normalize to sum to 1
   const total = socialRaw + intellectualRaw + threatRaw + emotionalRaw + routineRaw;
@@ -189,15 +191,14 @@ export function computeAttentionWeights(state: PsycheState): AttentionWeights {
  *
  * Exploration is driven by:
  *   - High curiosity drive satisfaction (energy to explore)
- *   - High DA (reward anticipation)
- *   - High NE (novelty-seeking)
- *   - Low CORT (not stressed)
+ *   - High flow (exchange/novelty-seeking)
+ *   - High order (coherent enough to venture out)
  *   - High safety (secure enough to take risks)
  *
  * Exploitation is driven by:
- *   - High CORT / anxiety
+ *   - Low order (disorder/stress)
  *   - Low safety drive satisfaction
- *   - Low DA (no reward motivation)
+ *   - Low flow (no exchange motivation)
  */
 export function computeExploreExploit(state: PsycheState): number {
   const c = state.current;
@@ -205,25 +206,24 @@ export function computeExploreExploit(state: PsycheState): number {
 
   // Exploration signals
   const curiosityEnergy = norm(d.curiosity);
-  const rewardDrive = norm(c.DA);
-  const noveltySeeking = norm(c.NE);
-  const relaxation = 1 - norm(c.CORT);
+  const flowDrive = norm(c.flow);
+  const coherence = norm(c.order);
   const securityBase = norm(d.safety);
 
   // Exploitation signals (inverted — higher = more exploit = lower explore)
-  const anxiety = norm(c.CORT);
+  const disorder = 1 - norm(c.order);
   const unsafety = 1 - norm(d.safety);
   const survivalThreat = 1 - norm(d.survival);
 
   // Weighted explore score
   const exploreScore = wavg(
-    [curiosityEnergy, rewardDrive, noveltySeeking, relaxation, securityBase],
-    [0.25, 0.2, 0.2, 0.2, 0.15],
+    [curiosityEnergy, flowDrive, coherence, securityBase],
+    [0.3, 0.25, 0.25, 0.2],
   );
 
   // Weighted exploit score
   const exploitScore = wavg(
-    [anxiety, unsafety, survivalThreat],
+    [disorder, unsafety, survivalThreat],
     [0.5, 0.3, 0.2],
   );
 
@@ -418,41 +418,41 @@ export function computePolicyModifiers(state: PsycheState): PolicyModifiers {
   let confirm = false;
   const avoid: string[] = [];
 
-  // ── Chemistry-driven adjustments ──
+  // ── Dimension-driven adjustments ──
 
-  // High CORT → defensive: shorter, less compliant
-  if (c.CORT > 55) {
-    const cortPressure = (c.CORT - 55) / 45; // 0-1
-    lengthFactor -= cortPressure * 0.5;
-    compliance -= cortPressure * 0.35;
-    risk -= cortPressure * 0.35;
+  // Low order (disorder/stress) → defensive: shorter, less compliant
+  if (c.order < 45) {
+    const orderDeficit = (45 - c.order) / 45; // 0-1
+    lengthFactor -= orderDeficit * 0.5;
+    compliance -= orderDeficit * 0.35;
+    risk -= orderDeficit * 0.35;
   }
 
-  // Low HT → mood instability: less proactive, less risk-taking
-  if (c.HT < 45) {
-    const htDeficit = (45 - c.HT) / 45; // 0-1
-    proactivity -= htDeficit * 0.35;
-    risk -= htDeficit * 0.35;
+  // Low flow → stagnation: less proactive, less risk-taking
+  if (c.flow < 45) {
+    const flowDeficit = (45 - c.flow) / 45; // 0-1
+    proactivity -= flowDeficit * 0.35;
+    risk -= flowDeficit * 0.35;
   }
 
-  // Low DA + low NE → burnout: shorter, passive
-  if (c.DA < 40 && c.NE < 40) {
-    const burnout = ((40 - c.DA) + (40 - c.NE)) / 80; // 0-1
+  // Low flow + low order → burnout: shorter, passive
+  if (c.flow < 40 && c.order < 40) {
+    const burnout = ((40 - c.flow) + (40 - c.order)) / 80; // 0-1
     lengthFactor -= burnout * 0.5;
     proactivity -= burnout * 0.45;
   }
 
-  // High DA + high HT → positive energy: more proactive, more open
-  if (c.DA > 60 && c.HT > 60) {
-    const energy = ((c.DA - 60) + (c.HT - 60)) / 80; // 0-1
+  // High flow + high order → positive energy: more proactive, more open
+  if (c.flow > 60 && c.order > 60) {
+    const energy = ((c.flow - 60) + (c.order - 60)) / 80; // 0-1
     proactivity += energy * 0.3;
     disclosure += energy * 0.2;
     risk += energy * 0.2;
   }
 
-  // High OT → bonding: more disclosure
-  if (c.OT > 60) {
-    const bondingSignal = (c.OT - 60) / 40; // 0-1
+  // High resonance → bonding: more disclosure
+  if (c.resonance > 60) {
+    const bondingSignal = (c.resonance - 60) / 40; // 0-1
     disclosure += bondingSignal * 0.3;
   }
 

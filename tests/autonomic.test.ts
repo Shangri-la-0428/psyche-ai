@@ -8,12 +8,12 @@ import {
   describeAutonomicState,
 } from "../src/autonomic.js";
 import { DEFAULT_DRIVES } from "../src/types.js";
-import type { ChemicalState, InnateDrives, Locale } from "../src/types.js";
+import type { SelfState, InnateDrives, Locale } from "../src/types.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
-function makeState(overrides: Partial<ChemicalState> = {}): ChemicalState {
-  return { DA: 50, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50, ...overrides };
+function makeState(overrides: Partial<SelfState> = {}): SelfState {
+  return { flow: 50, order: 50, boundary: 50, resonance: 50, ...overrides };
 }
 
 function makeDrives(overrides: Partial<InnateDrives> = {}): InnateDrives {
@@ -24,17 +24,19 @@ function makeDrives(overrides: Partial<InnateDrives> = {}): InnateDrives {
 
 describe("computeAutonomicState", () => {
   it("low CORT + adequate HT + adequate OT → ventral-vagal", () => {
-    const chem = makeState({ CORT: 25, HT: 60, OT: 55 });
+    const chem = makeState({ boundary: 25, order: 60, resonance: 55 });
     assert.equal(computeAutonomicState(chem, makeDrives()), "ventral-vagal");
   });
 
-  it("high CORT + high NE → sympathetic (fight/flight)", () => {
-    const chem = makeState({ CORT: 80, NE: 85 });
+  it("low order + high flow → sympathetic (fight/flight)", () => {
+    // stress = 100 - order = 85, arousal = flow = 85 → both >= 65 → sympathetic
+    const chem = makeState({ order: 15, flow: 85 });
     assert.equal(computeAutonomicState(chem, makeDrives()), "sympathetic");
   });
 
-  it("very high CORT + low NE + low DA → dorsal-vagal (freeze/shutdown)", () => {
-    const chem = makeState({ CORT: 90, NE: 15, DA: 10 });
+  it("very low order + low flow → dorsal-vagal (freeze/shutdown)", () => {
+    // stress = 100 - 10 = 90 >= 80, arousal = flow = 15 <= 25, flow = 15 <= 20 → dorsal
+    const chem = makeState({ order: 10, flow: 15 });
     assert.equal(computeAutonomicState(chem, makeDrives()), "dorsal-vagal");
   });
 
@@ -44,25 +46,28 @@ describe("computeAutonomicState", () => {
   });
 
   it("all drives satisfied → ventral-vagal", () => {
-    const chem = makeState({ CORT: 30, HT: 60 });
+    const chem = makeState({ boundary: 30, order: 60 });
     const drives = makeDrives({ survival: 90, safety: 85, connection: 80, esteem: 75, curiosity: 80 });
     assert.equal(computeAutonomicState(chem, drives), "ventral-vagal");
   });
 
   it("very low survival drive → sympathetic (threat)", () => {
-    const chem = makeState({ CORT: 65, NE: 70 });
+    // Need stress >= 55 (order <= 45) and arousal >= 55 (flow >= 55) plus survival < 20
+    const chem = makeState({ order: 40, flow: 60 });
     const drives = makeDrives({ survival: 10 });
     assert.equal(computeAutonomicState(chem, drives), "sympathetic");
   });
 
   it("very low safety drive → sympathetic", () => {
-    const chem = makeState({ CORT: 65, NE: 70 });
+    // Need stress >= 55 and arousal >= 55 plus safety < 20
+    const chem = makeState({ order: 40, flow: 60 });
     const drives = makeDrives({ safety: 10 });
     assert.equal(computeAutonomicState(chem, drives), "sympathetic");
   });
 
   it("multiple low drives → dorsal-vagal", () => {
-    const chem = makeState({ CORT: 85, NE: 20, DA: 15, HT: 20 });
+    // Need 3+ low drives, stress >= 70 (order <= 30), and arousal <= 30 or flow <= 20
+    const chem = makeState({ order: 20, flow: 15 });
     const drives = makeDrives({ survival: 15, safety: 15, connection: 15 });
     assert.equal(computeAutonomicState(chem, drives), "dorsal-vagal");
   });
@@ -72,33 +77,38 @@ describe("computeAutonomicState", () => {
     assert.equal(computeAutonomicState(chem, makeDrives()), "ventral-vagal");
   });
 
-  it("edge: CORT=100, NE=100 → sympathetic", () => {
-    const chem = makeState({ CORT: 100, NE: 100 });
+  it("edge: order=0, flow=100 → sympathetic", () => {
+    // stress = 100, arousal = 100 → both >= 65 → sympathetic
+    const chem = makeState({ order: 0, flow: 100 });
     assert.equal(computeAutonomicState(chem, makeDrives()), "sympathetic");
   });
 
-  it("edge: CORT=100, NE=0, DA=0 → dorsal-vagal", () => {
-    const chem = makeState({ CORT: 100, NE: 0, DA: 0, HT: 20 });
+  it("edge: order=0, flow=0 → dorsal-vagal", () => {
+    // stress = 100 >= 80, arousal = 0 <= 25, flow = 0 <= 20 → dorsal
+    const chem = makeState({ order: 0, flow: 0 });
     assert.equal(computeAutonomicState(chem, makeDrives()), "dorsal-vagal");
   });
 
-  it("gradual: CORT=55 should still be ventral-vagal (thresholds not too sensitive)", () => {
-    const chem = makeState({ CORT: 55, HT: 50, OT: 50 });
+  it("gradual: order=50 should still be ventral-vagal (thresholds not too sensitive)", () => {
+    // stress = 50, not exceeding any threshold
+    const chem = makeState({ order: 50 });
     assert.equal(computeAutonomicState(chem, makeDrives()), "ventral-vagal");
   });
 
   it("happy profile → ventral-vagal", () => {
-    const chem: ChemicalState = { DA: 90, HT: 80, CORT: 20, OT: 70, NE: 60, END: 70 };
+    const chem: SelfState = { flow: 60, order: 80, boundary: 20, resonance: 70 };
     assert.equal(computeAutonomicState(chem, makeDrives()), "ventral-vagal");
   });
 
   it("stressed profile → sympathetic", () => {
-    const chem: ChemicalState = { DA: 30, HT: 30, CORT: 80, OT: 20, NE: 80, END: 20 };
+    // stress = 100-20 = 80, arousal = flow = 80 → both >= 65 → sympathetic
+    const chem: SelfState = { flow: 80, order: 20, boundary: 80, resonance: 20 };
     assert.equal(computeAutonomicState(chem, makeDrives()), "sympathetic");
   });
 
   it("collapsed profile → dorsal-vagal", () => {
-    const chem: ChemicalState = { DA: 15, HT: 20, CORT: 85, OT: 10, NE: 20, END: 10 };
+    // stress = 100-10 = 90 >= 80, arousal = flow = 15 <= 25, flow = 15 <= 20 → dorsal
+    const chem: SelfState = { flow: 15, order: 10, boundary: 85, resonance: 10 };
     assert.equal(computeAutonomicState(chem, makeDrives()), "dorsal-vagal");
   });
 });
@@ -263,21 +273,22 @@ describe("getTransitionTime", () => {
 
 describe("computeAutonomicResult", () => {
   it("first call (previousState=null) → immediate state, transitionProgress=1", () => {
-    const chem = makeState({ CORT: 25, HT: 60 });
+    const chem = makeState({ boundary: 25, order: 60 });
     const result = computeAutonomicResult(chem, makeDrives(), null, 0);
     assert.equal(result.transitionProgress, 1);
     assert.equal(result.state, computeAutonomicState(chem, makeDrives()));
   });
 
   it("same state maintained → transitionProgress=1", () => {
-    const chem = makeState({ CORT: 25, HT: 60 });
+    const chem = makeState({ boundary: 25, order: 60 });
     const result = computeAutonomicResult(chem, makeDrives(), "ventral-vagal", 5);
     assert.equal(result.state, "ventral-vagal");
     assert.equal(result.transitionProgress, 1);
   });
 
   it("transition from ventral to sympathetic with only 1 minute → partial progress", () => {
-    const chem = makeState({ CORT: 80, NE: 85 });
+    // Need sympathetic: stress >= 65 (order <= 35) && arousal >= 65 (flow >= 65)
+    const chem = makeState({ order: 15, flow: 85 });
     // Force a transition: previous was ventral-vagal, chemistry says sympathetic
     const result = computeAutonomicResult(chem, makeDrives(), "ventral-vagal", 0.5);
     // With < full transition time elapsed, progress should be partial
@@ -286,14 +297,14 @@ describe("computeAutonomicResult", () => {
   });
 
   it("transition from dorsal to ventral with 30 minutes → full transitionProgress", () => {
-    const chem = makeState({ CORT: 25, HT: 60, OT: 55 });
+    const chem = makeState({ boundary: 25, order: 60, resonance: 55 });
     const result = computeAutonomicResult(chem, makeDrives(), "dorsal-vagal", 30);
     assert.equal(result.transitionProgress, 1);
   });
 
   it("result includes gated emotion categories based on state", () => {
     // sympathetic state should gate positive social emotions
-    const chem = makeState({ CORT: 80, NE: 85 });
+    const chem = makeState({ order: 15, flow: 85 });
     const result = computeAutonomicResult(chem, makeDrives(), null, 0);
     assert.equal(result.state, "sympathetic");
     assert.ok(Array.isArray(result.gatedEmotionCategories));
@@ -302,28 +313,28 @@ describe("computeAutonomicResult", () => {
   });
 
   it("ventral-vagal result has no gated categories", () => {
-    const chem = makeState({ CORT: 25, HT: 60, OT: 55 });
+    const chem = makeState({ boundary: 25, order: 60, resonance: 55 });
     const result = computeAutonomicResult(chem, makeDrives(), null, 0);
     assert.equal(result.state, "ventral-vagal");
     assert.equal(result.gatedEmotionCategories.length, 0);
   });
 
   it("result includes locale-appropriate description (zh)", () => {
-    const chem = makeState({ CORT: 25, HT: 60 });
+    const chem = makeState({ boundary: 25, order: 60 });
     const result = computeAutonomicResult(chem, makeDrives(), null, 0, "zh");
     assert.ok(result.description.length > 0);
     assert.ok(typeof result.description === "string");
   });
 
   it("result includes locale-appropriate description (en)", () => {
-    const chem = makeState({ CORT: 25, HT: 60 });
+    const chem = makeState({ boundary: 25, order: 60 });
     const result = computeAutonomicResult(chem, makeDrives(), null, 0, "en");
     assert.ok(result.description.length > 0);
     assert.ok(typeof result.description === "string");
   });
 
   it("after full transition, new state is applied", () => {
-    const chem = makeState({ CORT: 80, NE: 85 });
+    const chem = makeState({ order: 15, flow: 85 });
     const result = computeAutonomicResult(chem, makeDrives(), "ventral-vagal", 10);
     // After enough time, should be fully transitioned to sympathetic
     assert.equal(result.state, "sympathetic");
@@ -332,7 +343,7 @@ describe("computeAutonomicResult", () => {
 
   it("short time does not fully transition (inertia)", () => {
     // dorsal-vagal → ventral-vagal requires 20-30 minutes
-    const chem = makeState({ CORT: 25, HT: 60, OT: 55 });
+    const chem = makeState({ boundary: 25, order: 60, resonance: 55 });
     const result = computeAutonomicResult(chem, makeDrives(), "dorsal-vagal", 5);
     // With only 5 minutes, should not be fully transitioned
     assert.ok(result.transitionProgress < 1,
@@ -350,9 +361,9 @@ describe("computeAutonomicResult", () => {
 
   it("transitionProgress is always between 0 and 1", () => {
     const scenarios = [
-      { chem: makeState({ CORT: 80, NE: 85 }), prev: "ventral-vagal" as const, min: 0.1 },
-      { chem: makeState({ CORT: 25, HT: 60 }), prev: "dorsal-vagal" as const, min: 2 },
-      { chem: makeState({ CORT: 90, NE: 15, DA: 10 }), prev: "sympathetic" as const, min: 3 },
+      { chem: makeState({ order: 15, flow: 85 }), prev: "ventral-vagal" as const, min: 0.1 },
+      { chem: makeState({ order: 60 }), prev: "dorsal-vagal" as const, min: 2 },
+      { chem: makeState({ order: 10, flow: 15 }), prev: "sympathetic" as const, min: 3 },
     ];
     for (const { chem, prev, min } of scenarios) {
       const result = computeAutonomicResult(chem, makeDrives(), prev, min);
@@ -449,12 +460,12 @@ describe("computeProcessingDepth", () => {
 
   // ── Dorsal-vagal: always depth ≈ 0 ──
   it("dorsal-vagal → depth near 0 (no reflective capacity)", () => {
-    const result = computeProcessingDepth("dorsal-vagal", makeState({ CORT: 90, NE: 15, DA: 10 }), baseline);
+    const result = computeProcessingDepth("dorsal-vagal", makeState({ order: 10, flow: 10 }), baseline);
     assert.ok(result.depth < 0.15, `expected depth < 0.15, got ${result.depth}`);
   });
 
   it("dorsal-vagal → skips all expensive stages", () => {
-    const result = computeProcessingDepth("dorsal-vagal", makeState({ CORT: 85, NE: 20, DA: 15 }), baseline);
+    const result = computeProcessingDepth("dorsal-vagal", makeState({ order: 15, flow: 15 }), baseline);
     assert.ok(result.skippedStages.includes("metacognition"));
     assert.ok(result.skippedStages.includes("ethics"));
     assert.ok(result.skippedStages.includes("shared-intentionality"));
@@ -462,37 +473,40 @@ describe("computeProcessingDepth", () => {
     assert.ok(result.skippedStages.includes("generative-self"));
   });
 
-  // ── Sympathetic + high CORT ──
-  it("sympathetic + CORT>=60 → depth 0.1-0.3 (fight mode, only instinct)", () => {
-    const result = computeProcessingDepth("sympathetic", makeState({ CORT: 75, NE: 80 }), baseline);
+  // ── Sympathetic + high stress (low order) ──
+  it("sympathetic + low order → depth 0.1-0.3 (fight mode, only instinct)", () => {
+    // stress = 100 - 25 = 75 >= 60
+    const result = computeProcessingDepth("sympathetic", makeState({ order: 25, flow: 80 }), baseline);
     assert.ok(result.depth >= 0.05 && result.depth <= 0.35,
       `expected 0.05-0.35, got ${result.depth}`);
   });
 
-  it("sympathetic + CORT>=60 → skips ethics, shared-intentionality, generative-self", () => {
-    const result = computeProcessingDepth("sympathetic", makeState({ CORT: 70, NE: 75 }), baseline);
+  it("sympathetic + high stress → skips ethics, shared-intentionality, generative-self", () => {
+    // stress = 100 - 30 = 70 >= 60
+    const result = computeProcessingDepth("sympathetic", makeState({ order: 30, flow: 75 }), baseline);
     assert.ok(result.skippedStages.includes("ethics"));
     assert.ok(result.skippedStages.includes("shared-intentionality"));
     assert.ok(result.skippedStages.includes("generative-self"));
   });
 
-  // ── Sympathetic + moderate CORT ──
-  it("sympathetic + moderate CORT → depth 0.3-0.5 (alert but can judge)", () => {
-    const result = computeProcessingDepth("sympathetic", makeState({ CORT: 50, NE: 55 }), baseline);
+  // ── Sympathetic + moderate stress ──
+  it("sympathetic + moderate stress → depth 0.15-0.55 (alert but can judge)", () => {
+    // stress = 100 - 50 = 50 < 60 → baseDepth=0.35
+    const result = computeProcessingDepth("sympathetic", makeState({ order: 50, flow: 55 }), baseline);
     assert.ok(result.depth >= 0.15 && result.depth <= 0.55,
       `expected 0.15-0.55, got ${result.depth}`);
   });
 
-  // ── Ventral-vagal + chemistry far from baseline ──
-  it("ventral-vagal + high chemical deviation → depth 0.5-0.7", () => {
-    const chem = makeState({ DA: 90, NE: 80, CORT: 20, END: 85 }); // far from baseline
+  // ── Ventral-vagal + state far from baseline ──
+  it("ventral-vagal + high state deviation → depth 0.4-0.8", () => {
+    const chem = makeState({ flow: 80, boundary: 20, resonance: 85 }); // far from baseline
     const result = computeProcessingDepth("ventral-vagal", chem, baseline);
     assert.ok(result.depth >= 0.4 && result.depth <= 0.8,
       `expected 0.4-0.8, got ${result.depth}`);
   });
 
   it("ventral-vagal + strong emotions → skips generative-self only", () => {
-    const chem = makeState({ DA: 90, NE: 80, CORT: 20, END: 85 });
+    const chem = makeState({ flow: 80, boundary: 20, resonance: 85 });
     const result = computeProcessingDepth("ventral-vagal", chem, baseline);
     // Should only skip generative-self at most
     assert.ok(!result.skippedStages.includes("metacognition"),
@@ -512,20 +526,22 @@ describe("computeProcessingDepth", () => {
   });
 
   // ── Boundary tests ──
-  it("CORT=59 in sympathetic → different depth than CORT=60", () => {
-    const r59 = computeProcessingDepth("sympathetic", makeState({ CORT: 59, NE: 60 }), baseline);
-    const r60 = computeProcessingDepth("sympathetic", makeState({ CORT: 60, NE: 60 }), baseline);
-    // Both sympathetic, but CORT=60 should be slightly lower depth
-    assert.ok(r59.depth >= r60.depth,
-      `CORT=59 depth (${r59.depth}) should be >= CORT=60 depth (${r60.depth})`);
+  it("order=41 in sympathetic → different depth than order=40", () => {
+    // stress = 100 - 41 = 59, stress = 100 - 40 = 60
+    // stress >= 60 → baseDepth=0.15, stress < 60 → baseDepth=0.35
+    const r41 = computeProcessingDepth("sympathetic", makeState({ order: 41, flow: 60 }), baseline);
+    const r40 = computeProcessingDepth("sympathetic", makeState({ order: 40, flow: 60 }), baseline);
+    // order=40 → stress=60 → lower depth; order=41 → stress=59 → higher depth
+    assert.ok(r41.depth >= r40.depth,
+      `order=41 depth (${r41.depth}) should be >= order=40 depth (${r40.depth})`);
   });
 
   it("depth is always between 0 and 1", () => {
     const scenarios = [
-      { state: "dorsal-vagal" as const, chem: makeState({ CORT: 100, NE: 0, DA: 0 }) },
-      { state: "sympathetic" as const, chem: makeState({ CORT: 100, NE: 100 }) },
-      { state: "sympathetic" as const, chem: makeState({ CORT: 50, NE: 55 }) },
-      { state: "ventral-vagal" as const, chem: makeState({ DA: 100, END: 100, OT: 100 }) },
+      { state: "dorsal-vagal" as const, chem: makeState({ order: 0, flow: 0 }) },
+      { state: "sympathetic" as const, chem: makeState({ order: 0, flow: 100 }) },
+      { state: "sympathetic" as const, chem: makeState({ order: 50, flow: 55 }) },
+      { state: "ventral-vagal" as const, chem: makeState({ flow: 100, resonance: 100 }) },
       { state: "ventral-vagal" as const, chem: makeState() },
     ];
     for (const { state, chem } of scenarios) {
@@ -540,7 +556,7 @@ describe("computeProcessingDepth", () => {
       "metacognition", "ethics", "shared-intentionality",
       "experiential-field", "generative-self",
     ]);
-    const result = computeProcessingDepth("sympathetic", makeState({ CORT: 80, NE: 85 }), baseline);
+    const result = computeProcessingDepth("sympathetic", makeState({ order: 15, flow: 85 }), baseline);
     for (const stage of result.skippedStages) {
       assert.ok(validStages.has(stage), `unknown stage: ${stage}`);
     }
@@ -548,7 +564,7 @@ describe("computeProcessingDepth", () => {
 
   // ── Depth → stage mapping consistency ──
   it("depth < 0.2 → skips 5 stages", () => {
-    const result = computeProcessingDepth("dorsal-vagal", makeState({ CORT: 90, NE: 10, DA: 10 }), baseline);
+    const result = computeProcessingDepth("dorsal-vagal", makeState({ order: 10, flow: 10 }), baseline);
     assert.ok(result.depth < 0.2);
     assert.equal(result.skippedStages.length, 5);
   });
@@ -570,7 +586,7 @@ describe("computeProcessingDepth", () => {
   });
 
   it("ventral-vagal calm result → high processingDepth", () => {
-    const chem = makeState({ CORT: 25, HT: 60 });
+    const chem = makeState({ boundary: 25, order: 60 });
     const result = computeAutonomicResult(chem, makeDrives(), null, 0);
     assert.equal(result.state, "ventral-vagal");
     assert.ok(result.processingDepth >= 0.6,
@@ -578,7 +594,7 @@ describe("computeProcessingDepth", () => {
   });
 
   it("sympathetic stressed result → low processingDepth", () => {
-    const chem = makeState({ CORT: 80, NE: 85 });
+    const chem = makeState({ order: 15, flow: 85 });
     const result = computeAutonomicResult(chem, makeDrives(), null, 0);
     assert.equal(result.state, "sympathetic");
     assert.ok(result.processingDepth < 0.4,
@@ -586,7 +602,7 @@ describe("computeProcessingDepth", () => {
   });
 
   it("dorsal-vagal result → near-zero processingDepth", () => {
-    const chem = makeState({ CORT: 90, NE: 15, DA: 10 });
+    const chem = makeState({ order: 10, flow: 15 });
     const result = computeAutonomicResult(chem, makeDrives(), null, 0);
     assert.equal(result.state, "dorsal-vagal");
     assert.ok(result.processingDepth < 0.15,
@@ -596,14 +612,14 @@ describe("computeProcessingDepth", () => {
   // ── Chemical deviation effect on depth ──
   it("more chemical deviation → lower depth within same autonomic state", () => {
     const calm = computeProcessingDepth("ventral-vagal", makeState(), baseline);
-    const excited = computeProcessingDepth("ventral-vagal", makeState({ DA: 90, NE: 80 }), baseline);
+    const excited = computeProcessingDepth("ventral-vagal", makeState({ flow: 80 }), baseline);
     assert.ok(calm.depth > excited.depth,
       `calm depth (${calm.depth}) should be > excited depth (${excited.depth})`);
   });
 
   it("symmetry: deviation in positive vs negative direction has same effect on depth", () => {
-    const highDA = computeProcessingDepth("ventral-vagal", makeState({ DA: 80 }), baseline);
-    const lowDA = computeProcessingDepth("ventral-vagal", makeState({ DA: 20 }), baseline);
+    const highDA = computeProcessingDepth("ventral-vagal", makeState({ flow: 80 }), baseline);
+    const lowDA = computeProcessingDepth("ventral-vagal", makeState({ flow: 20 }), baseline);
     // Same magnitude of deviation → similar depth
     assert.ok(Math.abs(highDA.depth - lowDA.depth) < 0.15,
       `same deviation magnitude should give similar depth: ${highDA.depth} vs ${lowDA.depth}`);

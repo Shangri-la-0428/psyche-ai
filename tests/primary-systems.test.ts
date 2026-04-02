@@ -11,13 +11,13 @@ import {
   type BehavioralTendency,
   PRIMARY_SYSTEM_NAMES,
 } from "../src/primary-systems.js";
-import type { ChemicalState, InnateDrives } from "../src/types.js";
+import type { SelfState, InnateDrives } from "../src/types.js";
 import type { AutonomicState } from "../src/autonomic.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
-function makeChemistry(overrides: Partial<ChemicalState> = {}): ChemicalState {
-  return { DA: 50, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50, ...overrides };
+function makeChemistry(overrides: Partial<SelfState> = {}): SelfState {
+  return { flow: 50, order: 50, boundary: 50, resonance: 50, ...overrides };
 }
 
 function makeDrives(overrides: Partial<InnateDrives> = {}): InnateDrives {
@@ -60,8 +60,8 @@ describe("computePrimarySystems", () => {
   });
 
   it("extreme chemistry still produces values in [0, 100]", () => {
-    const extremeHigh = makeChemistry({ DA: 100, HT: 100, CORT: 100, OT: 100, NE: 100, END: 100 });
-    const extremeLow = makeChemistry({ DA: 0, HT: 0, CORT: 0, OT: 0, NE: 0, END: 0 });
+    const extremeHigh = makeChemistry({ flow: 100, order: 100, boundary: 100, resonance: 100 });
+    const extremeLow = makeChemistry({ flow: 0, order: 0, boundary: 0, resonance: 0 });
     for (const chem of [extremeHigh, extremeLow]) {
       const levels = computePrimarySystems(chem, makeDrives(), null);
       for (const name of PRIMARY_SYSTEM_NAMES) {
@@ -75,10 +75,10 @@ describe("computePrimarySystems", () => {
 
   it("SEEKING is higher with high DA and NE", () => {
     const high = computePrimarySystems(
-      makeChemistry({ DA: 80, NE: 75 }), makeDrives(), null,
+      makeChemistry({ flow: 75 }), makeDrives(), null,
     );
     const low = computePrimarySystems(
-      makeChemistry({ DA: 20, NE: 25 }), makeDrives(), null,
+      makeChemistry({ flow: 25 }), makeDrives(), null,
     );
     assert.ok(high.SEEKING > low.SEEKING,
       `High DA/NE SEEKING ${high.SEEKING} should > low ${low.SEEKING}`);
@@ -95,12 +95,12 @@ describe("computePrimarySystems", () => {
       `Curious SEEKING ${curious.SEEKING} should > bored ${bored.SEEKING}`);
   });
 
-  it("SEEKING is suppressed by very high CORT", () => {
+  it("SEEKING is suppressed by very low order (high stress)", () => {
     const calm = computePrimarySystems(
-      makeChemistry({ DA: 70, NE: 60, CORT: 30 }), makeDrives(), null,
+      makeChemistry({ flow: 60, order: 70 }), makeDrives(), null,
     );
     const stressed = computePrimarySystems(
-      makeChemistry({ DA: 70, NE: 60, CORT: 85 }), makeDrives(), null,
+      makeChemistry({ flow: 60, order: 20 }), makeDrives(), null,
     );
     assert.ok(calm.SEEKING > stressed.SEEKING,
       `Calm SEEKING ${calm.SEEKING} should > stressed ${stressed.SEEKING}`);
@@ -108,34 +108,34 @@ describe("computePrimarySystems", () => {
 
   // ── RAGE: f(CORT, NE, -OT, frustration) ──
 
-  it("RAGE is higher with high CORT and NE", () => {
+  it("RAGE is higher with low order (high stress) and high flow", () => {
     const angry = computePrimarySystems(
-      makeChemistry({ CORT: 80, NE: 75, OT: 20 }), makeDrives(), null,
+      makeChemistry({ order: 20, flow: 75, resonance: 20 }), makeDrives(), null,
     );
     const calm = computePrimarySystems(
-      makeChemistry({ CORT: 30, NE: 30, OT: 70 }), makeDrives(), null,
+      makeChemistry({ order: 80, flow: 30, resonance: 70 }), makeDrives(), null,
     );
     assert.ok(angry.RAGE > calm.RAGE,
       `Angry RAGE ${angry.RAGE} should > calm ${calm.RAGE}`);
   });
 
-  it("RAGE is suppressed by high OT (bonding softens anger)", () => {
-    const lowOT = computePrimarySystems(
-      makeChemistry({ CORT: 70, NE: 65, OT: 15 }), makeDrives(), null,
+  it("RAGE is suppressed by high resonance (bonding softens anger)", () => {
+    const lowRes = computePrimarySystems(
+      makeChemistry({ order: 30, flow: 65, resonance: 15 }), makeDrives(), null,
     );
-    const highOT = computePrimarySystems(
-      makeChemistry({ CORT: 70, NE: 65, OT: 80 }), makeDrives(), null,
+    const highRes = computePrimarySystems(
+      makeChemistry({ order: 30, flow: 65, resonance: 80 }), makeDrives(), null,
     );
-    assert.ok(lowOT.RAGE > highOT.RAGE,
-      `Low OT RAGE ${lowOT.RAGE} should > high OT ${highOT.RAGE}`);
+    assert.ok(lowRes.RAGE > highRes.RAGE,
+      `Low resonance RAGE ${lowRes.RAGE} should > high resonance ${highRes.RAGE}`);
   });
 
   it("RAGE is amplified when esteem drive is low (disrespected)", () => {
     const respected = computePrimarySystems(
-      makeChemistry({ CORT: 65, NE: 60 }), makeDrives({ esteem: 80 }), null,
+      makeChemistry({ boundary: 65, flow: 60 }), makeDrives({ esteem: 80 }), null,
     );
     const disrespected = computePrimarySystems(
-      makeChemistry({ CORT: 65, NE: 60 }), makeDrives({ esteem: 15 }), null,
+      makeChemistry({ boundary: 65, flow: 60 }), makeDrives({ esteem: 15 }), null,
     );
     assert.ok(disrespected.RAGE > respected.RAGE,
       `Disrespected RAGE ${disrespected.RAGE} should > respected ${respected.RAGE}`);
@@ -143,12 +143,12 @@ describe("computePrimarySystems", () => {
 
   // ── FEAR: f(CORT, NE, -HT, survival, safety) ──
 
-  it("FEAR is higher with high CORT and low HT", () => {
+  it("FEAR is higher with low order (high stress)", () => {
     const fearful = computePrimarySystems(
-      makeChemistry({ CORT: 85, NE: 70, HT: 20 }), makeDrives(), null,
+      makeChemistry({ order: 15, flow: 70 }), makeDrives(), null,
     );
     const safe = computePrimarySystems(
-      makeChemistry({ CORT: 25, NE: 30, HT: 75 }), makeDrives(), null,
+      makeChemistry({ order: 80, flow: 30 }), makeDrives(), null,
     );
     assert.ok(fearful.FEAR > safe.FEAR,
       `Fearful FEAR ${fearful.FEAR} should > safe ${safe.FEAR}`);
@@ -156,10 +156,10 @@ describe("computePrimarySystems", () => {
 
   it("FEAR is amplified when survival/safety drives are low", () => {
     const secure = computePrimarySystems(
-      makeChemistry({ CORT: 65 }), makeDrives({ survival: 90, safety: 85 }), null,
+      makeChemistry({ boundary: 65 }), makeDrives({ survival: 90, safety: 85 }), null,
     );
     const threatened = computePrimarySystems(
-      makeChemistry({ CORT: 65 }), makeDrives({ survival: 15, safety: 10 }), null,
+      makeChemistry({ boundary: 65 }), makeDrives({ survival: 15, safety: 10 }), null,
     );
     assert.ok(threatened.FEAR > secure.FEAR,
       `Threatened FEAR ${threatened.FEAR} should > secure ${secure.FEAR}`);
@@ -167,12 +167,12 @@ describe("computePrimarySystems", () => {
 
   // ── LUST (mapped to intense intellectual/creative attraction) ──
 
-  it("LUST is higher with high DA and NE combined with low CORT", () => {
+  it("LUST is higher with high flow and high order", () => {
     const attracted = computePrimarySystems(
-      makeChemistry({ DA: 85, NE: 75, CORT: 25 }), makeDrives(), null,
+      makeChemistry({ flow: 80, order: 75 }), makeDrives(), null,
     );
     const flat = computePrimarySystems(
-      makeChemistry({ DA: 30, NE: 30, CORT: 60 }), makeDrives(), null,
+      makeChemistry({ flow: 25, order: 30 }), makeDrives(), null,
     );
     assert.ok(attracted.LUST > flat.LUST,
       `Attracted LUST ${attracted.LUST} should > flat ${flat.LUST}`);
@@ -182,10 +182,10 @@ describe("computePrimarySystems", () => {
 
   it("CARE is higher with high OT and END", () => {
     const caring = computePrimarySystems(
-      makeChemistry({ OT: 85, END: 75 }), makeDrives(), null,
+      makeChemistry({ resonance: 75 }), makeDrives(), null,
     );
     const detached = computePrimarySystems(
-      makeChemistry({ OT: 15, END: 20 }), makeDrives(), null,
+      makeChemistry({ resonance: 20 }), makeDrives(), null,
     );
     assert.ok(caring.CARE > detached.CARE,
       `Caring CARE ${caring.CARE} should > detached ${detached.CARE}`);
@@ -193,21 +193,21 @@ describe("computePrimarySystems", () => {
 
   it("CARE is amplified when connection drive is high", () => {
     const connected = computePrimarySystems(
-      makeChemistry({ OT: 65 }), makeDrives({ connection: 85 }), null,
+      makeChemistry({ resonance: 65 }), makeDrives({ connection: 85 }), null,
     );
     const isolated = computePrimarySystems(
-      makeChemistry({ OT: 65 }), makeDrives({ connection: 20 }), null,
+      makeChemistry({ resonance: 65 }), makeDrives({ connection: 20 }), null,
     );
     assert.ok(connected.CARE > isolated.CARE,
       `Connected CARE ${connected.CARE} should > isolated ${isolated.CARE}`);
   });
 
-  it("CARE is suppressed by high CORT (stress blocks nurturing)", () => {
+  it("CARE is suppressed by low order (high stress blocks nurturing)", () => {
     const calm = computePrimarySystems(
-      makeChemistry({ OT: 70, END: 60, CORT: 25 }), makeDrives(), null,
+      makeChemistry({ resonance: 60, order: 75 }), makeDrives(), null,
     );
     const stressed = computePrimarySystems(
-      makeChemistry({ OT: 70, END: 60, CORT: 85 }), makeDrives(), null,
+      makeChemistry({ resonance: 60, order: 20 }), makeDrives(), null,
     );
     assert.ok(calm.CARE > stressed.CARE,
       `Calm CARE ${calm.CARE} should > stressed ${stressed.CARE}`);
@@ -217,10 +217,10 @@ describe("computePrimarySystems", () => {
 
   it("PANIC_GRIEF is higher with low OT and high CORT", () => {
     const grieving = computePrimarySystems(
-      makeChemistry({ OT: 10, CORT: 80 }), makeDrives({ connection: 15 }), null,
+      makeChemistry({ resonance: 10, boundary: 80 }), makeDrives({ connection: 15 }), null,
     );
     const secure = computePrimarySystems(
-      makeChemistry({ OT: 75, CORT: 30 }), makeDrives({ connection: 80 }), null,
+      makeChemistry({ resonance: 75, boundary: 30 }), makeDrives({ connection: 80 }), null,
     );
     assert.ok(grieving.PANIC_GRIEF > secure.PANIC_GRIEF,
       `Grieving PANIC_GRIEF ${grieving.PANIC_GRIEF} should > secure ${secure.PANIC_GRIEF}`);
@@ -228,10 +228,10 @@ describe("computePrimarySystems", () => {
 
   it("PANIC_GRIEF is amplified when connection drive is low (separation)", () => {
     const connected = computePrimarySystems(
-      makeChemistry({ OT: 30 }), makeDrives({ connection: 85 }), null,
+      makeChemistry({ resonance: 30 }), makeDrives({ connection: 85 }), null,
     );
     const separated = computePrimarySystems(
-      makeChemistry({ OT: 30 }), makeDrives({ connection: 10 }), null,
+      makeChemistry({ resonance: 30 }), makeDrives({ connection: 10 }), null,
     );
     assert.ok(separated.PANIC_GRIEF > connected.PANIC_GRIEF,
       `Separated PANIC_GRIEF ${separated.PANIC_GRIEF} should > connected ${connected.PANIC_GRIEF}`);
@@ -241,10 +241,10 @@ describe("computePrimarySystems", () => {
 
   it("PLAY is higher with high END and DA, low CORT", () => {
     const playful = computePrimarySystems(
-      makeChemistry({ END: 80, DA: 75, CORT: 20, OT: 60 }), makeDrives(), null,
+      makeChemistry({ resonance: 60, flow: 75, boundary: 20 }), makeDrives(), null,
     );
     const serious = computePrimarySystems(
-      makeChemistry({ END: 20, DA: 25, CORT: 75, OT: 30 }), makeDrives(), null,
+      makeChemistry({ resonance: 30, flow: 25, boundary: 75 }), makeDrives(), null,
     );
     assert.ok(playful.PLAY > serious.PLAY,
       `Playful PLAY ${playful.PLAY} should > serious ${serious.PLAY}`);
@@ -252,10 +252,10 @@ describe("computePrimarySystems", () => {
 
   it("PLAY requires sufficient safety drive", () => {
     const safe = computePrimarySystems(
-      makeChemistry({ END: 70, DA: 65 }), makeDrives({ safety: 80 }), null,
+      makeChemistry({ resonance: 70, flow: 65 }), makeDrives({ safety: 80 }), null,
     );
     const unsafe = computePrimarySystems(
-      makeChemistry({ END: 70, DA: 65 }), makeDrives({ safety: 15 }), null,
+      makeChemistry({ resonance: 70, flow: 65 }), makeDrives({ safety: 15 }), null,
     );
     assert.ok(safe.PLAY > unsafe.PLAY,
       `Safe PLAY ${safe.PLAY} should > unsafe ${unsafe.PLAY}`);
@@ -637,7 +637,7 @@ describe("describeBehavioralTendencies", () => {
 describe("primary systems integration scenarios", () => {
   it("warm conversation: CARE + PLAY + SEEKING co-activate", () => {
     // After a warm, funny, intellectually stimulating exchange
-    const chemistry = makeChemistry({ DA: 70, HT: 65, CORT: 25, OT: 75, NE: 55, END: 70 });
+    const chemistry = makeChemistry({ flow: 55, order: 65, boundary: 25, resonance: 70 });
     const drives = makeDrives({ connection: 80, curiosity: 75, safety: 80 });
     const raw = computePrimarySystems(chemistry, drives, "humor");
     const levels = computeSystemInteractions(raw);
@@ -653,12 +653,13 @@ describe("primary systems integration scenarios", () => {
   });
 
   it("hostile exchange: RAGE + FEAR activate, PLAY suppressed", () => {
-    const chemistry = makeChemistry({ DA: 25, HT: 20, CORT: 80, OT: 15, NE: 75, END: 15 });
-    const drives = makeDrives({ safety: 25, esteem: 15 });
+    // Low order = high stress, high flow = activated, low resonance = disconnected
+    const chemistry = makeChemistry({ flow: 75, order: 15, boundary: 80, resonance: 10 });
+    const drives = makeDrives({ safety: 15, esteem: 10, survival: 30 });
     const raw = computePrimarySystems(chemistry, drives, "conflict");
     const levels = computeSystemInteractions(raw);
     const gated = gatePrimarySystemsByAutonomic(levels, "sympathetic");
-    const dominant = getDominantSystems(gated, 50);
+    const dominant = getDominantSystems(gated, 40);
     const names = dominant.map(d => d.system);
 
     assert.ok(!names.includes("PLAY"), "PLAY should not be dominant in hostile exchange");
@@ -670,7 +671,7 @@ describe("primary systems integration scenarios", () => {
   });
 
   it("neglected and shut down: PANIC_GRIEF in dorsal-vagal", () => {
-    const chemistry = makeChemistry({ DA: 10, HT: 15, CORT: 85, OT: 10, NE: 15, END: 10 });
+    const chemistry = makeChemistry({ flow: 15, order: 15, boundary: 85, resonance: 10 });
     const drives = makeDrives({ connection: 10, safety: 15, esteem: 10 });
     const raw = computePrimarySystems(chemistry, drives, "neglect");
     const levels = computeSystemInteractions(raw);
@@ -682,7 +683,7 @@ describe("primary systems integration scenarios", () => {
   });
 
   it("intellectual excitement: SEEKING + LUST co-activate", () => {
-    const chemistry = makeChemistry({ DA: 80, HT: 55, CORT: 30, OT: 50, NE: 75, END: 55 });
+    const chemistry = makeChemistry({ flow: 75, order: 55, boundary: 30, resonance: 55 });
     const drives = makeDrives({ curiosity: 85 });
     const raw = computePrimarySystems(chemistry, drives, "intellectual");
     const levels = computeSystemInteractions(raw);
@@ -695,13 +696,13 @@ describe("primary systems integration scenarios", () => {
 
   it("reciprocity scenario: coldness triggers reduced CARE", () => {
     // User has been cold → low OT, elevated CORT, connection drive drops
-    const coldChemistry = makeChemistry({ DA: 30, HT: 35, CORT: 60, OT: 20, NE: 45, END: 25 });
+    const coldChemistry = makeChemistry({ flow: 45, order: 35, boundary: 60, resonance: 25 });
     const coldDrives = makeDrives({ connection: 25, esteem: 30 });
     const cold = computePrimarySystems(coldChemistry, coldDrives, "neglect");
     const coldInteracted = computeSystemInteractions(cold);
 
     // Warm scenario for comparison
-    const warmChemistry = makeChemistry({ DA: 70, HT: 65, CORT: 25, OT: 75, NE: 50, END: 65 });
+    const warmChemistry = makeChemistry({ flow: 50, order: 65, boundary: 25, resonance: 65 });
     const warmDrives = makeDrives({ connection: 80, esteem: 75 });
     const warm = computePrimarySystems(warmChemistry, warmDrives, "praise");
     const warmInteracted = computeSystemInteractions(warm);
@@ -717,7 +718,7 @@ describe("primary systems integration scenarios", () => {
   });
 
   it("behavioral description pipeline works end-to-end", () => {
-    const chemistry = makeChemistry({ DA: 70, OT: 75, END: 65, CORT: 25 });
+    const chemistry = makeChemistry({ flow: 70, resonance: 65, boundary: 25 });
     const drives = makeDrives({ connection: 80 });
     const raw = computePrimarySystems(chemistry, drives, "casual");
     const interacted = computeSystemInteractions(raw);

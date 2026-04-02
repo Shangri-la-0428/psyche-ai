@@ -5,11 +5,11 @@ import {
   computeEmotionalTendency,
   buildSelfReflectionContext,
 } from "../src/self-recognition.js";
-import type { ChemicalSnapshot, StimulusType } from "../src/types.js";
+import type { StateSnapshot, StimulusType } from "../src/types.js";
 
-function makeSnapshot(overrides: Partial<ChemicalSnapshot> = {}): ChemicalSnapshot {
+function makeSnapshot(overrides: Partial<StateSnapshot> = {}): StateSnapshot {
   return {
-    chemistry: { DA: 50, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 },
+    state: { order: 50, flow: 50, boundary: 50, resonance: 50 },
     stimulus: null,
     dominantEmotion: null,
     timestamp: new Date().toISOString(),
@@ -36,7 +36,7 @@ describe("computeSelfReflection", () => {
   });
 
   it("detects repeated praise stimulus as recurring trigger", () => {
-    const history: ChemicalSnapshot[] = Array.from({ length: 5 }, () =>
+    const history: StateSnapshot[] = Array.from({ length: 5 }, () =>
       makeSnapshot({ stimulus: "praise" as StimulusType }),
     );
     const r = computeSelfReflection(history, "zh");
@@ -46,7 +46,7 @@ describe("computeSelfReflection", () => {
   });
 
   it("orders mixed stimuli by frequency", () => {
-    const history: ChemicalSnapshot[] = [
+    const history: StateSnapshot[] = [
       makeSnapshot({ stimulus: "praise" as StimulusType }),
       makeSnapshot({ stimulus: "humor" as StimulusType }),
       makeSnapshot({ stimulus: "praise" as StimulusType }),
@@ -63,7 +63,7 @@ describe("computeSelfReflection", () => {
   });
 
   it("finds most frequent dominant emotion", () => {
-    const history: ChemicalSnapshot[] = [
+    const history: StateSnapshot[] = [
       makeSnapshot({ dominantEmotion: "anxious tension" }),
       makeSnapshot({ dominantEmotion: "excited joy" }),
       makeSnapshot({ dominantEmotion: "anxious tension" }),
@@ -74,7 +74,7 @@ describe("computeSelfReflection", () => {
   });
 
   it("excludes triggers with count < 2", () => {
-    const history: ChemicalSnapshot[] = [
+    const history: StateSnapshot[] = [
       makeSnapshot({ stimulus: "praise" as StimulusType }),
       makeSnapshot({ stimulus: "humor" as StimulusType }),
       makeSnapshot({ stimulus: "criticism" as StimulusType }),
@@ -84,7 +84,7 @@ describe("computeSelfReflection", () => {
   });
 
   it("generates zh narrative summary with trigger info", () => {
-    const history: ChemicalSnapshot[] = Array.from({ length: 4 }, () =>
+    const history: StateSnapshot[] = Array.from({ length: 4 }, () =>
       makeSnapshot({ stimulus: "praise" as StimulusType, dominantEmotion: "excited joy" }),
     );
     const r = computeSelfReflection(history, "zh");
@@ -92,7 +92,7 @@ describe("computeSelfReflection", () => {
   });
 
   it("generates en narrative summary with trigger info", () => {
-    const history: ChemicalSnapshot[] = Array.from({ length: 4 }, () =>
+    const history: StateSnapshot[] = Array.from({ length: 4 }, () =>
       makeSnapshot({ stimulus: "praise" as StimulusType, dominantEmotion: "excited joy" }),
     );
     const r = computeSelfReflection(history, "en");
@@ -109,34 +109,34 @@ describe("computeEmotionalTendency", () => {
   });
 
   it("detects ascending when DA rises and CORT falls", () => {
-    const history: ChemicalSnapshot[] = [
-      makeSnapshot({ chemistry: { DA: 30, HT: 50, CORT: 70, OT: 50, NE: 50, END: 50 } }),
-      makeSnapshot({ chemistry: { DA: 35, HT: 50, CORT: 65, OT: 50, NE: 50, END: 50 } }),
-      makeSnapshot({ chemistry: { DA: 50, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 } }),
-      makeSnapshot({ chemistry: { DA: 65, HT: 50, CORT: 40, OT: 50, NE: 50, END: 50 } }),
-      makeSnapshot({ chemistry: { DA: 75, HT: 50, CORT: 30, OT: 50, NE: 50, END: 50 } }),
+    const history: StateSnapshot[] = [
+      makeSnapshot({ state: { order: 30, flow: 30, boundary: 50, resonance: 50 } }),
+      makeSnapshot({ state: { order: 35, flow: 35, boundary: 50, resonance: 50 } }),
+      makeSnapshot({ state: { order: 50, flow: 50, boundary: 50, resonance: 50 } }),
+      makeSnapshot({ state: { order: 65, flow: 65, boundary: 50, resonance: 50 } }),
+      makeSnapshot({ state: { order: 75, flow: 75, boundary: 50, resonance: 50 } }),
     ];
     assert.equal(computeEmotionalTendency(history), "ascending");
   });
 
   it("detects descending when DA falls and CORT rises", () => {
-    const history: ChemicalSnapshot[] = [
-      makeSnapshot({ chemistry: { DA: 75, HT: 50, CORT: 30, OT: 50, NE: 50, END: 50 } }),
-      makeSnapshot({ chemistry: { DA: 65, HT: 50, CORT: 40, OT: 50, NE: 50, END: 50 } }),
-      makeSnapshot({ chemistry: { DA: 50, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 } }),
-      makeSnapshot({ chemistry: { DA: 35, HT: 50, CORT: 65, OT: 50, NE: 50, END: 50 } }),
-      makeSnapshot({ chemistry: { DA: 25, HT: 50, CORT: 75, OT: 50, NE: 50, END: 50 } }),
+    const history: StateSnapshot[] = [
+      makeSnapshot({ state: { order: 75, flow: 75, boundary: 50, resonance: 50 } }),
+      makeSnapshot({ state: { order: 65, flow: 65, boundary: 50, resonance: 50 } }),
+      makeSnapshot({ state: { order: 50, flow: 50, boundary: 50, resonance: 50 } }),
+      makeSnapshot({ state: { order: 35, flow: 35, boundary: 50, resonance: 50 } }),
+      makeSnapshot({ state: { order: 25, flow: 25, boundary: 50, resonance: 50 } }),
     ];
     assert.equal(computeEmotionalTendency(history), "descending");
   });
 
   it("detects volatile when DA stddev is high", () => {
-    const history: ChemicalSnapshot[] = [
-      makeSnapshot({ chemistry: { DA: 20, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 } }),
-      makeSnapshot({ chemistry: { DA: 80, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 } }),
-      makeSnapshot({ chemistry: { DA: 25, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 } }),
-      makeSnapshot({ chemistry: { DA: 85, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 } }),
-      makeSnapshot({ chemistry: { DA: 20, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 } }),
+    const history: StateSnapshot[] = [
+      makeSnapshot({ state: { order: 50, flow: 20, boundary: 50, resonance: 50 } }),
+      makeSnapshot({ state: { order: 50, flow: 80, boundary: 50, resonance: 50 } }),
+      makeSnapshot({ state: { order: 50, flow: 25, boundary: 50, resonance: 50 } }),
+      makeSnapshot({ state: { order: 50, flow: 85, boundary: 50, resonance: 50 } }),
+      makeSnapshot({ state: { order: 50, flow: 20, boundary: 50, resonance: 50 } }),
     ];
     const tendency = computeEmotionalTendency(history);
     assert.ok(tendency === "volatile" || tendency === "oscillating",
@@ -144,13 +144,13 @@ describe("computeEmotionalTendency", () => {
   });
 
   it("detects oscillating pattern", () => {
-    const history: ChemicalSnapshot[] = [
-      makeSnapshot({ chemistry: { DA: 30, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 } }),
-      makeSnapshot({ chemistry: { DA: 70, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 } }),
-      makeSnapshot({ chemistry: { DA: 25, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 } }),
-      makeSnapshot({ chemistry: { DA: 75, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 } }),
-      makeSnapshot({ chemistry: { DA: 30, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 } }),
-      makeSnapshot({ chemistry: { DA: 70, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 } }),
+    const history: StateSnapshot[] = [
+      makeSnapshot({ state: { order: 50, flow: 30, boundary: 50, resonance: 50 } }),
+      makeSnapshot({ state: { order: 50, flow: 70, boundary: 50, resonance: 50 } }),
+      makeSnapshot({ state: { order: 50, flow: 25, boundary: 50, resonance: 50 } }),
+      makeSnapshot({ state: { order: 50, flow: 75, boundary: 50, resonance: 50 } }),
+      makeSnapshot({ state: { order: 50, flow: 30, boundary: 50, resonance: 50 } }),
+      makeSnapshot({ state: { order: 50, flow: 70, boundary: 50, resonance: 50 } }),
     ];
     assert.equal(computeEmotionalTendency(history), "oscillating");
   });
@@ -213,12 +213,12 @@ describe("buildSelfReflectionContext", () => {
   });
 
   it("includes tendency description when not stable", () => {
-    const history: ChemicalSnapshot[] = [
-      makeSnapshot({ chemistry: { DA: 30, HT: 50, CORT: 70, OT: 50, NE: 50, END: 50 } }),
-      makeSnapshot({ chemistry: { DA: 40, HT: 50, CORT: 60, OT: 50, NE: 50, END: 50 } }),
-      makeSnapshot({ chemistry: { DA: 55, HT: 50, CORT: 45, OT: 50, NE: 50, END: 50 } }),
-      makeSnapshot({ chemistry: { DA: 70, HT: 50, CORT: 35, OT: 50, NE: 50, END: 50 } }),
-      makeSnapshot({ chemistry: { DA: 80, HT: 50, CORT: 25, OT: 50, NE: 50, END: 50 } }),
+    const history: StateSnapshot[] = [
+      makeSnapshot({ state: { order: 30, flow: 30, boundary: 50, resonance: 50 } }),
+      makeSnapshot({ state: { order: 40, flow: 40, boundary: 50, resonance: 50 } }),
+      makeSnapshot({ state: { order: 55, flow: 55, boundary: 50, resonance: 50 } }),
+      makeSnapshot({ state: { order: 70, flow: 70, boundary: 50, resonance: 50 } }),
+      makeSnapshot({ state: { order: 80, flow: 80, boundary: 50, resonance: 50 } }),
     ];
     const reflection = computeSelfReflection(history, "zh");
     const ctx = buildSelfReflectionContext(reflection, "zh");

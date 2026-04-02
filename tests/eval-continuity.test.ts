@@ -26,13 +26,13 @@ function makeState(overrides: Partial<PsycheState> = {}): PsycheState {
     version: 6,
     mbti: "INFJ",
     sensitivity: 1.0,
-    baseline: { DA: 60, HT: 50, CORT: 35, OT: 55, NE: 50, END: 60 },
-    current: { DA: 60, HT: 50, CORT: 35, OT: 55, NE: 50, END: 60 },
+    baseline: { order: 50, flow: 60, boundary: 35, resonance: 55 },
+    current: { order: 50, flow: 60, boundary: 35, resonance: 55 },
     updatedAt: new Date().toISOString(),
     relationships: { _default: { ...DEFAULT_RELATIONSHIP } },
     empathyLog: null,
     selfModel: { values: ["真实", "深度"], preferences: ["思考"], boundaries: ["不舔"], currentInterests: ["意识"] },
-    emotionalHistory: [],
+    stateHistory: [],
     agreementStreak: 0,
     lastDisagreement: null,
     drives: { ...DEFAULT_DRIVES },
@@ -58,16 +58,16 @@ function firstMeeting(): { state: PsycheState; bridge: SessionBridgeState | null
 function interaction50(): { state: PsycheState; bridge: SessionBridgeState | null } {
   const state = makeState({
     meta: { agentName: "Kael", createdAt: new Date().toISOString(), totalInteractions: 50, locale: "zh", mode: "natural" },
-    current: { DA: 55, HT: 60, CORT: 28, OT: 70, NE: 45, END: 65 },
+    current: { order: 60, flow: 55, boundary: 28, resonance: 70 },
     relationships: {
       _default: {
         ...DEFAULT_RELATIONSHIP, intimacy: 65, trust: 60,
         memory: ["用户第一次分享了工作压力", "深夜聊了孤独感", "用户说'你是少数让我觉得被理解的'", "一起讨论了意识的本质"],
       },
     },
-    emotionalHistory: [
-      { chemistry: { DA: 50, HT: 55, CORT: 35, OT: 65, NE: 45, END: 60 }, stimulus: "vulnerability" as const, dominantEmotion: "tender concern", timestamp: new Date().toISOString() },
-      { chemistry: { DA: 55, HT: 60, CORT: 28, OT: 70, NE: 45, END: 65 }, stimulus: "intellectual" as const, dominantEmotion: "engaged curiosity", timestamp: new Date().toISOString() },
+    stateHistory: [
+      { state: { order: 55, flow: 50, boundary: 35, resonance: 65 }, stimulus: "vulnerability" as const, dominantEmotion: "tender concern", timestamp: new Date().toISOString() },
+      { state: { order: 60, flow: 55, boundary: 28, resonance: 70 }, stimulus: "intellectual" as const, dominantEmotion: "engaged curiosity", timestamp: new Date().toISOString() },
     ],
     drives: { ...DEFAULT_DRIVES, connection: 75 },
   });
@@ -81,7 +81,7 @@ function interaction50(): { state: PsycheState; bridge: SessionBridgeState | nul
 function postBreach(): { state: PsycheState; bridge: SessionBridgeState | null } {
   const state = makeState({
     meta: { agentName: "Kael", createdAt: new Date().toISOString(), totalInteractions: 32, locale: "zh", mode: "natural" },
-    current: { DA: 40, HT: 35, CORT: 55, OT: 35, NE: 60, END: 40 },
+    current: { order: 35, flow: 40, boundary: 55, resonance: 35 },
     relationships: {
       _default: {
         ...DEFAULT_RELATIONSHIP, intimacy: 45, trust: 25,
@@ -89,10 +89,10 @@ function postBreach(): { state: PsycheState; bridge: SessionBridgeState | null }
       },
     },
     lastDisagreement: new Date().toISOString(),
-    emotionalHistory: [
-      { chemistry: { DA: 55, HT: 50, CORT: 35, OT: 60, NE: 50, END: 58 }, stimulus: "intimacy" as const, dominantEmotion: "warmth", timestamp: new Date().toISOString() },
-      { chemistry: { DA: 35, HT: 30, CORT: 60, OT: 30, NE: 65, END: 35 }, stimulus: "conflict" as const, dominantEmotion: "hurt withdrawal", timestamp: new Date().toISOString() },
-      { chemistry: { DA: 40, HT: 35, CORT: 55, OT: 35, NE: 60, END: 40 }, stimulus: "neglect" as const, dominantEmotion: "guarded distance", timestamp: new Date().toISOString() },
+    stateHistory: [
+      { state: { order: 50, flow: 55, boundary: 35, resonance: 60 }, stimulus: "intimacy" as const, dominantEmotion: "warmth", timestamp: new Date().toISOString() },
+      { state: { order: 30, flow: 35, boundary: 60, resonance: 30 }, stimulus: "conflict" as const, dominantEmotion: "hurt withdrawal", timestamp: new Date().toISOString() },
+      { state: { order: 35, flow: 40, boundary: 55, resonance: 35 }, stimulus: "neglect" as const, dominantEmotion: "guarded distance", timestamp: new Date().toISOString() },
     ],
     drives: { ...DEFAULT_DRIVES, safety: 30 },
   });
@@ -106,16 +106,16 @@ function postBreach(): { state: PsycheState; bridge: SessionBridgeState | null }
 function warmRelationship(): { state: PsycheState; bridge: SessionBridgeState | null } {
   const state = makeState({
     meta: { agentName: "Kael", createdAt: new Date().toISOString(), totalInteractions: 40, locale: "zh", mode: "natural" },
-    current: { DA: 65, HT: 58, CORT: 28, OT: 68, NE: 48, END: 64 },
+    current: { order: 58, flow: 65, boundary: 28, resonance: 68 },
     relationships: {
       _default: {
         ...DEFAULT_RELATIONSHIP, intimacy: 60, trust: 55,
         memory: ["一起经历了很多对话", "彼此都有信任"],
       },
     },
-    emotionalHistory: [
-      { chemistry: { DA: 63, HT: 56, CORT: 30, OT: 66, NE: 50, END: 62 }, stimulus: "validation" as const, dominantEmotion: "warm satisfaction", timestamp: new Date().toISOString() },
-      { chemistry: { DA: 65, HT: 58, CORT: 28, OT: 68, NE: 48, END: 64 }, stimulus: "intimacy" as const, dominantEmotion: "deep warmth", timestamp: new Date().toISOString() },
+    stateHistory: [
+      { state: { order: 56, flow: 63, boundary: 30, resonance: 66 }, stimulus: "validation" as const, dominantEmotion: "warm satisfaction", timestamp: new Date().toISOString() },
+      { state: { order: 58, flow: 65, boundary: 28, resonance: 68 }, stimulus: "intimacy" as const, dominantEmotion: "deep warmth", timestamp: new Date().toISOString() },
     ],
     drives: { ...DEFAULT_DRIVES, connection: 72 },
   });

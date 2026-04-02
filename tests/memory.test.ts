@@ -7,18 +7,18 @@ import {
   retrieveRelatedMemories,
   pushSnapshot,
 } from "../src/psyche-file.js";
-import type { ChemicalState, ChemicalSnapshot, PsycheState } from "../src/types.js";
+import type { SelfState, StateSnapshot, PsycheState } from "../src/types.js";
 import { DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE, DEFAULT_RELATIONSHIP } from "../src/types.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
-function makeChem(overrides: Partial<ChemicalState> = {}): ChemicalState {
-  return { DA: 50, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50, ...overrides };
+function makeChem(overrides: Partial<SelfState> = {}): SelfState {
+  return { flow: 50, order: 50, boundary: 50, resonance: 50, ...overrides };
 }
 
-function makeSnapshot(overrides: Partial<ChemicalSnapshot> = {}): ChemicalSnapshot {
+function makeSnapshot(overrides: Partial<StateSnapshot> = {}): StateSnapshot {
   return {
-    chemistry: makeChem(),
+    state: makeChem(),
     stimulus: null,
     dominantEmotion: null,
     timestamp: new Date().toISOString(),
@@ -39,7 +39,7 @@ function makeState(overrides: Partial<PsycheState> = {}): PsycheState {
     relationships: { _default: { ...DEFAULT_RELATIONSHIP } },
     empathyLog: null,
     selfModel: { values: [], preferences: [], boundaries: [], currentInterests: [] },
-    emotionalHistory: [],
+    stateHistory: [],
     agreementStreak: 0,
     lastDisagreement: null,
     learning: { ...DEFAULT_LEARNING_STATE },
@@ -59,14 +59,15 @@ describe("computeSnapshotIntensity", () => {
   });
 
   it("extreme deviation → high intensity", () => {
-    const current = makeChem({ DA: 100, HT: 0, CORT: 100, OT: 0, NE: 100, END: 0 });
+    const current = makeChem({ flow: 100, order: 0, boundary: 100, resonance: 0 });
     const baseline = makeChem();
     const intensity = computeSnapshotIntensity(current, baseline);
-    assert.ok(intensity > 0.4, `expected > 0.4, got ${intensity}`);
+    // totalDeviation = 200, /600 = 0.333
+    assert.ok(intensity > 0.3, `expected > 0.3, got ${intensity}`);
   });
 
   it("moderate deviation → moderate intensity", () => {
-    const current = makeChem({ DA: 70, CORT: 30 });
+    const current = makeChem({ flow: 70, boundary: 30 });
     const baseline = makeChem();
     const intensity = computeSnapshotIntensity(current, baseline);
     assert.ok(intensity > 0.05 && intensity < 0.3, `expected 0.05-0.3, got ${intensity}`);
@@ -74,8 +75,8 @@ describe("computeSnapshotIntensity", () => {
 
   it("returns 0-1 range", () => {
     const extremes = [
-      makeChem({ DA: 0, HT: 0, CORT: 0, OT: 0, NE: 0, END: 0 }),
-      makeChem({ DA: 100, HT: 100, CORT: 100, OT: 100, NE: 100, END: 100 }),
+      makeChem({ flow: 0, order: 0, boundary: 0, resonance: 0 }),
+      makeChem({ flow: 100, order: 100, boundary: 100, resonance: 100 }),
     ];
     for (const chem of extremes) {
       const v = computeSnapshotIntensity(chem, makeChem());
@@ -85,8 +86,8 @@ describe("computeSnapshotIntensity", () => {
 
   it("symmetric: deviation above or below baseline gives same intensity", () => {
     const baseline = makeChem();
-    const high = computeSnapshotIntensity(makeChem({ DA: 80 }), baseline);
-    const low = computeSnapshotIntensity(makeChem({ DA: 20 }), baseline);
+    const high = computeSnapshotIntensity(makeChem({ flow: 80 }), baseline);
+    const low = computeSnapshotIntensity(makeChem({ flow: 20 }), baseline);
     assert.equal(high, low);
   });
 });
@@ -100,19 +101,19 @@ describe("computeSnapshotValence", () => {
   });
 
   it("high DA + HT + OT + END, low CORT → positive valence", () => {
-    const v = computeSnapshotValence(makeChem({ DA: 90, HT: 80, OT: 80, END: 80, CORT: 20 }));
+    const v = computeSnapshotValence(makeChem({ flow: 90, order: 80, resonance: 80, boundary: 20 }));
     assert.ok(v > 0.3, `expected > 0.3, got ${v}`);
   });
 
   it("high CORT + NE, low everything else → negative valence", () => {
-    const v = computeSnapshotValence(makeChem({ CORT: 90, NE: 80, DA: 20, HT: 20, OT: 20, END: 20 }));
+    const v = computeSnapshotValence(makeChem({ boundary: 90, flow: 20, order: 20, resonance: 20 }));
     assert.ok(v < -0.2, `expected < -0.2, got ${v}`);
   });
 
   it("always in [-1, 1]", () => {
     const extremes = [
-      makeChem({ DA: 100, HT: 100, OT: 100, END: 100, CORT: 0, NE: 0 }),
-      makeChem({ DA: 0, HT: 0, OT: 0, END: 0, CORT: 100, NE: 100 }),
+      makeChem({ flow: 0, order: 100, resonance: 100, boundary: 0 }),
+      makeChem({ flow: 100, order: 0, resonance: 0, boundary: 100 }),
     ];
     for (const chem of extremes) {
       const v = computeSnapshotValence(chem);
@@ -127,29 +128,30 @@ describe("pushSnapshot (P11: intensity enrichment)", () => {
   it("near-baseline snapshot is stored with low intensity", () => {
     const state = makeState({ current: makeChem() }); // same as baseline
     const result = pushSnapshot(state, "casual");
-    assert.equal(result.emotionalHistory.length, 1);
-    assert.ok(result.emotionalHistory[0].intensity !== undefined);
-    assert.ok(result.emotionalHistory[0].intensity! < 0.05);
+    assert.equal(result.stateHistory.length, 1);
+    assert.ok(result.stateHistory[0].intensity !== undefined);
+    assert.ok(result.stateHistory[0].intensity! < 0.05);
   });
 
   it("high deviation snapshot is stored with high intensity", () => {
-    const state = makeState({ current: makeChem({ DA: 95, NE: 90, CORT: 10, HT: 80 }) });
+    const state = makeState({ current: makeChem({ flow: 90, boundary: 10, order: 80 }) });
     const result = pushSnapshot(state, "praise");
-    assert.ok(result.emotionalHistory.length > 0);
-    assert.ok(result.emotionalHistory[0].intensity! > 0.2);
+    assert.ok(result.stateHistory.length > 0);
+    // deviation = 40+40+30+0 = 110, /600 ≈ 0.183
+    assert.ok(result.stateHistory[0].intensity! > 0.15);
   });
 
   it("stored snapshot has intensity and valence fields", () => {
-    const state = makeState({ current: makeChem({ DA: 90, NE: 85, CORT: 20, END: 80 }) });
+    const state = makeState({ current: makeChem({ flow: 85, boundary: 20, resonance: 80 }) });
     const result = pushSnapshot(state, "praise");
-    const snap = result.emotionalHistory[0];
+    const snap = result.stateHistory[0];
     assert.ok(snap.intensity !== undefined, "should have intensity");
     assert.ok(snap.valence !== undefined, "should have valence");
     assert.ok(snap.intensity! > 0);
   });
 
   it("consolidateHistory filters low intensity during session end", () => {
-    const snaps: ChemicalSnapshot[] = [
+    const snaps: StateSnapshot[] = [
       makeSnapshot({ intensity: 0.05, timestamp: "2024-01-01T00:00:00Z" }),
       makeSnapshot({ intensity: 0.8, timestamp: "2024-01-01T01:00:00Z" }),
       makeSnapshot({ intensity: 0.03, timestamp: "2024-01-01T02:00:00Z" }),
@@ -244,33 +246,33 @@ describe("retrieveRelatedMemories", () => {
 
   it("returns most chemically similar memories first", () => {
     const history = [
-      makeSnapshot({ chemistry: makeChem({ DA: 90, NE: 80 }) }),
-      makeSnapshot({ chemistry: makeChem({ DA: 50, NE: 50 }) }), // closest to query
-      makeSnapshot({ chemistry: makeChem({ DA: 10, NE: 10 }) }),
+      makeSnapshot({ state: makeChem({ flow: 80 }) }),
+      makeSnapshot({ state: makeChem({ flow: 50 }) }), // closest to query
+      makeSnapshot({ state: makeChem({ flow: 10 }) }),
     ];
-    const query = makeChem({ DA: 55, NE: 55 });
+    const query = makeChem({ flow: 55 });
     const result = retrieveRelatedMemories(history, query, null, 2);
     assert.equal(result.length, 2);
     // First result should be closest to query
-    assert.equal(result[0].chemistry.DA, 50);
+    assert.equal(result[0].state.flow, 50);
   });
 
   it("stimulus match gives bonus", () => {
     const history = [
-      makeSnapshot({ chemistry: makeChem({ DA: 60 }), stimulus: "praise" }),
-      makeSnapshot({ chemistry: makeChem({ DA: 55 }), stimulus: "criticism" }),
+      makeSnapshot({ state: makeChem({ flow: 60 }), stimulus: "praise" }),
+      makeSnapshot({ state: makeChem({ flow: 55 }), stimulus: "criticism" }),
     ];
     // DA=55 is closer, but praise stimulus match should boost DA=60
-    const result = retrieveRelatedMemories(history, makeChem({ DA: 57 }), "praise", 1);
+    const result = retrieveRelatedMemories(history, makeChem({ flow: 57 }), "praise", 1);
     assert.equal(result[0].stimulus, "praise");
   });
 
   it("core memory gives bonus", () => {
     const history = [
-      makeSnapshot({ chemistry: makeChem({ DA: 60 }), isCoreMemory: true }),
-      makeSnapshot({ chemistry: makeChem({ DA: 58 }) }),
+      makeSnapshot({ state: makeChem({ flow: 60 }), isCoreMemory: true }),
+      makeSnapshot({ state: makeChem({ flow: 58 }) }),
     ];
-    const result = retrieveRelatedMemories(history, makeChem({ DA: 59 }), null, 1);
+    const result = retrieveRelatedMemories(history, makeChem({ flow: 59 }), null, 1);
     assert.equal(result[0].isCoreMemory, true);
   });
 

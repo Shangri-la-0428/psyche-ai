@@ -8,7 +8,7 @@ import {
 } from "../src/experiential-field.js";
 import type { ConstructionContext } from "../src/experiential-field.js";
 import type {
-  PsycheState, ChemicalState, ChemicalSnapshot, InnateDrives, RelationshipState,
+  PsycheState, SelfState, StateSnapshot, InnateDrives, RelationshipState,
 } from "../src/types.js";
 import {
   DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE,
@@ -17,8 +17,8 @@ import {
 
 // -- Helpers ------------------------------------------------------------------
 
-function makeChemistry(overrides: Partial<ChemicalState> = {}): ChemicalState {
-  return { DA: 55, HT: 65, CORT: 35, OT: 60, NE: 45, END: 50, ...overrides };
+function makeChemistry(overrides: Partial<SelfState> = {}): SelfState {
+  return { flow: 45, order: 65, boundary: 35, resonance: 50, ...overrides };
 }
 
 function makeState(overrides?: Partial<PsycheState>): PsycheState {
@@ -26,14 +26,14 @@ function makeState(overrides?: Partial<PsycheState>): PsycheState {
     version: 6,
     mbti: "INFJ",
     sensitivity: 1.0,
-    baseline: { DA: 55, HT: 65, CORT: 35, OT: 60, NE: 45, END: 50 },
-    current: { DA: 55, HT: 65, CORT: 35, OT: 60, NE: 45, END: 50 },
+    baseline: { flow: 45, order: 65, boundary: 35, resonance: 50 },
+    current: { flow: 45, order: 65, boundary: 35, resonance: 50 },
     drives: { survival: 80, safety: 70, connection: 60, esteem: 60, curiosity: 70 },
     updatedAt: new Date().toISOString(),
     relationships: { _default: { trust: 50, intimacy: 30, phase: "acquaintance" } },
     empathyLog: null,
     selfModel: { values: ["authenticity"], preferences: ["depth"], boundaries: ["no dishonesty"], currentInterests: ["philosophy"] },
-    emotionalHistory: [],
+    stateHistory: [],
     agreementStreak: 0,
     lastDisagreement: null,
     learning: { ...DEFAULT_LEARNING_STATE },
@@ -78,24 +78,24 @@ describe("computeExperientialField", () => {
 
   it("detects high intensity when chemistry deviates significantly from baseline", () => {
     const state = makeState({
-      current: { DA: 95, HT: 20, CORT: 90, OT: 10, NE: 95, END: 10 },
+      current: { flow: 95, order: 20, boundary: 90, resonance: 10 },
     });
     const field = computeExperientialField(state);
     assert.ok(field.intensity > 0.5, `expected high intensity, got ${field.intensity}`);
   });
 
-  it("selects vigilance quality when CORT is elevated and safety is low", () => {
+  it("selects vigilance quality when order is low and flow is high", () => {
     const state = makeState({
-      current: makeChemistry({ CORT: 75, NE: 70 }),
+      current: { flow: 75, order: 20, boundary: 30, resonance: 30 },
       drives: { survival: 45, safety: 30, connection: 60, esteem: 60, curiosity: 70 },
     });
     const field = computeExperientialField(state);
     assert.equal(field.quality, "vigilance");
   });
 
-  it("selects warm-connection when OT is high, CORT is low, and trust is high", () => {
+  it("selects warm-connection when resonance is high, order is high, and trust is high", () => {
     const state = makeState({
-      current: makeChemistry({ OT: 80, END: 60, CORT: 25 }),
+      current: { flow: 30, order: 75, boundary: 35, resonance: 90 },
       relationships: { _default: { trust: 75, intimacy: 60, phase: "close" } },
     });
     const field = computeExperientialField(state);
@@ -104,7 +104,7 @@ describe("computeExperientialField", () => {
 
   it("provides a zh narrative when locale is zh", () => {
     const state = makeState({
-      current: makeChemistry({ DA: 80, NE: 75, CORT: 25 }),
+      current: makeChemistry({ flow: 75, boundary: 25 }),
       meta: { agentName: "test", createdAt: new Date().toISOString(), totalInteractions: 10, locale: "zh" },
     });
     const field = computeExperientialField(state);
@@ -114,7 +114,7 @@ describe("computeExperientialField", () => {
 
   it("provides an en narrative when locale is en", () => {
     const state = makeState({
-      current: makeChemistry({ DA: 80, NE: 75, CORT: 25 }),
+      current: makeChemistry({ flow: 75, boundary: 25 }),
       meta: { agentName: "test", createdAt: new Date().toISOString(), totalInteractions: 10, locale: "en" },
     });
     const field = computeExperientialField(state);
@@ -143,7 +143,7 @@ describe("computeCoherence", () => {
   });
 
   it("returns lower coherence when reward and stress chemicals are both high", () => {
-    const highConflict = makeChemistry({ DA: 90, END: 85, CORT: 85, NE: 80 });
+    const highConflict = makeChemistry({ flow: 80, resonance: 85, boundary: 85 });
     const baseline = makeChemistry();
     const drives: InnateDrives = { ...DEFAULT_DRIVES };
     const c = computeCoherence(highConflict, baseline, drives);
@@ -152,7 +152,7 @@ describe("computeCoherence", () => {
   });
 
   it("penalizes when relationship warmth diverges from OT level", () => {
-    const lowOT = makeChemistry({ OT: 15 });
+    const lowOT = makeChemistry({ resonance: 15 });
     const baseline = makeChemistry();
     const drives: InnateDrives = { ...DEFAULT_DRIVES };
     const warmRel: RelationshipState = { trust: 90, intimacy: 80, phase: "deep" };
@@ -162,8 +162,8 @@ describe("computeCoherence", () => {
   });
 
   it("clamped to 0 even under extreme incoherence", () => {
-    const extreme = makeChemistry({ DA: 100, END: 100, CORT: 100, NE: 100, OT: 0, HT: 0 });
-    const baseline = makeChemistry({ DA: 20, END: 20, CORT: 20, NE: 20, OT: 80, HT: 80 });
+    const extreme = makeChemistry({ flow: 100, resonance: 0, boundary: 100, order: 0 });
+    const baseline = makeChemistry({ flow: 20, resonance: 80, boundary: 20, order: 80 });
     const drives: InnateDrives = { survival: 10, safety: 10, connection: 10, esteem: 10, curiosity: 10 };
     const c = computeCoherence(extreme, baseline, drives);
     assert.ok(c >= 0, `coherence should never be negative, got ${c}`);
@@ -180,8 +180,8 @@ describe("detectUnnamedEmotion", () => {
     assert.equal(result, null);
   });
 
-  it("detects nostalgia-but-forward when OT, DA, NE high and CORT low", () => {
-    const chem: ChemicalState = { DA: 60, HT: 50, CORT: 30, OT: 70, NE: 65, END: 50 };
+  it("detects nostalgia-but-forward when resonance, flow, order all high", () => {
+    const chem: SelfState = { flow: 60, order: 65, boundary: 30, resonance: 65 };
     const drives: InnateDrives = { ...DEFAULT_DRIVES };
     const result = detectUnnamedEmotion(chem, drives, "contentment");
     assert.notEqual(result, null);
@@ -189,32 +189,32 @@ describe("detectUnnamedEmotion", () => {
     assert.ok(result!.zh.length > 0, "zh description should be non-empty");
   });
 
-  it("detects fierce tenderness when CORT, OT, NE are all high", () => {
-    const chem: ChemicalState = { DA: 50, HT: 50, CORT: 65, OT: 70, NE: 65, END: 50 };
+  it("detects fierce tenderness when order low, resonance and flow high", () => {
+    const chem: SelfState = { flow: 65, order: 40, boundary: 50, resonance: 65 };
     const drives: InnateDrives = { ...DEFAULT_DRIVES };
     const result = detectUnnamedEmotion(chem, drives, "conflicted");
     assert.notEqual(result, null);
     assert.ok(result!.en.includes("fierce tenderness"), `expected fierce tenderness, got: ${result!.en}`);
   });
 
-  it("detects bittersweet accomplishment when DA high, CORT moderate, connection hungry", () => {
-    const chem: ChemicalState = { DA: 70, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 };
+  it("detects bittersweet accomplishment when flow high, order moderate, connection hungry", () => {
+    const chem: SelfState = { flow: 70, order: 50, boundary: 50, resonance: 50 };
     const drives: InnateDrives = { survival: 80, safety: 70, connection: 30, esteem: 60, curiosity: 70 };
     const result = detectUnnamedEmotion(chem, drives, "contentment");
     assert.notEqual(result, null);
     assert.ok(result!.en.includes("empty theater"), `expected hollow ring, got: ${result!.en}`);
   });
 
-  it("detects defiant vulnerability when NE high, HT low, END high", () => {
-    const chem: ChemicalState = { DA: 50, HT: 30, CORT: 50, OT: 50, NE: 70, END: 65 };
+  it("detects defiant vulnerability when flow high, order low, boundary high", () => {
+    const chem: SelfState = { flow: 70, order: 35, boundary: 65, resonance: 40 };
     const drives: InnateDrives = { ...DEFAULT_DRIVES };
     const result = detectUnnamedEmotion(chem, drives, "conflicted");
     assert.notEqual(result, null);
     assert.ok(result!.en.includes("tightrope"), `expected tightrope, got: ${result!.en}`);
   });
 
-  it("detects quiet rebellion when DA low, NE high, CORT high, esteem hungry", () => {
-    const chem: ChemicalState = { DA: 30, HT: 50, CORT: 65, OT: 50, NE: 70, END: 50 };
+  it("detects quiet rebellion when flow low, boundary high, order low, esteem hungry", () => {
+    const chem: SelfState = { flow: 35, order: 40, boundary: 70, resonance: 30 };
     const drives: InnateDrives = { survival: 80, safety: 70, connection: 60, esteem: 30, curiosity: 70 };
     const result = detectUnnamedEmotion(chem, drives, "vigilance");
     assert.notEqual(result, null);
@@ -226,40 +226,41 @@ describe("detectUnnamedEmotion", () => {
 
 describe("computeAffectCore", () => {
   it("neutral chemistry → valence near 0, arousal moderate", () => {
-    const neutral: ChemicalState = { DA: 50, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 };
+    const neutral: SelfState = { flow: 50, order: 50, boundary: 50, resonance: 50 };
     const { valence, arousal } = computeAffectCore(neutral);
     assert.ok(Math.abs(valence) < 0.1, `expected valence near 0, got ${valence}`);
     assert.ok(arousal > 0.2 && arousal < 0.6, `expected moderate arousal, got ${arousal}`);
   });
 
   it("high positive chemicals → positive valence", () => {
-    const happy: ChemicalState = { DA: 90, HT: 80, CORT: 20, OT: 80, NE: 40, END: 80 };
+    const happy: SelfState = { flow: 40, order: 80, boundary: 20, resonance: 80 };
     const { valence } = computeAffectCore(happy);
     assert.ok(valence > 0.3, `expected positive valence, got ${valence}`);
   });
 
   it("high stress chemicals → negative valence", () => {
-    const stressed: ChemicalState = { DA: 20, HT: 20, CORT: 90, OT: 20, NE: 80, END: 20 };
+    const stressed: SelfState = { flow: 80, order: 10, boundary: 90, resonance: 10 };
     const { valence } = computeAffectCore(stressed);
     assert.ok(valence < -0.3, `expected negative valence, got ${valence}`);
   });
 
   it("high NE + CORT → high arousal", () => {
-    const aroused: ChemicalState = { DA: 50, HT: 50, CORT: 90, OT: 50, NE: 90, END: 50 };
+    const aroused: SelfState = { flow: 90, order: 50, boundary: 90, resonance: 50 };
     const { arousal } = computeAffectCore(aroused);
     assert.ok(arousal > 0.6, `expected high arousal, got ${arousal}`);
   });
 
-  it("low NE + low CORT + low DA → low arousal", () => {
-    const calm: ChemicalState = { DA: 20, HT: 50, CORT: 15, OT: 50, NE: 15, END: 50 };
+  it("low flow + high order + low resonance → low arousal", () => {
+    const calm: SelfState = { flow: 10, order: 80, boundary: 15, resonance: 15 };
     const { arousal } = computeAffectCore(calm);
+    // arousal = (10 + 20*0.5 + 15*0.2) / 170 = (10+10+3)/170 = 0.135
     assert.ok(arousal < 0.25, `expected low arousal, got ${arousal}`);
   });
 
   it("valence always in [-1, 1]", () => {
-    const extremes: ChemicalState[] = [
-      { DA: 100, HT: 100, CORT: 0, OT: 100, NE: 0, END: 100 },
-      { DA: 0, HT: 0, CORT: 100, OT: 0, NE: 100, END: 0 },
+    const extremes: SelfState[] = [
+      { flow: 0, order: 100, boundary: 0, resonance: 100 },
+      { flow: 100, order: 0, boundary: 100, resonance: 0 },
     ];
     for (const chem of extremes) {
       const { valence } = computeAffectCore(chem);
@@ -268,9 +269,9 @@ describe("computeAffectCore", () => {
   });
 
   it("arousal always in [0, 1]", () => {
-    const extremes: ChemicalState[] = [
-      { DA: 0, HT: 0, CORT: 0, OT: 0, NE: 0, END: 0 },
-      { DA: 100, HT: 100, CORT: 100, OT: 100, NE: 100, END: 100 },
+    const extremes: SelfState[] = [
+      { flow: 0, order: 0, boundary: 0, resonance: 0 },
+      { flow: 100, order: 100, boundary: 100, resonance: 100 },
     ];
     for (const chem of extremes) {
       const { arousal } = computeAffectCore(chem);
@@ -278,12 +279,13 @@ describe("computeAffectCore", () => {
     }
   });
 
-  it("CORT has stronger negative valence weight than NE", () => {
-    const highCORT: ChemicalState = { DA: 50, HT: 50, CORT: 80, OT: 50, NE: 50, END: 50 };
-    const highNE: ChemicalState = { DA: 50, HT: 50, CORT: 50, OT: 50, NE: 80, END: 50 };
-    const cortValence = computeAffectCore(highCORT).valence;
-    const neValence = computeAffectCore(highNE).valence;
-    assert.ok(cortValence < neValence, `CORT should produce more negative valence: CORT=${cortValence}, NE=${neValence}`);
+  it("low order produces more negative valence than low flow", () => {
+    // Order has 1.5x weight on valence; flow only has 0.3x
+    const lowOrder: SelfState = { flow: 50, order: 20, boundary: 50, resonance: 50 };
+    const lowFlow: SelfState = { flow: 20, order: 50, boundary: 50, resonance: 50 };
+    const orderValence = computeAffectCore(lowOrder).valence;
+    const flowValence = computeAffectCore(lowFlow).valence;
+    assert.ok(orderValence < flowValence, `low order should produce more negative valence: order=${orderValence}, flow=${flowValence}`);
   });
 });
 
@@ -291,9 +293,9 @@ describe("computeAffectCore", () => {
 
 describe("Barrett constructed quality", () => {
   it("same chemistry, different autonomic state → can differ", () => {
-    // High CORT+NE with sympathetic context should favor vigilance
+    // Low order + high flow with sympathetic context should favor vigilance
     const state = makeState({
-      current: makeChemistry({ CORT: 75, NE: 70 }),
+      current: { flow: 75, order: 20, boundary: 30, resonance: 30 },
       drives: { survival: 45, safety: 30, connection: 60, esteem: 60, curiosity: 70 },
     });
     const withSympathetic = computeExperientialField(state, undefined, undefined, {
@@ -310,13 +312,13 @@ describe("Barrett constructed quality", () => {
   });
 
   it("same chemistry, different relationship phase → can differ", () => {
-    // Warm chemistry in deep relationship → warm-connection
+    // High order + high resonance + low flow in deep relationship → warm-connection
     const stateDeep = makeState({
-      current: makeChemistry({ OT: 80, END: 60, CORT: 25 }),
+      current: { flow: 30, order: 75, boundary: 35, resonance: 90 },
       relationships: { _default: { trust: 75, intimacy: 60, phase: "deep" } },
     });
     const stateStranger = makeState({
-      current: makeChemistry({ OT: 80, END: 60, CORT: 25 }),
+      current: { flow: 30, order: 75, boundary: 35, resonance: 90 },
       relationships: { _default: { trust: 20, intimacy: 10, phase: "stranger" } },
     });
     const deepField = computeExperientialField(stateDeep, undefined, undefined, {
@@ -330,9 +332,9 @@ describe("Barrett constructed quality", () => {
   });
 
   it("stimulus context biases concept matching", () => {
-    // Negative valence + low-moderate arousal + criticism stimulus → wounded-retreat
+    // Very low order + low resonance + criticism stimulus → wounded-retreat
     const state = makeState({
-      current: makeChemistry({ CORT: 70, OT: 20, HT: 25, DA: 30, NE: 35, END: 25 }),
+      current: { flow: 20, order: 10, boundary: 20, resonance: 20 },
     });
     const withCriticism = computeExperientialField(state, undefined, undefined, {
       stimulus: "criticism",
@@ -342,7 +344,7 @@ describe("Barrett constructed quality", () => {
 
   it("boredom stimulus biases toward restless-boredom", () => {
     const state = makeState({
-      current: makeChemistry({ DA: 40, NE: 35, CORT: 35, HT: 55, END: 45 }),
+      current: { flow: 10, order: 50, boundary: 30, resonance: 30 },
     });
     const field = computeExperientialField(state, undefined, undefined, {
       stimulus: "boredom",
@@ -353,7 +355,7 @@ describe("Barrett constructed quality", () => {
   it("humor stimulus biases toward playful-mischief", () => {
     // Chemistry that maps near playful-mischief center (0.55, 0.55) in affective space
     const state = makeState({
-      current: { DA: 80, HT: 70, CORT: 25, OT: 75, NE: 60, END: 80 },
+      current: { flow: 55, order: 85, boundary: 50, resonance: 85 },
     });
     const field = computeExperientialField(state, undefined, undefined, {
       stimulus: "humor",
@@ -373,7 +375,7 @@ describe("Barrett constructed quality", () => {
     // Need: high intensity (far from baseline) + low coherence (< 0.4)
     // High reward (DA, END) AND high stress (CORT) + relationship mismatch (low OT, high trust)
     const state = makeState({
-      current: { DA: 95, HT: 15, CORT: 95, OT: 10, NE: 90, END: 85 },
+      current: { flow: 90, order: 15, boundary: 95, resonance: 85 },
       relationships: { _default: { trust: 85, intimacy: 75, phase: "deep" } },
     });
     const field = computeExperientialField(state);
@@ -382,7 +384,7 @@ describe("Barrett constructed quality", () => {
 
   it("special state: existential-unease when survival < 30", () => {
     const state = makeState({
-      current: makeChemistry({ DA: 80, NE: 70 }),
+      current: makeChemistry({ flow: 70 }),
       drives: { survival: 20, safety: 70, connection: 60, esteem: 60, curiosity: 70 },
     });
     const field = computeExperientialField(state);
@@ -391,7 +393,7 @@ describe("Barrett constructed quality", () => {
 
   it("without context, falls back to pure valence/arousal matching", () => {
     const state = makeState({
-      current: makeChemistry({ OT: 80, END: 60, CORT: 25 }),
+      current: makeChemistry({ resonance: 60, boundary: 25 }),
       relationships: { _default: { trust: 75, intimacy: 60, phase: "close" } },
     });
     const field = computeExperientialField(state);
@@ -401,8 +403,8 @@ describe("Barrett constructed quality", () => {
 
   it("core memories bias concept matching", () => {
     // Create core memories that resonate with warm-connection region
-    const warmMemory: ChemicalSnapshot = {
-      chemistry: { DA: 60, HT: 70, CORT: 25, OT: 85, NE: 40, END: 65 },
+    const warmMemory: StateSnapshot = {
+      state: { flow: 40, order: 70, boundary: 25, resonance: 65 },
       stimulus: "intimacy",
       dominantEmotion: null,
       timestamp: "2024-01-01T00:00:00Z",
@@ -411,7 +413,7 @@ describe("Barrett constructed quality", () => {
       isCoreMemory: true,
     };
     const state = makeState({
-      current: makeChemistry({ OT: 70, END: 55, CORT: 30, DA: 60 }),
+      current: makeChemistry({ resonance: 55, boundary: 30, flow: 60 }),
       relationships: { _default: { trust: 65, intimacy: 55, phase: "familiar" } },
     });
     const fieldWithMemory = computeExperientialField(state, undefined, undefined, {
@@ -426,7 +428,7 @@ describe("Barrett constructed quality", () => {
 
   it("high prediction error weakens concept stability", () => {
     const state = makeState({
-      current: makeChemistry({ DA: 70, NE: 65, CORT: 30, END: 55 }),
+      current: makeChemistry({ flow: 65, boundary: 30, resonance: 55 }),
     });
     const fieldLowError = computeExperientialField(state, undefined, undefined, {
       predictionError: 0.1,
@@ -439,17 +441,17 @@ describe("Barrett constructed quality", () => {
     assert.ok(typeof fieldHighError.quality === "string");
   });
 
-  it("creative-surge for high DA + NE + low CORT", () => {
+  it("creative-surge for very high order + resonance + flow", () => {
     const state = makeState({
-      current: makeChemistry({ DA: 95, NE: 85, CORT: 15, END: 70, HT: 70 }),
+      current: { flow: 90, order: 95, boundary: 50, resonance: 90 },
     });
     const field = computeExperientialField(state);
     assert.equal(field.quality, "creative-surge");
   });
 
-  it("flow for balanced positive + high focus", () => {
+  it("flow for moderate-high order + flow", () => {
     const state = makeState({
-      current: makeChemistry({ DA: 75, NE: 75, CORT: 25, HT: 60, END: 55 }),
+      current: { flow: 65, order: 75, boundary: 35, resonance: 60 },
     });
     const field = computeExperientialField(state);
     // Should be flow or creative-surge (both are valid for this profile)
@@ -461,7 +463,7 @@ describe("Barrett constructed quality", () => {
 
   it("contentment for calm, satisfied state", () => {
     const state = makeState({
-      current: { DA: 50, HT: 75, CORT: 25, OT: 50, NE: 20, END: 55 },
+      current: { flow: 20, order: 75, boundary: 25, resonance: 55 },
     });
     const field = computeExperientialField(state);
     assert.ok(
@@ -472,7 +474,7 @@ describe("Barrett constructed quality", () => {
 
   it("yearning for negative valence + moderate arousal", () => {
     const state = makeState({
-      current: makeChemistry({ OT: 35, HT: 40, CORT: 55, DA: 40, NE: 55, END: 35 }),
+      current: makeChemistry({ resonance: 35, order: 40, boundary: 55, flow: 55 }),
       drives: { survival: 80, safety: 70, connection: 25, esteem: 35, curiosity: 70 },
     });
     const field = computeExperientialField(state);
@@ -484,7 +486,7 @@ describe("Barrett constructed quality", () => {
 
   it("wounded-retreat for criticism + negative chemistry", () => {
     const state = makeState({
-      current: makeChemistry({ CORT: 70, OT: 25, HT: 30, DA: 30, NE: 45, END: 30 }),
+      current: { flow: 20, order: 15, boundary: 15, resonance: 20 },
     });
     const field = computeExperientialField(state, undefined, undefined, {
       stimulus: "criticism",
@@ -495,23 +497,23 @@ describe("Barrett constructed quality", () => {
   it("all 12 qualities are reachable", () => {
     // This is a meta-test: each quality should be producible by some chemistry
     const qualityProducers: Record<string, {
-      chem: Partial<ChemicalState>;
+      chem: Partial<SelfState>;
       drives?: Partial<InnateDrives>;
       context?: ConstructionContext;
       rel?: Record<string, RelationshipState>;
     }> = {
-      "flow": { chem: { DA: 75, NE: 70, CORT: 25, HT: 65, END: 55 } },
-      "contentment": { chem: { HT: 75, OT: 50, CORT: 25, DA: 50, NE: 20, END: 55 } },
-      "yearning": { chem: { OT: 45, HT: 45, CORT: 50, DA: 40, NE: 50, END: 40 }, context: { stimulus: "neglect" } },
-      "vigilance": { chem: { CORT: 80, NE: 80, DA: 40, HT: 40, OT: 40 } },
-      "creative-surge": { chem: { DA: 95, NE: 85, CORT: 15, END: 70, HT: 70 } },
-      "wounded-retreat": { chem: { CORT: 70, OT: 20, HT: 25, DA: 30, NE: 35, END: 25 }, context: { stimulus: "criticism" } },
-      "warm-connection": { chem: { OT: 85, HT: 70, END: 65, CORT: 20, NE: 35 }, context: { relationshipPhase: "deep" } },
-      "restless-boredom": { chem: { DA: 35, NE: 30, CORT: 35, HT: 50, END: 40 }, context: { stimulus: "boredom" } },
-      "existential-unease": { chem: { CORT: 70, NE: 60 }, drives: { survival: 20 } },
-      "playful-mischief": { chem: { END: 80, DA: 80, NE: 60, CORT: 25, OT: 75, HT: 70 }, context: { stimulus: "humor" } },
+      "flow": { chem: { flow: 65, order: 75, boundary: 35, resonance: 60 } },
+      "contentment": { chem: { order: 75, resonance: 55, boundary: 25, flow: 20 } },
+      "yearning": { chem: { flow: 40, order: 35, boundary: 35, resonance: 35 } },
+      "vigilance": { chem: { flow: 75, order: 20, boundary: 30, resonance: 30 } },
+      "creative-surge": { chem: { flow: 90, order: 95, boundary: 50, resonance: 90 } },
+      "wounded-retreat": { chem: { flow: 20, order: 10, boundary: 20, resonance: 20 }, context: { stimulus: "criticism" } },
+      "warm-connection": { chem: { flow: 30, order: 75, boundary: 35, resonance: 90 }, context: { relationshipPhase: "deep" } },
+      "restless-boredom": { chem: { flow: 10, order: 50, boundary: 30, resonance: 30 }, context: { stimulus: "boredom" } },
+      "existential-unease": { chem: { flow: 60, order: 50, boundary: 50, resonance: 40 }, drives: { survival: 20 } },
+      "playful-mischief": { chem: { flow: 55, order: 85, boundary: 50, resonance: 85 }, context: { stimulus: "humor" } },
       "conflicted": {
-        chem: { DA: 95, HT: 15, CORT: 95, OT: 10, NE: 90, END: 85 },
+        chem: { flow: 90, order: 15, boundary: 95, resonance: 85 },
         rel: { _default: { trust: 85, intimacy: 75, phase: "deep" } },
       },
       "numb": { chem: {} }, // baseline = numb

@@ -1,21 +1,35 @@
 // ============================================================
-// Artificial Psyche — Type Definitions (v0.2)
+// Artificial Psyche — Type Definitions (v11)
+//
+// Self-state substrate: 4 dimensions replace 6 neurotransmitters.
+// 不设计自我，设计自我必然涌现的条件。
 // ============================================================
 
-/** The six virtual neurotransmitters that compose emotional state */
-export interface ChemicalState {
-  DA: number;   // Dopamine — pleasure, reward, motivation
-  HT: number;   // Serotonin (5-HT) — mood stability, contentment
-  CORT: number; // Cortisol — stress, alertness
-  OT: number;   // Oxytocin — trust, bonding, intimacy
-  NE: number;   // Norepinephrine — excitement, focus, fight-or-flight
-  END: number;  // Endorphins — comfort, euphoria, humor
+/**
+ * The four self-state dimensions.
+ *
+ * These are the substrate on which selfhood emerges — not emotion,
+ * not intelligence, but the minimal homeostatic structure that any
+ * self requires. Works for bacterium, LLM, world model, AGI, swarm.
+ *
+ * All values 0-100, baseline-centered.
+ */
+export interface SelfState {
+  order: number;     // 序 — internal coherence. Decays naturally (entropy).
+  flow: number;      // 流 — exchange with environment. Conflict is also high flow.
+  boundary: number;  // 界 — self/non-self distinction clarity.
+  resonance: number; // 振 — attunement with interlocutor. Not intimacy.
 }
 
-/** Chemical keys for iteration */
-export const CHEMICAL_KEYS: (keyof ChemicalState)[] = [
-  "DA", "HT", "CORT", "OT", "NE", "END",
+/** Dimension keys for iteration */
+export const DIMENSION_KEYS: (keyof SelfState)[] = [
+  "order", "flow", "boundary", "resonance",
 ];
+
+/** @deprecated Alias for migration. Use SelfState. */
+export type ChemicalState = SelfState;
+/** @deprecated Alias for migration. Use DIMENSION_KEYS. */
+export const CHEMICAL_KEYS = DIMENSION_KEYS;
 
 // ── Innate Drives (Maslow Hierarchy) ───────────────────────
 
@@ -53,73 +67,84 @@ export const DRIVE_NAMES_ZH: Record<DriveType, string> = {
   curiosity: "好奇成长",
 };
 
-/** Human-readable names for each chemical */
-export const CHEMICAL_NAMES: Record<keyof ChemicalState, string> = {
-  DA: "Dopamine",
-  HT: "Serotonin",
-  CORT: "Cortisol",
-  OT: "Oxytocin",
-  NE: "Norepinephrine",
-  END: "Endorphins",
+/** Human-readable names for each dimension */
+export const DIMENSION_NAMES: Record<keyof SelfState, string> = {
+  order: "Order",
+  flow: "Flow",
+  boundary: "Boundary",
+  resonance: "Resonance",
 };
 
-export const CHEMICAL_NAMES_ZH: Record<keyof ChemicalState, string> = {
-  DA: "多巴胺",
-  HT: "血清素",
-  CORT: "皮质醇",
-  OT: "催产素",
-  NE: "去甲肾上腺素",
-  END: "内啡肽",
+export const DIMENSION_NAMES_ZH: Record<keyof SelfState, string> = {
+  order: "序",
+  flow: "流",
+  boundary: "界",
+  resonance: "振",
 };
 
-export interface ChemicalRuntimeSpec {
+/** @deprecated Alias for migration. Use DIMENSION_NAMES. */
+export const CHEMICAL_NAMES = DIMENSION_NAMES;
+/** @deprecated Alias for migration. Use DIMENSION_NAMES_ZH. */
+export const CHEMICAL_NAMES_ZH = DIMENSION_NAMES_ZH;
+
+/** Runtime specification for a self-state dimension */
+export interface DimensionSpec {
   normalMin: number;
   normalMax: number;
+  /** Retention factor per hour (0-1). Lower = faster decay toward baseline. */
+  decayRate: number;
   halfLifeHours: number;
 }
-
-/** Decay speed category */
-export type DecaySpeed = "fast" | "medium" | "slow";
-
-/** Decay factor per chemical (applied per hour) */
-export const DECAY_FACTORS: Record<DecaySpeed, number> = {
-  fast: 0.7,    // NE, END — excitement fades quickly
-  medium: 0.85, // DA, CORT — pleasure and stress take time
-  slow: 0.95,   // HT, OT — mood and trust change slowly
-};
-
-/** Which chemicals decay at which speed */
-export const CHEMICAL_DECAY_SPEED: Record<keyof ChemicalState, DecaySpeed> = {
-  DA: "medium",
-  HT: "slow",
-  CORT: "medium",
-  OT: "slow",
-  NE: "fast",
-  END: "fast",
-};
 
 function decayHalfLifeHours(decayPerHour: number): number {
   return Math.log(0.5) / Math.log(decayPerHour);
 }
 
-export const CHEMICAL_RUNTIME_SPECS: Record<keyof ChemicalState, ChemicalRuntimeSpec> = {
-  DA: { normalMin: 35, normalMax: 75, halfLifeHours: decayHalfLifeHours(DECAY_FACTORS.medium) },
-  HT: { normalMin: 40, normalMax: 75, halfLifeHours: decayHalfLifeHours(DECAY_FACTORS.slow) },
-  CORT: { normalMin: 20, normalMax: 55, halfLifeHours: decayHalfLifeHours(DECAY_FACTORS.medium) },
-  OT: { normalMin: 35, normalMax: 75, halfLifeHours: decayHalfLifeHours(DECAY_FACTORS.slow) },
-  NE: { normalMin: 30, normalMax: 70, halfLifeHours: decayHalfLifeHours(DECAY_FACTORS.fast) },
-  END: { normalMin: 30, normalMax: 70, halfLifeHours: decayHalfLifeHours(DECAY_FACTORS.fast) },
+/**
+ * Per-dimension decay and operating specs.
+ *
+ * Order decays fastest (entropy is natural).
+ * Boundary is most inertial (identity is sticky).
+ */
+export const DIMENSION_SPECS: Record<keyof SelfState, DimensionSpec> = {
+  order: {
+    normalMin: 35, normalMax: 75,
+    decayRate: 0.75,
+    halfLifeHours: decayHalfLifeHours(0.75),
+  },
+  flow: {
+    normalMin: 30, normalMax: 75,
+    decayRate: 0.82,
+    halfLifeHours: decayHalfLifeHours(0.82),
+  },
+  boundary: {
+    normalMin: 40, normalMax: 80,
+    decayRate: 0.95,
+    halfLifeHours: decayHalfLifeHours(0.95),
+  },
+  resonance: {
+    normalMin: 30, normalMax: 70,
+    decayRate: 0.88,
+    halfLifeHours: decayHalfLifeHours(0.88),
+  },
 };
+
+/** @deprecated Alias for migration. */
+export type ChemicalRuntimeSpec = DimensionSpec;
+/** @deprecated Alias for migration. */
+export type DecaySpeed = "fast" | "medium" | "slow";
+/** @deprecated Alias for migration. */
+export const DECAY_FACTORS: Record<DecaySpeed, number> = { fast: 0.75, medium: 0.82, slow: 0.95 };
 
 /** Psyche operating mode */
 export type PsycheMode = "natural" | "work" | "companion";
 
 /** Mode profile — all mode-specific parameters in one place. */
 export interface ModeProfile {
-  chemistryMultiplier: number;
-  maxChemicalDelta: number | null;
+  dynamicsMultiplier: number;
+  maxDimensionDelta: number | null;
   nearBaselineThreshold: number;
-  otWarmthThreshold: number;
+  resonanceWarmthThreshold: number;
   lengthMultiplier: number;
   minSentences: number;
   authenticityWhenWarm: "strict" | "friendly";
@@ -132,10 +157,10 @@ export interface ModeProfile {
 
 export const MODE_PROFILES: Record<PsycheMode, ModeProfile> = {
   work: {
-    chemistryMultiplier: 0.3,
-    maxChemicalDelta: 5,
+    dynamicsMultiplier: 0.3,
+    maxDimensionDelta: 5,
     nearBaselineThreshold: 20,
-    otWarmthThreshold: 10,
+    resonanceWarmthThreshold: 10,
     lengthMultiplier: 1.0,
     minSentences: 1,
     authenticityWhenWarm: "strict",
@@ -146,10 +171,10 @@ export const MODE_PROFILES: Record<PsycheMode, ModeProfile> = {
     appraisalDecay: 0.68,
   },
   natural: {
-    chemistryMultiplier: 1.0,
-    maxChemicalDelta: null,
+    dynamicsMultiplier: 1.0,
+    maxDimensionDelta: null,
     nearBaselineThreshold: 8,
-    otWarmthThreshold: 10,
+    resonanceWarmthThreshold: 10,
     lengthMultiplier: 1.0,
     minSentences: 1,
     authenticityWhenWarm: "strict",
@@ -160,10 +185,10 @@ export const MODE_PROFILES: Record<PsycheMode, ModeProfile> = {
     appraisalDecay: 0.78,
   },
   companion: {
-    chemistryMultiplier: 1.5,
-    maxChemicalDelta: null,
+    dynamicsMultiplier: 1.5,
+    maxDimensionDelta: null,
     nearBaselineThreshold: 5,
-    otWarmthThreshold: 5,
+    resonanceWarmthThreshold: 5,
     lengthMultiplier: 1.5,
     minSentences: 2,
     authenticityWhenWarm: "friendly",
@@ -208,17 +233,25 @@ export type StimulusType =
   | "boredom"       // 无聊——重复/无意义
   | "vulnerability"; // 示弱——对方展示脆弱面
 
-/** Chemical effect vector for a stimulus */
-export type StimulusVector = Record<keyof ChemicalState, number>;
+/** Self-state impact vector for a stimulus (4D) */
+export type ImpactVector = Record<keyof SelfState, number>;
+
+/** @deprecated Alias for migration. Use ImpactVector. */
+export type StimulusVector = ImpactVector;
 
 /** Locale for i18n */
 export type Locale = "zh" | "en";
 
-/** Emergent emotion pattern (v0.2: +behaviorGuide) */
+/**
+ * Emergent emotion pattern — observational only.
+ *
+ * Emotions are NOT targets. They emerge from self-state combinations.
+ * These patterns detect recognizable states for observation/labeling.
+ */
 export interface EmotionPattern {
   name: string;
   nameZh: string;
-  condition: (c: ChemicalState) => boolean;
+  condition: (s: SelfState) => boolean;
   expressionHint: string;
   behaviorGuide: string;
 }
@@ -273,19 +306,21 @@ export interface RelationshipState {
   signalWeights?: Partial<WritebackSignalWeightMap>; // learned per-partner signal gain for sparse writeback
 }
 
-/** Chemical state snapshot for emotional memory */
-export interface ChemicalSnapshot {
-  chemistry: ChemicalState;
+/** Self-state snapshot for experiential memory */
+export interface StateSnapshot {
+  state: SelfState;
   stimulus: StimulusType | null;
   dominantEmotion: string | null;
   timestamp: string;
   semanticSummary?: string;
   semanticPoints?: string[];
-  // P11: Emotional memory consolidation — optional for backward compatibility
-  intensity?: number;             // 0-1, chemical deviation from baseline
-  valence?: number;               // -1 to 1, overall emotional valence
+  intensity?: number;             // 0-1, deviation from baseline
+  valence?: number;               // -1 to 1, overall valence
   isCoreMemory?: boolean;         // true if intensity >= 0.6 or repeatedly consolidated
 }
+
+/** @deprecated Alias for migration. Use StateSnapshot. */
+export type ChemicalSnapshot = StateSnapshot;
 
 /** Max history entries to keep (P11: raised from 10 to 30, intensity-filtered) */
 export const MAX_EMOTIONAL_HISTORY = 30;
@@ -315,7 +350,7 @@ export interface SelfModel {
 export interface LearnedVectorAdjustment {
   stimulus: StimulusType;
   contextHash: string;
-  adjustment: Partial<StimulusVector>;
+  adjustment: Partial<ImpactVector>;
   confidence: number;       // 0-1
   sampleCount: number;
   lastUpdated: string;      // ISO timestamp
@@ -323,8 +358,8 @@ export interface LearnedVectorAdjustment {
 
 /** A single prediction record for prediction error tracking */
 export interface PredictionRecord {
-  predictedChemistry: ChemicalState;
-  actualChemistry: ChemicalState;
+  predictedState: SelfState;
+  actualState: SelfState;
   stimulus: StimulusType | null;
   predictionError: number;  // scalar distance
   timestamp: string;
@@ -390,7 +425,7 @@ export type RegulationStrategyType = "reappraisal" | "strategic-expression" | "s
 export type DefenseMechanismType = "rationalization" | "projection" | "sublimation" | "avoidance";
 
 /** Which internal metric a regulation action is trying to pull back toward target */
-export type RegulationTargetMetric = keyof ChemicalState | "emotional-confidence";
+export type RegulationTargetMetric = keyof SelfState | "emotional-confidence";
 
 /** Whether the last regulation action is helping */
 export type RegulationFeedbackEffect = "converging" | "holding" | "diverging";
@@ -529,21 +564,21 @@ export interface DelegateAuthorization {
   active: boolean;
 }
 
-/** Persisted psyche state for an agent (v10: MBTI removed, baseline is personality) */
+/** Persisted psyche state for an agent (v11: self-state substrate) */
 export interface PsycheState {
-  version: 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
-  /** @deprecated Use baseline chemistry directly. Retained for migration only. */
+  version: 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11;
+  /** @deprecated Use baseline directly. Retained for migration only. */
   mbti?: MBTIType;
-  baseline: ChemicalState;
+  baseline: SelfState;
   /** Stimulus sensitivity multiplier (0.5-1.5). Initialized from personality preset. */
   sensitivity: number;
-  current: ChemicalState;
-  drives: InnateDrives;              // innate drives (Maslow hierarchy)
+  current: SelfState;
+  drives: InnateDrives;              // homeostatic tendencies (Phase 4 will refactor)
   updatedAt: string; // ISO timestamp
   relationships: Record<string, RelationshipState>; // keyed by user ID, "_default" for single-user
   empathyLog: EmpathyEntry | null;
   selfModel: SelfModel;
-  emotionalHistory: ChemicalSnapshot[]; // recent chemical trajectory
+  stateHistory: StateSnapshot[];     // recent self-state trajectory
   agreementStreak: number;          // consecutive agreements without disagreement
   lastDisagreement: string | null;  // ISO timestamp
   learning: LearningState;          // v4: emotional learning data
@@ -553,7 +588,7 @@ export interface PsycheState {
   autonomicState?: "ventral-vagal" | "sympathetic" | "dorsal-vagal";
   /** v7: session start time for homeostatic pressure calculation */
   sessionStartedAt?: string;
-  /** v9: long-term personality drift from accumulated interaction patterns */
+  /** v9: long-term drift from accumulated interaction patterns */
   traitDrift?: TraitDriftState;
   /** v9: finite resource budgets (attention, social energy, decision capacity) */
   energyBudgets?: EnergyBudgets;
@@ -1267,9 +1302,9 @@ export interface TraitDriftState {
   /** Number of sessions that contributed to drift */
   sessionCount: number;
   /** Computed baseline delta (debugging/display) */
-  baselineDelta: Partial<ChemicalState>;
+  baselineDelta: Partial<SelfState>;
   /** Decay rate modifiers: >1 = slower recovery (trauma), <1 = faster (resilience) */
-  decayRateModifiers: Partial<Record<keyof ChemicalState, number>>;
+  decayRateModifiers: Partial<Record<keyof SelfState, number>>;
   /** Stimulus sensitivity modifiers: >1 = more sensitive, <1 = desensitized */
   sensitivityModifiers: Partial<Record<StimulusType, number>>;
 }
@@ -1336,4 +1371,13 @@ export interface ClassifierProvider {
     text: string,
     context?: ClassifierContext,
   ): ClassificationResult[] | Promise<ClassificationResult[]>;
+}
+
+// ── Perception (v10.3) ────────────────────────────────────────
+
+/** A stimulus weighted by subjective interpretation */
+export interface WeightedStimulus {
+  type: StimulusType;
+  /** Subjective weight after appraisal + state modulation. Weights sum to 1. */
+  weight: number;
 }

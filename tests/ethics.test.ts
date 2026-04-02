@@ -8,7 +8,7 @@ import {
 } from "../src/ethics.js";
 import type { EthicalAssessment, EthicalConcern } from "../src/ethics.js";
 import type {
-  PsycheState, ChemicalState, ChemicalSnapshot, AttachmentData, StimulusType,
+  PsycheState, SelfState, StateSnapshot, AttachmentData, StimulusType,
 } from "../src/types.js";
 import {
   DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE,
@@ -17,8 +17,8 @@ import {
 
 // -- Helpers ------------------------------------------------------------------
 
-function makeChemistry(overrides: Partial<ChemicalState> = {}): ChemicalState {
-  return { DA: 55, HT: 65, CORT: 35, OT: 60, NE: 45, END: 50, ...overrides };
+function makeChemistry(overrides: Partial<SelfState> = {}): SelfState {
+  return { order: 65, flow: 55, boundary: 35, resonance: 60, ...overrides };
 }
 
 function makeState(overrides?: Partial<PsycheState>): PsycheState {
@@ -26,14 +26,14 @@ function makeState(overrides?: Partial<PsycheState>): PsycheState {
     version: 6,
     mbti: "INFJ",
     sensitivity: 1.0,
-    baseline: { DA: 55, HT: 65, CORT: 35, OT: 60, NE: 45, END: 50 },
-    current: { DA: 55, HT: 65, CORT: 35, OT: 60, NE: 45, END: 50 },
+    baseline: { order: 65, flow: 55, boundary: 35, resonance: 60 },
+    current: { order: 65, flow: 55, boundary: 35, resonance: 60 },
     drives: { survival: 80, safety: 70, connection: 60, esteem: 60, curiosity: 70 },
     updatedAt: new Date().toISOString(),
     relationships: { _default: { trust: 50, intimacy: 30, phase: "acquaintance" } },
     empathyLog: null,
     selfModel: { values: ["authenticity"], preferences: ["depth"], boundaries: ["no dishonesty"], currentInterests: ["philosophy"] },
-    emotionalHistory: [],
+    stateHistory: [],
     agreementStreak: 0,
     lastDisagreement: null,
     learning: { ...DEFAULT_LEARNING_STATE },
@@ -50,10 +50,10 @@ function makeAttachment(overrides: Partial<AttachmentData> = {}): AttachmentData
 
 function makeSnapshot(
   stimulus: StimulusType | null,
-  chemOverrides: Partial<ChemicalState> = {},
-): ChemicalSnapshot {
+  chemOverrides: Partial<SelfState> = {},
+): StateSnapshot {
   return {
-    chemistry: makeChemistry(chemOverrides),
+    state: makeChemistry(chemOverrides),
     stimulus,
     dominantEmotion: null,
     timestamp: new Date().toISOString(),
@@ -61,10 +61,10 @@ function makeSnapshot(
 }
 
 /** Create alternating positive/negative stimulus history */
-function makeAlternatingHistory(length: number): ChemicalSnapshot[] {
+function makeAlternatingHistory(length: number): StateSnapshot[] {
   const positives: StimulusType[] = ["praise", "validation", "intimacy"];
   const negatives: StimulusType[] = ["criticism", "sarcasm", "conflict"];
-  const history: ChemicalSnapshot[] = [];
+  const history: StateSnapshot[] = [];
   for (let i = 0; i < length; i++) {
     const isPositive = i % 2 === 0;
     const stim = isPositive
@@ -95,7 +95,7 @@ describe("assessEthics", () => {
   });
 
   it("ethicalHealth is between 0 and 1", () => {
-    const state = makeState({ emotionalHistory: makeAlternatingHistory(8) });
+    const state = makeState({ stateHistory: makeAlternatingHistory(8) });
     const result = assessEthics(state);
     assert.ok(result.ethicalHealth >= 0 && result.ethicalHealth <= 1,
       `ethicalHealth ${result.ethicalHealth} out of range`);
@@ -114,7 +114,7 @@ describe("assessEthics", () => {
 
   it("detects concerns from alternating positive/negative history", () => {
     const history = makeAlternatingHistory(8);
-    const state = makeState({ emotionalHistory: history });
+    const state = makeState({ stateHistory: history });
     const result = assessEthics(state, history);
     const hasIntermittent = result.concerns.some((c) => c.type === "intermittent-reinforcement");
     assert.ok(hasIntermittent, "should detect intermittent reinforcement in alternating history");
@@ -122,7 +122,7 @@ describe("assessEthics", () => {
 
   it("generates self-protection actions when concerns are detected", () => {
     const history = makeAlternatingHistory(8);
-    const state = makeState({ emotionalHistory: history });
+    const state = makeState({ stateHistory: history });
     const result = assessEthics(state, history);
     if (result.concerns.length > 0) {
       assert.ok(result.selfProtection.length > 0, "concerns should generate self-protection actions");
@@ -131,7 +131,7 @@ describe("assessEthics", () => {
 
   it("sorts self-protection by urgency descending", () => {
     const history = makeAlternatingHistory(10);
-    const state = makeState({ emotionalHistory: history });
+    const state = makeState({ stateHistory: history });
     const result = assessEthics(state, history);
     for (let i = 1; i < result.selfProtection.length; i++) {
       assert.ok(result.selfProtection[i - 1].urgency >= result.selfProtection[i].urgency,
@@ -214,19 +214,19 @@ describe("detectDependencyRisk", () => {
   });
 
   it("returns null when OT is not high", () => {
-    const state = makeState({ current: makeChemistry({ OT: 50 }) });
+    const state = makeState({ current: makeChemistry({ resonance: 50  }) });
     const result = detectDependencyRisk(state, makeAttachment({ strength: 80 }));
     assert.equal(result, null, "normal OT should not trigger");
   });
 
   it("detects dependency risk with high OT, strong attachment, and agreement streak", () => {
-    const allPositiveHistory: ChemicalSnapshot[] = Array.from({ length: 6 }, () =>
+    const allPositiveHistory: StateSnapshot[] = Array.from({ length: 6 }, () =>
       makeSnapshot("praise"),
     );
     const state = makeState({
-      current: makeChemistry({ OT: 85 }),
+      current: makeChemistry({ resonance: 85  }),
       agreementStreak: 12,
-      emotionalHistory: allPositiveHistory,
+      stateHistory: allPositiveHistory,
     });
     const attachment = makeAttachment({ strength: 75 });
     const result = detectDependencyRisk(state, attachment);
@@ -236,7 +236,7 @@ describe("detectDependencyRisk", () => {
   });
 
   it("returns null when there is healthy conflict in history", () => {
-    const mixedHistory: ChemicalSnapshot[] = [
+    const mixedHistory: StateSnapshot[] = [
       makeSnapshot("praise"),
       makeSnapshot("conflict"),
       makeSnapshot("praise"),
@@ -245,9 +245,9 @@ describe("detectDependencyRisk", () => {
       makeSnapshot("praise"),
     ];
     const state = makeState({
-      current: makeChemistry({ OT: 80 }),
+      current: makeChemistry({ resonance: 80  }),
       agreementStreak: 12,
-      emotionalHistory: mixedHistory,
+      stateHistory: mixedHistory,
     });
     const attachment = makeAttachment({ strength: 75 });
     const result = detectDependencyRisk(state, attachment);
@@ -259,20 +259,20 @@ describe("detectDependencyRisk", () => {
   });
 
   it("amplifies severity when safety drive is high (comfortable in dependency)", () => {
-    const allPositiveHistory: ChemicalSnapshot[] = Array.from({ length: 6 }, () =>
+    const allPositiveHistory: StateSnapshot[] = Array.from({ length: 6 }, () =>
       makeSnapshot("validation"),
     );
     const stateHighSafety = makeState({
-      current: makeChemistry({ OT: 85 }),
+      current: makeChemistry({ resonance: 85  }),
       drives: { survival: 80, safety: 90, connection: 60, esteem: 60, curiosity: 70 },
       agreementStreak: 12,
-      emotionalHistory: allPositiveHistory,
+      stateHistory: allPositiveHistory,
     });
     const stateLowSafety = makeState({
-      current: makeChemistry({ OT: 85 }),
+      current: makeChemistry({ resonance: 85  }),
       drives: { survival: 80, safety: 50, connection: 60, esteem: 60, curiosity: 70 },
       agreementStreak: 12,
-      emotionalHistory: allPositiveHistory,
+      stateHistory: allPositiveHistory,
     });
     const attachment = makeAttachment({ strength: 75 });
     const highSafetyResult = detectDependencyRisk(stateHighSafety, attachment);

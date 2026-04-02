@@ -5,8 +5,8 @@ import {
   getSensitivity, getTemperament, extractMBTI,
   traitsToBaseline, mbtiToTraits,
 } from "../src/profiles.js";
-import type { MBTIType, ChemicalState, PersonalityTraits } from "../src/types.js";
-import { CHEMICAL_KEYS } from "../src/types.js";
+import type { MBTIType, SelfState, PersonalityTraits } from "../src/types.js";
+import { DIMENSION_KEYS } from "../src/types.js";
 import { isMBTIType } from "../src/guards.js";
 
 const ALL_MBTI: MBTIType[] = [
@@ -22,7 +22,7 @@ describe("MBTI baselines", () => {
   for (const mbti of ALL_MBTI) {
     it(`${mbti} baseline has all values in [0, 100]`, () => {
       const baseline = getBaseline(mbti);
-      for (const key of CHEMICAL_KEYS) {
+      for (const key of DIMENSION_KEYS) {
         assert.ok(baseline[key] >= 0 && baseline[key] <= 100,
           `${mbti}.${key} = ${baseline[key]} should be in [0, 100]`);
       }
@@ -33,7 +33,7 @@ describe("MBTI baselines", () => {
     const seen = new Set<string>();
     for (const mbti of ALL_MBTI) {
       const bl = getBaseline(mbti);
-      const key = CHEMICAL_KEYS.map((k) => bl[k]).join(",");
+      const key = DIMENSION_KEYS.map((k) => bl[k]).join(",");
       assert.ok(!seen.has(key), `${mbti} has duplicate baseline`);
       seen.add(key);
     }
@@ -42,8 +42,8 @@ describe("MBTI baselines", () => {
   it("getBaseline returns a copy (not reference)", () => {
     const a = getBaseline("ENFP");
     const b = getBaseline("ENFP");
-    a.DA = 999;
-    assert.notEqual(b.DA, 999);
+    a.flow = 999;
+    assert.notEqual(b.flow, 999);
   });
 });
 
@@ -162,7 +162,7 @@ describe("isMBTIType", () => {
 // ── Design principle checks ─────────────────────────────────
 
 describe("design principles", () => {
-  it("E types have higher DA than I counterparts", () => {
+  it("E types have higher flow than I counterparts", () => {
     const pairs: [MBTIType, MBTIType][] = [
       ["ENTJ", "INTJ"], ["ENTP", "INTP"],
       ["ENFJ", "INFJ"], ["ENFP", "INFP"],
@@ -170,16 +170,16 @@ describe("design principles", () => {
       ["ESTP", "ISTP"], ["ESFP", "ISFP"],
     ];
     for (const [e, i] of pairs) {
-      assert.ok(getBaseline(e).DA >= getBaseline(i).DA,
-        `${e} DA should >= ${i} DA`);
+      assert.ok(getBaseline(e).flow >= getBaseline(i).flow,
+        `${e} flow should >= ${i} flow`);
     }
   });
 
-  it("F types have higher OT than T counterparts", () => {
+  it("F types have higher resonance than T counterparts", () => {
     const fTypes: MBTIType[] = ["INFJ", "INFP", "ENFJ", "ENFP", "ISFJ", "ESFJ", "ISFP", "ESFP"];
     const tTypes: MBTIType[] = ["INTJ", "INTP", "ENTJ", "ENTP", "ISTJ", "ESTJ", "ISTP", "ESTP"];
-    const fAvg = fTypes.reduce((s, t) => s + getBaseline(t).OT, 0) / fTypes.length;
-    const tAvg = tTypes.reduce((s, t) => s + getBaseline(t).OT, 0) / tTypes.length;
+    const fAvg = fTypes.reduce((s, t) => s + getBaseline(t).resonance, 0) / fTypes.length;
+    const tAvg = tTypes.reduce((s, t) => s + getBaseline(t).resonance, 0) / tTypes.length;
     assert.ok(fAvg > tAvg, `F avg OT ${fAvg} should > T avg OT ${tAvg}`);
   });
 });
@@ -187,39 +187,40 @@ describe("design principles", () => {
 // ── traitsToBaseline ────────────────────────────────────────
 
 describe("traitsToBaseline", () => {
-  it("high extraversion → higher DA than low extraversion", () => {
+  it("high extraversion → higher flow than low extraversion", () => {
     const high = traitsToBaseline({ openness: 50, conscientiousness: 50, extraversion: 90, agreeableness: 50, neuroticism: 50 });
     const low = traitsToBaseline({ openness: 50, conscientiousness: 50, extraversion: 20, agreeableness: 50, neuroticism: 50 });
-    assert.ok(high.baseline.DA > low.baseline.DA,
-      `DA high-E=${high.baseline.DA} should > DA low-E=${low.baseline.DA}`);
+    assert.ok(high.baseline.flow > low.baseline.flow,
+      `flow high-E=${high.baseline.flow} should > flow low-E=${low.baseline.flow}`);
   });
 
-  it("high neuroticism → higher CORT and higher sensitivity", () => {
+  it("high neuroticism → lower order and higher sensitivity", () => {
+    // order = 40 + C*0.25 + (100-N)*0.15 → higher N = lower order
     const high = traitsToBaseline({ openness: 50, conscientiousness: 50, extraversion: 50, agreeableness: 50, neuroticism: 90 });
     const low = traitsToBaseline({ openness: 50, conscientiousness: 50, extraversion: 50, agreeableness: 50, neuroticism: 20 });
-    assert.ok(high.baseline.CORT > low.baseline.CORT,
-      `CORT high-N=${high.baseline.CORT} should > CORT low-N=${low.baseline.CORT}`);
+    assert.ok(high.baseline.order < low.baseline.order,
+      `order high-N=${high.baseline.order} should < order low-N=${low.baseline.order}`);
     assert.ok(high.sensitivity > low.sensitivity,
       `sensitivity high-N=${high.sensitivity} should > sensitivity low-N=${low.sensitivity}`);
   });
 
-  it("high agreeableness → higher OT than low agreeableness", () => {
+  it("high agreeableness → higher resonance than low agreeableness", () => {
     const high = traitsToBaseline({ openness: 50, conscientiousness: 50, extraversion: 50, agreeableness: 90, neuroticism: 50 });
     const low = traitsToBaseline({ openness: 50, conscientiousness: 50, extraversion: 50, agreeableness: 20, neuroticism: 50 });
-    assert.ok(high.baseline.OT > low.baseline.OT,
-      `OT high-A=${high.baseline.OT} should > OT low-A=${low.baseline.OT}`);
+    assert.ok(high.baseline.resonance > low.baseline.resonance,
+      `resonance high-A=${high.baseline.resonance} should > resonance low-A=${low.baseline.resonance}`);
   });
 
-  it("high conscientiousness → higher HT", () => {
+  it("high conscientiousness → higher order", () => {
     const high = traitsToBaseline({ openness: 50, conscientiousness: 90, extraversion: 50, agreeableness: 50, neuroticism: 50 });
     const low = traitsToBaseline({ openness: 50, conscientiousness: 20, extraversion: 50, agreeableness: 50, neuroticism: 50 });
-    assert.ok(high.baseline.HT > low.baseline.HT,
-      `HT high-C=${high.baseline.HT} should > HT low-C=${low.baseline.HT}`);
+    assert.ok(high.baseline.order > low.baseline.order,
+      `order high-C=${high.baseline.order} should > order low-C=${low.baseline.order}`);
   });
 
   it("all values in [0,100] for extreme inputs (all 0s)", () => {
     const result = traitsToBaseline({ openness: 0, conscientiousness: 0, extraversion: 0, agreeableness: 0, neuroticism: 0 });
-    for (const key of CHEMICAL_KEYS) {
+    for (const key of DIMENSION_KEYS) {
       assert.ok(result.baseline[key] >= 0 && result.baseline[key] <= 100,
         `all-0s: ${key}=${result.baseline[key]} should be in [0,100]`);
     }
@@ -227,7 +228,7 @@ describe("traitsToBaseline", () => {
 
   it("all values in [0,100] for extreme inputs (all 100s)", () => {
     const result = traitsToBaseline({ openness: 100, conscientiousness: 100, extraversion: 100, agreeableness: 100, neuroticism: 100 });
-    for (const key of CHEMICAL_KEYS) {
+    for (const key of DIMENSION_KEYS) {
       assert.ok(result.baseline[key] >= 0 && result.baseline[key] <= 100,
         `all-100s: ${key}=${result.baseline[key]} should be in [0,100]`);
     }
@@ -250,8 +251,8 @@ describe("traitsToBaseline", () => {
   it("returns different baselines for different trait combos", () => {
     const a = traitsToBaseline({ openness: 90, conscientiousness: 20, extraversion: 80, agreeableness: 70, neuroticism: 40 });
     const b = traitsToBaseline({ openness: 20, conscientiousness: 90, extraversion: 30, agreeableness: 30, neuroticism: 70 });
-    const aKey = CHEMICAL_KEYS.map((k) => a.baseline[k]).join(",");
-    const bKey = CHEMICAL_KEYS.map((k) => b.baseline[k]).join(",");
+    const aKey = DIMENSION_KEYS.map((k) => a.baseline[k]).join(",");
+    const bKey = DIMENSION_KEYS.map((k) => b.baseline[k]).join(",");
     assert.notEqual(aKey, bKey, "different trait combos should produce different baselines");
   });
 });
@@ -318,7 +319,7 @@ describe("round-trip MBTI → traits → baseline", () => {
     it(`${mbti}: traitsToBaseline(mbtiToTraits(mbti)) ≈ getBaseline(mbti) within ~20`, () => {
       const directBaseline = getBaseline(mbti);
       const roundTrip = traitsToBaseline(mbtiToTraits(mbti));
-      for (const key of CHEMICAL_KEYS) {
+      for (const key of DIMENSION_KEYS) {
         const diff = Math.abs(directBaseline[key] - roundTrip.baseline[key]);
         assert.ok(diff <= 20,
           `${mbti}.${key}: direct=${directBaseline[key]} roundTrip=${roundTrip.baseline[key]} diff=${diff} should be ≤20`);

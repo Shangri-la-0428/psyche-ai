@@ -9,7 +9,8 @@
 // - Sympathetic: fight/flight mobilization
 // - Dorsal vagal: freeze/shutdown/collapse
 
-import type { ChemicalState, InnateDrives, Locale, EnergyBudgets } from "./types.js";
+import type { SelfState, InnateDrives, Locale, EnergyBudgets } from "./types.js";
+import { DIMENSION_KEYS } from "./types.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -97,11 +98,16 @@ const DORSAL_ALLOWED = new Set([
  * No transition inertia — returns the "target" state.
  */
 export function computeAutonomicState(
-  chemistry: ChemicalState,
+  state: SelfState,
   drives: InnateDrives,
 ): AutonomicState {
-  const { CORT, NE, DA } = chemistry;
+  const { order, flow, boundary } = state;
   const { survival, safety, connection } = drives;
+
+  // Inverse order = stress (low order = high entropy/distress)
+  const stress = 100 - order;
+  // Flow maps to arousal/activation
+  const arousal = flow;
 
   // Count drives that are critically low (< 20)
   const lowDriveCount = [survival, safety, connection, drives.esteem, drives.curiosity]
@@ -109,25 +115,25 @@ export function computeAutonomicState(
 
   // ── Dorsal vagal check (freeze/shutdown) ──
   // Very high stress + low arousal + low motivation = collapse
-  if (CORT >= 80 && NE <= 25 && DA <= 20) {
+  if (stress >= 80 && arousal <= 25 && flow <= 20) {
     return "dorsal-vagal";
   }
-  // Multiple critically low drives with depleted chemistry
-  if (lowDriveCount >= 3 && CORT >= 70 && (NE <= 30 || DA <= 20)) {
+  // Multiple critically low drives with depleted state
+  if (lowDriveCount >= 3 && stress >= 70 && (arousal <= 30 || flow <= 20)) {
     return "dorsal-vagal";
   }
 
   // ── Sympathetic check (fight/flight) ──
   // High stress + high arousal
-  if (CORT >= 65 && NE >= 65) {
+  if (stress >= 65 && arousal >= 65) {
     return "sympathetic";
   }
-  // Either axis extreme: one chemical dominating can still trigger mobilization
-  if (CORT + NE >= 140 && CORT >= 50 && NE >= 50) {
+  // Either axis extreme: one dimension dominating can still trigger mobilization
+  if (stress + arousal >= 140 && stress >= 50 && arousal >= 50) {
     return "sympathetic";
   }
   // Very low survival or safety drive with elevated stress
-  if ((survival < 20 || safety < 20) && CORT >= 55 && NE >= 55) {
+  if ((survival < 20 || safety < 20) && stress >= 55 && arousal >= 55) {
     return "sympathetic";
   }
 
@@ -188,34 +194,33 @@ export function describeAutonomicState(
  */
 export function computeProcessingDepth(
   autonomicState: AutonomicState,
-  chemistry: ChemicalState,
-  baseline: ChemicalState,
+  current: SelfState,
+  baseline: SelfState,
   energyBudgets?: EnergyBudgets,
 ): { depth: number; skippedStages: string[] } {
-  const { CORT } = chemistry;
+  const stress = 100 - current.order;
 
-  // Chemical deviation from baseline (0-1)
+  // State deviation from baseline (0-1)
   let totalDeviation = 0;
-  const keys: (keyof ChemicalState)[] = ["DA", "HT", "CORT", "OT", "NE", "END"];
-  for (const k of keys) {
-    totalDeviation += Math.abs(chemistry[k] - baseline[k]);
+  for (const k of DIMENSION_KEYS) {
+    totalDeviation += Math.abs(current[k] - baseline[k]);
   }
-  const chemDeviation = Math.min(1, totalDeviation / 600);
+  const stateDeviation = Math.min(1, totalDeviation / 400);
 
   // Base depth from autonomic state
   let baseDepth: number;
   if (autonomicState === "dorsal-vagal") {
     baseDepth = 0;
   } else if (autonomicState === "sympathetic") {
-    // Higher CORT in sympathetic = less cognitive resource
-    baseDepth = CORT >= 60 ? 0.15 : 0.35;
+    // Higher stress in sympathetic = less cognitive resource
+    baseDepth = stress >= 60 ? 0.15 : 0.35;
   } else {
     // ventral-vagal: safe, most cognitive resource available
     baseDepth = 0.85;
   }
 
-  // Chemical deviation reduces depth (strong emotions = less reflection)
-  let depth = Math.max(0, Math.min(1, baseDepth * (1 - chemDeviation * 0.5)));
+  // State deviation reduces depth (strong shifts = less reflection)
+  let depth = Math.max(0, Math.min(1, baseDepth * (1 - stateDeviation * 0.5)));
 
   // v9: Low attention energy further reduces processing depth
   if (energyBudgets && energyBudgets.attention < 30) {
@@ -247,23 +252,23 @@ export function computeProcessingDepth(
  * Includes P10 processing depth (dual-process cognitive gating).
  */
 export function computeAutonomicResult(
-  chemistry: ChemicalState,
+  current: SelfState,
   drives: InnateDrives,
   previousState: AutonomicState | null,
   minutesSinceLastUpdate: number,
   locale: Locale = "zh",
-  baseline?: ChemicalState,
+  baseline?: SelfState,
   energyBudgets?: EnergyBudgets,
 ): AutonomicResult {
-  const targetState = computeAutonomicState(chemistry, drives);
-  const effectiveBaseline = baseline ?? { DA: 50, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 };
+  const targetState = computeAutonomicState(current, drives);
+  const effectiveBaseline = baseline ?? { order: 50, flow: 50, boundary: 50, resonance: 50 };
 
   // Helper to build full result with processing depth
   const buildResult = (
     state: AutonomicState,
     transitionProgress: number,
   ): AutonomicResult => {
-    const { depth, skippedStages } = computeProcessingDepth(state, chemistry, effectiveBaseline, energyBudgets);
+    const { depth, skippedStages } = computeProcessingDepth(state, current, effectiveBaseline, energyBudgets);
     return {
       state,
       transitionProgress,

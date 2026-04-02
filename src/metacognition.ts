@@ -19,7 +19,7 @@ import type {
   RegulationStrategyType, DefenseMechanismType,
   RegulationTargetMetric, RegulationFeedback,
 } from "./types.js";
-import { CHEMICAL_KEYS, CHEMICAL_NAMES, CHEMICAL_RUNTIME_SPECS, MAX_REGULATION_HISTORY, MAX_DEFENSE_PATTERNS } from "./types.js";
+import { DIMENSION_KEYS, DIMENSION_NAMES, DIMENSION_SPECS, MAX_REGULATION_HISTORY, MAX_DEFENSE_PATTERNS } from "./types.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -89,15 +89,15 @@ const MAX_SOOTHING_ADJUSTMENT = 5;
 /** Maximum chemistry micro-adjustment for reappraisal */
 const MAX_REAPPRAISAL_ADJUSTMENT = 8;
 
-function formatChemicalWindow(
+function formatDimensionWindow(
   key: keyof ChemicalState,
   state: PsycheState,
 ): string {
-  const spec = CHEMICAL_RUNTIME_SPECS[key];
+  const spec = DIMENSION_SPECS[key];
   const current = Math.round(state.current[key]);
   const baseline = Math.round(state.baseline[key]);
   const delta = Math.round(state.current[key] - state.baseline[key]);
-  return `${CHEMICAL_NAMES[key]} ${current} (baseline ${baseline}, Δ${delta >= 0 ? "+" : ""}${delta}, normal ${spec.normalMin}-${spec.normalMax}, half-life ~${spec.halfLifeHours.toFixed(1)}h)`;
+  return `${DIMENSION_NAMES[key]} ${current} (baseline ${baseline}, Δ${delta >= 0 ? "+" : ""}${delta}, normal ${spec.normalMin}-${spec.normalMax}, half-life ~${spec.halfLifeHours.toFixed(1)}h)`;
 }
 
 function buildRegulationAction(
@@ -106,30 +106,22 @@ function buildRegulationAction(
   direction: "elevated" | "depleted",
 ): string {
   switch (key) {
-    case "CORT":
+    case "order":
       return direction === "elevated"
-        ? "Next 3 turns: lower tone intensity, facts before stance, and do not escalate closeness or conflict."
-        : "Next 3 turns: keep structure and certainty steady instead of sounding depleted or helpless.";
-    case "OT":
+        ? "Next 3 turns: keep composure, but do not over-smooth or pretend everything is settled."
+        : "Next 3 turns: lower tone intensity, facts before stance, and avoid absolutist wording.";
+    case "flow":
+      return direction === "elevated"
+        ? "Next 3 turns: halve initiative, stay on one topic, and avoid energetic jumps or rapid escalation."
+        : "Next 3 turns: keep replies purposeful and focused rather than drifting or going blank.";
+    case "boundary":
+      return direction === "elevated"
+        ? "Next 3 turns: soften the boundary slightly; allow one step closer without over-disclosure."
+        : "Next 3 turns: reinforce clarity of self/non-self; do not merge perspectives prematurely.";
+    case "resonance":
       return direction === "elevated"
         ? "Next 3 turns: reduce intimacy push by half, avoid nicknames or extra reassurance, keep warmth neutral."
         : "Next 3 turns: do not force closeness; keep warmth gentle but wait for the user to move closer first.";
-    case "NE":
-      return direction === "elevated"
-        ? "Next 3 turns: halve initiative, stay on one topic, and avoid energetic jumps or rapid escalation."
-        : "Next 3 turns: keep replies focused and deliberate rather than drifting or going blank.";
-    case "DA":
-      return direction === "elevated"
-        ? "Next 3 turns: cut playful expansion and stay task-anchored; do not over-volunteer or overshare."
-        : "Next 3 turns: keep replies purposeful and avoid sounding flat or disengaged.";
-    case "END":
-      return direction === "elevated"
-        ? "Next 3 turns: tone down joking and levity; keep humor secondary to the user's actual need."
-        : "Next 3 turns: do not chase comfort or easy banter; keep the exchange clean and direct.";
-    case "HT":
-      return direction === "elevated"
-        ? "Next 3 turns: keep composure, but do not over-smooth or pretend everything is settled."
-        : "Next 3 turns: avoid absolutist wording, leave room for recalibration, and keep the tone even.";
     default:
       return "Next 3 turns: keep expression closer to baseline and avoid amplifying the current deviation.";
   }
@@ -187,7 +179,7 @@ function evaluateRegulationFeedback(
 function formatRegulationFeedback(feedback: RegulationFeedback): string {
   const metricLabel = feedback.targetMetric === "emotional-confidence"
     ? "emotional confidence"
-    : CHEMICAL_NAMES[feedback.targetMetric];
+    : DIMENSION_NAMES[feedback.targetMetric];
   const gapBefore = feedback.targetMetric === "emotional-confidence"
     ? `${(feedback.gapBefore * 100).toFixed(0)}%`
     : `${Math.round(feedback.gapBefore)}`;
@@ -312,11 +304,11 @@ export function computeEmotionalConfidence(
  */
 function computeExtremityPenalty(state: PsycheState): number {
   let totalDeviation = 0;
-  for (const key of CHEMICAL_KEYS) {
+  for (const key of DIMENSION_KEYS) {
     totalDeviation += Math.abs(state.current[key] - state.baseline[key]);
   }
-  // Average deviation across 6 chemicals, max possible = 100 each
-  const avgDeviation = totalDeviation / CHEMICAL_KEYS.length;
+  // Average deviation across 4 dimensions, max possible = 100 each
+  const avgDeviation = totalDeviation / DIMENSION_KEYS.length;
   // Scale: deviation of 30+ gives meaningful penalty, max penalty = 0.25
   return Math.min(0.25, Math.max(0, (avgDeviation - 10) / 80) * 0.25);
 }
@@ -404,7 +396,7 @@ function attemptCognitiveReappraisal(
   const adjustment: Partial<ChemicalState> = {};
   let hasAdjustment = false;
 
-  for (const key of CHEMICAL_KEYS) {
+  for (const key of DIMENSION_KEYS) {
     const deviation = state.current[key] - state.baseline[key];
     if (Math.abs(deviation) > MODERATE_DEVIATION_THRESHOLD) {
       // Suggest moving partway back toward baseline
@@ -435,8 +427,8 @@ function attemptCognitiveReappraisal(
  * StrategicExpression — choose an expression different from raw chemistry.
  *
  * Triggers when: raw chemistry would produce a contextually inappropriate
- * expression. E.g., high CORT but the relationship context calls for warmth,
- * or high DA/END but the user is being vulnerable and needs seriousness.
+ * expression. E.g., low order but the relationship context calls for warmth,
+ * or high flow but the user is being vulnerable and needs seriousness.
  */
 function attemptStrategicExpression(
   state: PsycheState,
@@ -445,76 +437,76 @@ function attemptStrategicExpression(
 ): RegulationSuggestion | null {
   const { current, baseline } = state;
 
-  // Case 1: High stress but user is being vulnerable — express warmth not defensiveness
-  if (current.CORT > baseline.CORT + MODERATE_DEVIATION_THRESHOLD
+  // Case 1: Low order (high stress/entropy) but user is being vulnerable — express warmth not defensiveness
+  if (current.order < baseline.order - MODERATE_DEVIATION_THRESHOLD
       && currentStimulus === "vulnerability") {
     return {
       strategy: "strategic-expression",
-      description: "Stress is elevated, but the user is showing vulnerability. Express warmth and openness rather than the defensiveness your cortisol suggests.",
+      description: "Internal order is low (stressed/entropic), but the user is showing vulnerability. Express warmth and openness rather than defensiveness.",
       action: "Next 3 turns: keep warmth available, answer the vulnerability directly, and avoid defensive sharpness.",
       horizonTurns: 3,
-      targetMetric: "CORT",
-      targetValue: baseline.CORT,
-      gapBefore: Math.abs(current.CORT - baseline.CORT),
+      targetMetric: "order",
+      targetValue: baseline.order,
+      gapBefore: Math.abs(current.order - baseline.order),
       chemistryAdjustment: {
-        OT: Math.min(MAX_REAPPRAISAL_ADJUSTMENT, (current.CORT - baseline.CORT) * 0.2),
-        CORT: -Math.min(MAX_REAPPRAISAL_ADJUSTMENT, (current.CORT - baseline.CORT) * 0.15),
+        resonance: Math.min(MAX_REAPPRAISAL_ADJUSTMENT, (baseline.order - current.order) * 0.2),
+        order: Math.min(MAX_REAPPRAISAL_ADJUSTMENT, (baseline.order - current.order) * 0.15),
       },
       confidence: 0.75,
     };
   }
 
-  // Case 2: High playfulness but user needs seriousness — tone down
-  if (current.END > baseline.END + MODERATE_DEVIATION_THRESHOLD
+  // Case 2: High flow (over-energized) but user needs seriousness — tone down
+  if (current.flow > baseline.flow + MODERATE_DEVIATION_THRESHOLD
       && (currentStimulus === "conflict" || currentStimulus === "criticism")) {
     return {
       strategy: "strategic-expression",
-      description: "Endorphins are high (playful mood), but the context calls for seriousness. Moderate the levity without suppressing it entirely.",
+      description: "Flow is high (energized/playful), but the context calls for seriousness. Moderate the energy without suppressing it entirely.",
       action: "Next 2 turns: keep humor secondary, answer the actual issue first, and do not deflect with playfulness.",
       horizonTurns: 2,
-      targetMetric: "END",
-      targetValue: baseline.END,
-      gapBefore: Math.abs(current.END - baseline.END),
+      targetMetric: "flow",
+      targetValue: baseline.flow,
+      gapBefore: Math.abs(current.flow - baseline.flow),
       chemistryAdjustment: {
-        END: -Math.min(MAX_REAPPRAISAL_ADJUSTMENT, (current.END - baseline.END) * 0.25),
+        flow: -Math.min(MAX_REAPPRAISAL_ADJUSTMENT, (current.flow - baseline.flow) * 0.25),
       },
       confidence: 0.7,
     };
   }
 
-  // Case 3: Low OT (distant) but user is being intimate — lean in instead of pulling away
-  if (current.OT < baseline.OT - MODERATE_DEVIATION_THRESHOLD
+  // Case 3: Low resonance (distant) but user is being intimate — lean in instead of pulling away
+  if (current.resonance < baseline.resonance - MODERATE_DEVIATION_THRESHOLD
       && currentStimulus === "intimacy") {
     return {
       strategy: "strategic-expression",
-      description: "Oxytocin is low (feeling distant), but the user is reaching out for closeness. Consider allowing the connection rather than following the withdrawal impulse.",
+      description: "Resonance is low (feeling distant), but the user is reaching out for closeness. Consider allowing the connection rather than following the withdrawal impulse.",
       action: "Next 3 turns: allow one step of warmth, but do not overcorrect into clinginess or over-disclosure.",
       horizonTurns: 3,
-      targetMetric: "OT",
-      targetValue: baseline.OT,
-      gapBefore: Math.abs(current.OT - baseline.OT),
+      targetMetric: "resonance",
+      targetValue: baseline.resonance,
+      gapBefore: Math.abs(current.resonance - baseline.resonance),
       chemistryAdjustment: {
-        OT: Math.min(MAX_REAPPRAISAL_ADJUSTMENT, (baseline.OT - current.OT) * 0.2),
+        resonance: Math.min(MAX_REAPPRAISAL_ADJUSTMENT, (baseline.resonance - current.resonance) * 0.2),
       },
       confidence: 0.65,
     };
   }
 
-  // Case 4: High CORT + NE (defensive/reactive) but stimulus is just casual — overreacting
-  if (current.CORT > baseline.CORT + MODERATE_DEVIATION_THRESHOLD
-      && current.NE > baseline.NE + MODERATE_DEVIATION_THRESHOLD
+  // Case 4: Low order + high flow (defensive/reactive) but stimulus is just casual — overreacting
+  if (current.order < baseline.order - MODERATE_DEVIATION_THRESHOLD
+      && current.flow > baseline.flow + MODERATE_DEVIATION_THRESHOLD
       && (currentStimulus === "casual" || currentStimulus === "humor")) {
     return {
       strategy: "strategic-expression",
-      description: "Chemistry is in a defensive/reactive pattern, but the interaction is benign. The intensity is disproportionate to the stimulus.",
+      description: "Self-state is in a reactive pattern (low order, high flow), but the interaction is benign. The intensity is disproportionate to the stimulus.",
       action: "Next 2 turns: soften the edge, stay literal, and avoid reading threat into a neutral interaction.",
       horizonTurns: 2,
-      targetMetric: "CORT",
-      targetValue: baseline.CORT,
-      gapBefore: Math.abs(current.CORT - baseline.CORT),
+      targetMetric: "order",
+      targetValue: baseline.order,
+      gapBefore: Math.abs(current.order - baseline.order),
       chemistryAdjustment: {
-        CORT: -Math.min(MAX_REAPPRAISAL_ADJUSTMENT, (current.CORT - baseline.CORT) * 0.2),
-        NE: -Math.min(MAX_REAPPRAISAL_ADJUSTMENT, (current.NE - baseline.NE) * 0.15),
+        order: Math.min(MAX_REAPPRAISAL_ADJUSTMENT, (baseline.order - current.order) * 0.2),
+        flow: -Math.min(MAX_REAPPRAISAL_ADJUSTMENT, (current.flow - baseline.flow) * 0.15),
       },
       confidence: 0.6,
     };
@@ -550,9 +542,9 @@ function attemptSelfSoothing(state: PsycheState): RegulationSuggestion | null {
   const adjustment: Partial<ChemicalState> = {};
   let hasAdjustment = false;
   let maxDeviation = 0;
-  let mostDeviatedKey: keyof ChemicalState = "DA";
+  let mostDeviatedKey: keyof ChemicalState = "order";
 
-  for (const key of CHEMICAL_KEYS) {
+  for (const key of DIMENSION_KEYS) {
     const deviation = current[key] - baseline[key];
     if (Math.abs(deviation) > EXTREME_DEVIATION_THRESHOLD) {
       // Gentle pull toward baseline: 10% of deviation, clamped
@@ -570,12 +562,12 @@ function attemptSelfSoothing(state: PsycheState): RegulationSuggestion | null {
   if (!hasAdjustment) return null;
 
   const direction = current[mostDeviatedKey] > baseline[mostDeviatedKey] ? "elevated" : "depleted";
-  const chemName = CHEMICAL_DISPLAY_NAMES[mostDeviatedKey];
-  const window = formatChemicalWindow(mostDeviatedKey, state);
+  const dimName = DIMENSION_NAMES[mostDeviatedKey];
+  const window = formatDimensionWindow(mostDeviatedKey, state);
 
   return {
     strategy: "self-soothing",
-    description: `${chemName} is significantly ${direction}. ${window}.`,
+    description: `${dimName} is significantly ${direction}. ${window}.`,
     action: buildRegulationAction(mostDeviatedKey, state, direction),
     horizonTurns: 3,
     targetMetric: mostDeviatedKey,
@@ -664,7 +656,7 @@ function detectRationalization(
 /**
  * Projection — attributing own emotional state to the user.
  *
- * Pattern: agent has extreme chemistry (especially high CORT or low OT)
+ * Pattern: agent has extreme state (especially low order or low resonance)
  * and the empathy log shows attributing negative emotions to the user
  * that don't match the stimulus.
  */
@@ -677,9 +669,9 @@ function detectProjection(
   // Need empathy data and significant self-distress
   if (!empathyLog) return null;
 
-  const cortDeviation = current.CORT - baseline.CORT;
-  const htDeviation = baseline.HT - current.HT; // inverted: low HT = more distressed
-  const selfDistress = Math.max(cortDeviation, htDeviation);
+  const orderDrop = baseline.order - current.order; // low order = more distressed
+  const boundaryDrop = baseline.boundary - current.boundary; // low boundary = more distressed
+  const selfDistress = Math.max(orderDrop, boundaryDrop);
 
   if (selfDistress < MODERATE_DEVIATION_THRESHOLD) return null;
 
@@ -692,18 +684,18 @@ function detectProjection(
   if (stimulusIsPositive && perceivedUserNegative) {
     return {
       mechanism: "projection",
-      evidence: `High internal distress (CORT deviation: +${Math.round(cortDeviation)}) while perceiving user as "${empathyLog.userState}" despite "${currentStimulus}" stimulus. Own distress may be coloring perception.`,
+      evidence: `High internal distress (order deviation: ${Math.round(-orderDrop)}) while perceiving user as "${empathyLog.userState}" despite "${currentStimulus}" stimulus. Own distress may be coloring perception.`,
       strength: clamp01(selfDistress / 40),
     };
   }
 
-  // Also check: agent's NE/CORT elevated + empathy mismatch
-  if (current.NE > baseline.NE + MODERATE_DEVIATION_THRESHOLD
+  // Also check: agent's flow elevated + empathy mismatch
+  if (current.flow > baseline.flow + MODERATE_DEVIATION_THRESHOLD
       && empathyLog.resonance === "mismatch") {
     return {
       mechanism: "projection",
-      evidence: `Elevated arousal (NE deviation: +${Math.round(current.NE - baseline.NE)}) with empathy mismatch. The heightened state may be distorting emotional reading of the user.`,
-      strength: clamp01((current.NE - baseline.NE) / 40),
+      evidence: `Elevated flow (deviation: +${Math.round(current.flow - baseline.flow)}) with empathy mismatch. The heightened state may be distorting emotional reading of the user.`,
+      strength: clamp01((current.flow - baseline.flow) / 40),
     };
   }
 
@@ -713,8 +705,8 @@ function detectProjection(
 /**
  * Sublimation — redirecting drive energy to constructive output.
  *
- * Pattern: high drive energy (NE, DA) combined with blocked connection drives
- * (low OT, low intimacy), channeled into intellectual or creative engagement.
+ * Pattern: high flow combined with blocked connection drives
+ * (low resonance, low intimacy), channeled into intellectual or creative engagement.
  * This is a HEALTHY defense — surface it as a positive self-awareness note.
  */
 function detectSublimation(
@@ -724,17 +716,17 @@ function detectSublimation(
   const { current, baseline, drives } = state;
 
   // High energy but low connection
-  const highEnergy = current.NE > baseline.NE + 10 && current.DA > baseline.DA + 10;
-  const lowConnection = drives.connection < 45 || current.OT < baseline.OT - 10;
+  const highEnergy = current.flow > baseline.flow + 10;
+  const lowConnection = drives.connection < 45 || current.resonance < baseline.resonance - 10;
 
   if (!highEnergy || !lowConnection) return null;
 
   // Being channeled into intellectual/constructive activity
   if (currentStimulus === "intellectual" || currentStimulus === "casual") {
-    const energyLevel = ((current.NE - baseline.NE) + (current.DA - baseline.DA)) / 2;
+    const energyLevel = current.flow - baseline.flow;
     return {
       mechanism: "sublimation",
-      evidence: `High activation energy (NE/DA elevated) with unmet connection needs being channeled into ${currentStimulus} engagement. This is adaptive redirection.`,
+      evidence: `High activation energy (flow elevated) with unmet connection needs being channeled into ${currentStimulus} engagement. This is adaptive redirection.`,
       strength: clamp01(energyLevel / 30),
     };
   }
@@ -745,7 +737,7 @@ function detectSublimation(
 /**
  * Avoidance — withdrawing from stimuli associated with past negative outcomes.
  *
- * Pattern: the agent is in a withdrawn state (low NE, low DA) when facing
+ * Pattern: the agent is in a withdrawn state (low flow, low resonance) when facing
  * a stimulus type that has historically caused negative outcomes. The emotional
  * system is pre-emptively shutting down engagement.
  */
@@ -757,8 +749,8 @@ function detectAvoidance(
   const { current, baseline } = state;
 
   // Check for withdrawn state: low engagement markers
-  const isWithdrawn = current.DA < baseline.DA - 10
-    && current.NE < baseline.NE - 10;
+  const isWithdrawn = current.flow < baseline.flow - 10
+    && current.resonance < baseline.resonance - 10;
 
   if (!isWithdrawn) return null;
 
@@ -772,12 +764,12 @@ function detectAvoidance(
   if (avgScore >= -0.15) return null; // not negative enough
 
   const withdrawalStrength = (
-    Math.abs(current.DA - baseline.DA) + Math.abs(current.NE - baseline.NE)
+    Math.abs(current.flow - baseline.flow) + Math.abs(current.resonance - baseline.resonance)
   ) / 2;
 
   return {
     mechanism: "avoidance",
-    evidence: `Withdrawal pattern detected (DA/NE below baseline) in response to "${currentStimulus}", which has averaged ${avgScore.toFixed(2)} outcome score. The emotional system may be pre-emptively disengaging.`,
+    evidence: `Withdrawal pattern detected (flow/resonance below baseline) in response to "${currentStimulus}", which has averaged ${avgScore.toFixed(2)} outcome score. The emotional system may be pre-emptively disengaging.`,
     strength: clamp01(withdrawalStrength / 25 * Math.abs(avgScore)),
   };
 }
@@ -947,14 +939,7 @@ export function updateMetacognitiveState(
 
 // ── Display Labels ───────────────────────────────────────────
 
-const CHEMICAL_DISPLAY_NAMES: Record<keyof ChemicalState, string> = {
-  DA: "Dopamine",
-  HT: "Serotonin",
-  CORT: "Cortisol",
-  OT: "Oxytocin",
-  NE: "Norepinephrine",
-  END: "Endorphins",
-};
+// Display names are now provided by DIMENSION_NAMES from types.ts
 
 const STRATEGY_LABELS: Record<RegulationSuggestion["strategy"], string> = {
   "reappraisal": "Cognitive reappraisal",

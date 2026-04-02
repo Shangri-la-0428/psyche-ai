@@ -59,8 +59,8 @@ export function extractContextFeatures(
   const relationshipPhase: RelationshipState["phase"] =
     relationship?.phase ?? "stranger";
 
-  // Recent stimuli from emotional history (last 3)
-  const recentStimuli: StimulusType[] = state.emotionalHistory
+  // Recent stimuli from state history (last 3)
+  const recentStimuli: StimulusType[] = state.stateHistory
     .slice(-3)
     .map((snap) => snap.stimulus)
     .filter((s): s is StimulusType => s !== null);

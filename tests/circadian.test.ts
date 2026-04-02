@@ -8,13 +8,13 @@ import {
   computeEnergyRecovery,
   type CircadianPhase,
 } from "../src/circadian.js";
-import type { ChemicalState, EnergyBudgets } from "../src/types.js";
+import type { SelfState, EnergyBudgets } from "../src/types.js";
 import { DEFAULT_ENERGY_BUDGETS } from "../src/types.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
-function makeBaseline(): ChemicalState {
-  return { DA: 50, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 };
+function makeBaseline(): SelfState {
+  return { flow: 50, order: 50, boundary: 50, resonance: 50 };
 }
 
 /** Create a Date at a specific hour (0-23) today */
@@ -59,10 +59,10 @@ describe("getCircadianPhase", () => {
 describe("computeCircadianModulation", () => {
   const baseline = makeBaseline();
 
-  it("returns a valid ChemicalState with all values in [0, 100]", () => {
+  it("returns a valid SelfState with all values in [0, 100]", () => {
     for (let h = 0; h < 24; h++) {
       const mod = computeCircadianModulation(atHour(h), baseline);
-      for (const key of ["DA", "HT", "CORT", "OT", "NE", "END"] as const) {
+      for (const key of ["flow", "order", "boundary", "resonance", "flow", "resonance"] as const) {
         assert.ok(mod[key] >= 0 && mod[key] <= 100,
           `${key} at hour ${h} = ${mod[key]} should be in [0, 100]`);
       }
@@ -73,39 +73,39 @@ describe("computeCircadianModulation", () => {
   it("CORT is higher in the morning than at midnight", () => {
     const morning = computeCircadianModulation(atHour(8), baseline);
     const midnight = computeCircadianModulation(atHour(0), baseline);
-    assert.ok(morning.CORT > midnight.CORT,
-      `Morning CORT ${morning.CORT} should > midnight CORT ${midnight.CORT}`);
+    assert.ok(morning.boundary > midnight.boundary,
+      `Morning CORT ${morning.boundary} should > midnight CORT ${midnight.boundary}`);
   });
 
   // Serotonin: higher during daytime (9-17)
   it("HT is higher at noon than at midnight", () => {
     const noon = computeCircadianModulation(atHour(12), baseline);
     const midnight = computeCircadianModulation(atHour(0), baseline);
-    assert.ok(noon.HT > midnight.HT,
-      `Noon HT ${noon.HT} should > midnight HT ${midnight.HT}`);
+    assert.ok(noon.order > midnight.order,
+      `Noon HT ${noon.order} should > midnight HT ${midnight.order}`);
   });
 
   // Norepinephrine: morning rise, evening decline
   it("NE is higher in the morning than in the evening", () => {
     const morning = computeCircadianModulation(atHour(8), baseline);
     const evening = computeCircadianModulation(atHour(21), baseline);
-    assert.ok(morning.NE > evening.NE,
-      `Morning NE ${morning.NE} should > evening NE ${evening.NE}`);
+    assert.ok(morning.flow > evening.flow,
+      `Morning NE ${morning.flow} should > evening NE ${evening.flow}`);
   });
 
   // Endorphins: slight evening rise (social hours)
   it("END is higher in the evening than early morning", () => {
     const evening = computeCircadianModulation(atHour(20), baseline);
     const earlyMorning = computeCircadianModulation(atHour(6), baseline);
-    assert.ok(evening.END >= earlyMorning.END,
-      `Evening END ${evening.END} should >= early morning END ${earlyMorning.END}`);
+    assert.ok(evening.resonance >= earlyMorning.resonance,
+      `Evening END ${evening.resonance} should >= early morning END ${earlyMorning.resonance}`);
   });
 
   // Modulations are subtle — max ±8 from baseline
   it("modulations are subtle (max ±10 from baseline)", () => {
     for (let h = 0; h < 24; h++) {
       const mod = computeCircadianModulation(atHour(h), baseline);
-      for (const key of ["DA", "HT", "CORT", "OT", "NE", "END"] as const) {
+      for (const key of ["flow", "order", "boundary", "resonance", "flow", "resonance"] as const) {
         const delta = Math.abs(mod[key] - baseline[key]);
         assert.ok(delta <= 10,
           `${key} at hour ${h}: delta ${delta} should be <= 10`);
@@ -115,13 +115,13 @@ describe("computeCircadianModulation", () => {
 
   // Different baselines produce different modulations (not hardcoded absolute values)
   it("respects different baselines", () => {
-    const highBaseline: ChemicalState = { DA: 80, HT: 80, CORT: 80, OT: 80, NE: 80, END: 80 };
-    const lowBaseline: ChemicalState = { DA: 20, HT: 20, CORT: 20, OT: 20, NE: 20, END: 20 };
+    const highBaseline: SelfState = { flow: 80, order: 80, boundary: 80, resonance: 80 };
+    const lowBaseline: SelfState = { flow: 20, order: 20, boundary: 20, resonance: 20 };
     const highMod = computeCircadianModulation(atHour(12), highBaseline);
     const lowMod = computeCircadianModulation(atHour(12), lowBaseline);
     // High baseline should produce higher modulated values
-    assert.ok(highMod.DA > lowMod.DA,
-      `High baseline DA ${highMod.DA} should > low baseline DA ${lowMod.DA}`);
+    assert.ok(highMod.flow > lowMod.flow,
+      `High baseline DA ${highMod.flow} should > low baseline DA ${lowMod.flow}`);
   });
 
   // Continuous — no sudden jumps between adjacent hours
@@ -129,7 +129,7 @@ describe("computeCircadianModulation", () => {
     for (let h = 0; h < 23; h++) {
       const a = computeCircadianModulation(atHour(h), baseline);
       const b = computeCircadianModulation(atHour(h + 1), baseline);
-      for (const key of ["DA", "HT", "CORT", "OT", "NE", "END"] as const) {
+      for (const key of ["flow", "order", "boundary", "resonance", "flow", "resonance"] as const) {
         const jump = Math.abs(a[key] - b[key]);
         assert.ok(jump <= 5,
           `${key} jump from hour ${h} to ${h + 1} = ${jump} should be <= 5`);
@@ -139,10 +139,10 @@ describe("computeCircadianModulation", () => {
 
   // Edge: baseline at 0 should not go negative
   it("clamps at 0 for zero baseline", () => {
-    const zeroBaseline: ChemicalState = { DA: 0, HT: 0, CORT: 0, OT: 0, NE: 0, END: 0 };
+    const zeroBaseline: SelfState = { flow: 0, order: 0, boundary: 0, resonance: 0 };
     for (let h = 0; h < 24; h++) {
       const mod = computeCircadianModulation(atHour(h), zeroBaseline);
-      for (const key of ["DA", "HT", "CORT", "OT", "NE", "END"] as const) {
+      for (const key of ["flow", "order", "boundary", "resonance", "flow", "resonance"] as const) {
         assert.ok(mod[key] >= 0, `${key} at hour ${h} = ${mod[key]} should be >= 0`);
       }
     }
@@ -150,10 +150,10 @@ describe("computeCircadianModulation", () => {
 
   // Edge: baseline at 100 should not exceed 100
   it("clamps at 100 for max baseline", () => {
-    const maxBaseline: ChemicalState = { DA: 100, HT: 100, CORT: 100, OT: 100, NE: 100, END: 100 };
+    const maxBaseline: SelfState = { flow: 100, order: 100, boundary: 100, resonance: 100 };
     for (let h = 0; h < 24; h++) {
       const mod = computeCircadianModulation(atHour(h), maxBaseline);
-      for (const key of ["DA", "HT", "CORT", "OT", "NE", "END"] as const) {
+      for (const key of ["flow", "order", "boundary", "resonance", "flow", "resonance"] as const) {
         assert.ok(mod[key] <= 100, `${key} at hour ${h} = ${mod[key]} should be <= 100`);
       }
     }
@@ -165,24 +165,24 @@ describe("computeCircadianModulation", () => {
 describe("computeHomeostaticPressure", () => {
   it("returns zero pressure for short sessions (< 30 min)", () => {
     const pressure = computeHomeostaticPressure(15);
-    assert.equal(pressure.cortAccumulation, 0);
-    assert.equal(pressure.daDepletion, 0);
-    assert.equal(pressure.neDepletion, 0);
+    assert.equal(pressure.orderDepletion, 0);
+    assert.equal(pressure.flowDepletion, 0);
+    assert.equal(pressure.boundaryStiffening, 0);
   });
 
   it("returns moderate pressure for 1-hour session", () => {
     const pressure = computeHomeostaticPressure(60);
-    assert.ok(pressure.cortAccumulation > 0, "CORT should accumulate");
-    assert.ok(pressure.daDepletion > 0, "DA should deplete");
-    assert.ok(pressure.neDepletion > 0, "NE should deplete");
+    assert.ok(pressure.orderDepletion > 0, "CORT should accumulate");
+    assert.ok(pressure.flowDepletion > 0, "DA should deplete");
+    assert.ok(pressure.boundaryStiffening > 0, "NE should deplete");
   });
 
   it("returns higher pressure for longer sessions", () => {
     const short = computeHomeostaticPressure(60);
     const long = computeHomeostaticPressure(180);
-    assert.ok(long.cortAccumulation > short.cortAccumulation,
+    assert.ok(long.orderDepletion > short.orderDepletion,
       "Longer session should have more CORT accumulation");
-    assert.ok(long.daDepletion > short.daDepletion,
+    assert.ok(long.flowDepletion > short.flowDepletion,
       "Longer session should have more DA depletion");
   });
 
@@ -190,24 +190,24 @@ describe("computeHomeostaticPressure", () => {
     const veryLong = computeHomeostaticPressure(600); // 10 hours
     const extreme = computeHomeostaticPressure(1440); // 24 hours
     // Should not double — diminishing returns
-    assert.ok(extreme.cortAccumulation < veryLong.cortAccumulation * 2,
+    assert.ok(extreme.orderDepletion < veryLong.orderDepletion * 2,
       "Pressure should have diminishing returns");
   });
 
   it("returns all non-negative values", () => {
     for (const mins of [0, 10, 30, 60, 120, 300, 600]) {
       const pressure = computeHomeostaticPressure(mins);
-      assert.ok(pressure.cortAccumulation >= 0);
-      assert.ok(pressure.daDepletion >= 0);
-      assert.ok(pressure.neDepletion >= 0);
+      assert.ok(pressure.orderDepletion >= 0);
+      assert.ok(pressure.flowDepletion >= 0);
+      assert.ok(pressure.boundaryStiffening >= 0);
     }
   });
 
   it("zero minutes returns zero pressure", () => {
     const pressure = computeHomeostaticPressure(0);
-    assert.equal(pressure.cortAccumulation, 0);
-    assert.equal(pressure.daDepletion, 0);
-    assert.equal(pressure.neDepletion, 0);
+    assert.equal(pressure.orderDepletion, 0);
+    assert.equal(pressure.flowDepletion, 0);
+    assert.equal(pressure.boundaryStiffening, 0);
   });
 });
 
@@ -218,29 +218,29 @@ describe("circadian integration scenarios", () => {
 
   it("morning agent feels alert: higher CORT and NE", () => {
     const mod = computeCircadianModulation(atHour(8), baseline);
-    assert.ok(mod.CORT > baseline.CORT, "Morning CORT should be above baseline");
-    assert.ok(mod.NE > baseline.NE, "Morning NE should be above baseline");
+    assert.ok(mod.boundary > baseline.boundary, "Morning CORT should be above baseline");
+    assert.ok(mod.flow > baseline.flow, "Morning NE should be above baseline");
   });
 
   it("evening agent feels warm and mellow: higher OT and END, lower NE", () => {
     const mod = computeCircadianModulation(atHour(20), baseline);
-    assert.ok(mod.OT >= baseline.OT, "Evening OT should be >= baseline");
-    assert.ok(mod.END >= baseline.END, "Evening END should be >= baseline");
+    assert.ok(mod.resonance >= baseline.resonance, "Evening OT should be >= baseline");
+    assert.ok(mod.resonance >= baseline.resonance, "Evening END should be >= baseline");
   });
 
   it("late night agent feels depleted: lower DA and NE", () => {
     const mod = computeCircadianModulation(atHour(3), baseline);
-    assert.ok(mod.DA <= baseline.DA, "Late night DA should be <= baseline");
-    assert.ok(mod.NE < baseline.NE, "Late night NE should be below baseline");
+    assert.ok(mod.flow <= baseline.flow, "Late night DA should be <= baseline");
+    assert.ok(mod.flow < baseline.flow, "Late night NE should be below baseline");
   });
 
   it("exhausted agent (long session + late night) is significantly depleted", () => {
     const mod = computeCircadianModulation(atHour(3), baseline);
     const pressure = computeHomeostaticPressure(240); // 4 hours
-    const finalDA = Math.max(0, mod.DA - pressure.daDepletion);
-    const finalCORT = Math.min(100, mod.CORT + pressure.cortAccumulation);
-    assert.ok(finalDA < baseline.DA - 5, "Exhausted agent DA should be noticeably below baseline");
-    assert.ok(finalCORT > baseline.CORT || pressure.cortAccumulation > 0,
+    const finalDA = Math.max(0, mod.flow - pressure.flowDepletion);
+    const finalCORT = Math.min(100, mod.boundary + pressure.orderDepletion);
+    assert.ok(finalDA < baseline.flow - 5, "Exhausted agent DA should be noticeably below baseline");
+    assert.ok(finalCORT > baseline.boundary || pressure.orderDepletion > 0,
       "Exhausted agent should have CORT pressure");
   });
 });

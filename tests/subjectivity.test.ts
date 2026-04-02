@@ -13,14 +13,14 @@ function makeState(overrides: Partial<PsycheState> = {}): PsycheState {
     version: 9,
     mbti: "INFJ",
     sensitivity: 1.0,
-    baseline: { DA: 55, HT: 60, CORT: 35, OT: 60, NE: 45, END: 50 },
-    current: { DA: 55, HT: 60, CORT: 35, OT: 60, NE: 45, END: 50 },
+    baseline: { order: 60, flow: 55, boundary: 35, resonance: 60 },
+    current: { order: 60, flow: 55, boundary: 35, resonance: 60 },
     drives: { ...DEFAULT_DRIVES },
     updatedAt: now,
     relationships: { _default: { ...DEFAULT_RELATIONSHIP } },
     empathyLog: null,
     selfModel: { values: [], preferences: [], boundaries: [], currentInterests: [] },
-    emotionalHistory: [],
+    stateHistory: [],
     agreementStreak: 0,
     lastDisagreement: null,
     learning: { ...DEFAULT_LEARNING_STATE },
@@ -45,7 +45,7 @@ describe("computeSubjectivityKernel", () => {
 
   it("detects guarded threat-oriented state under high stress", () => {
     const kernel = computeSubjectivityKernel(makeState({
-      current: { DA: 30, HT: 35, CORT: 92, OT: 30, NE: 75, END: 25 },
+      current: { order: 35, flow: 30, boundary: 92, resonance: 30 },
       drives: { survival: 25, safety: 20, connection: 35, esteem: 40, curiosity: 45 },
       autonomicState: "sympathetic",
     }));
@@ -56,7 +56,7 @@ describe("computeSubjectivityKernel", () => {
 
   it("detects warm socially open state when trust and oxytocin are high", () => {
     const kernel = computeSubjectivityKernel(makeState({
-      current: { DA: 78, HT: 72, CORT: 20, OT: 90, NE: 62, END: 66 },
+      current: { order: 72, flow: 78, boundary: 20, resonance: 90 },
       relationships: { _default: { trust: 88, intimacy: 78, phase: "close" } },
       drives: { survival: 80, safety: 78, connection: 84, esteem: 74, curiosity: 72 },
     }));
@@ -166,7 +166,7 @@ describe("buildSubjectivityContext", () => {
 
   it("includes confirmation language when boundary mode is confirm-first", () => {
     const kernel = computeSubjectivityKernel(makeState({
-      current: { DA: 28, HT: 32, CORT: 90, OT: 25, NE: 70, END: 20 },
+      current: { order: 32, flow: 28, boundary: 90, resonance: 25 },
       drives: { survival: 18, safety: 20, connection: 30, esteem: 35, curiosity: 40 },
       autonomicState: "dorsal-vagal",
     }));

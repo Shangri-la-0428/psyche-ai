@@ -1,6 +1,6 @@
 {
   "name": "psyche-ai",
-  "version": "10.2.5",
+  "version": "11.0.0",
   "description": "AI-first subjectivity kernel for agents with continuous appraisal, relation dynamics, and adaptive reply loops",
   "mcpName": "io.github.Shangri-la-0428/psyche-ai",
   "type": "module",

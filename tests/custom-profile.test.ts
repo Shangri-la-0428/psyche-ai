@@ -7,7 +7,7 @@ import {
 } from "../src/custom-profile.js";
 import type { CustomProfileConfig, ResolvedProfile } from "../src/custom-profile.js";
 import { getBaseline, getDefaultSelfModel, getSensitivity } from "../src/profiles.js";
-import { CHEMICAL_KEYS, DRIVE_KEYS, DEFAULT_DRIVES } from "../src/types.js";
+import { DIMENSION_KEYS, DRIVE_KEYS, DEFAULT_DRIVES } from "../src/types.js";
 import type { MBTIType } from "../src/types.js";
 
 // ── createCustomProfile: baseline merging ───────────────────
@@ -17,24 +17,22 @@ describe("createCustomProfile baseline merging", () => {
     const profile = createCustomProfile({
       name: "test",
       baseMBTI: "ENTJ",
-      baseline: { DA: 90, CORT: 10 },
+      baseline: { flow: 90, boundary: 10 },
     });
     const entjBase = getBaseline("ENTJ");
 
-    assert.equal(profile.baseline.DA, 90);
-    assert.equal(profile.baseline.CORT, 10);
+    assert.equal(profile.baseline.flow, 90);
+    assert.equal(profile.baseline.boundary, 10);
     // Non-overridden values come from ENTJ base
-    assert.equal(profile.baseline.HT, entjBase.HT);
-    assert.equal(profile.baseline.OT, entjBase.OT);
-    assert.equal(profile.baseline.NE, entjBase.NE);
-    assert.equal(profile.baseline.END, entjBase.END);
+    assert.equal(profile.baseline.order, entjBase.order);
+    assert.equal(profile.baseline.resonance, entjBase.resonance);
   });
 
   it("uses INFJ as default base when baseMBTI not specified", () => {
     const profile = createCustomProfile({ name: "default-base" });
     const infjBase = getBaseline("INFJ");
 
-    for (const key of CHEMICAL_KEYS) {
+    for (const key of DIMENSION_KEYS) {
       assert.equal(profile.baseline[key], infjBase[key],
         `${key} should match INFJ baseline`);
     }
@@ -44,11 +42,11 @@ describe("createCustomProfile baseline merging", () => {
   it("clamps baseline values to [0, 100]", () => {
     const profile = createCustomProfile({
       name: "clamped",
-      baseline: { DA: 150, HT: -20, CORT: 50 },
+      baseline: { flow: 150, order: -20, boundary: 50 },
     });
-    assert.equal(profile.baseline.DA, 100);
-    assert.equal(profile.baseline.HT, 0);
-    assert.equal(profile.baseline.CORT, 50);
+    assert.equal(profile.baseline.flow, 100);
+    assert.equal(profile.baseline.order, 0);
+    assert.equal(profile.baseline.boundary, 50);
   });
 
   it("preserves all MBTI base values when no baseline override given", () => {
@@ -56,7 +54,7 @@ describe("createCustomProfile baseline merging", () => {
     for (const mbti of types) {
       const profile = createCustomProfile({ name: `test-${mbti}`, baseMBTI: mbti });
       const base = getBaseline(mbti);
-      for (const key of CHEMICAL_KEYS) {
+      for (const key of DIMENSION_KEYS) {
         assert.equal(profile.baseline[key], base[key],
           `${mbti}.${key} should be preserved`);
       }
@@ -216,7 +214,7 @@ describe("createCustomProfile full override", () => {
       name: "full-override",
       description: "Everything customized",
       baseMBTI: "ESTP",
-      baseline: { DA: 80, HT: 70, CORT: 15, OT: 50, NE: 60, END: 85 },
+      baseline: { order: 70, flow: 80, boundary: 15, resonance: 50 },
       sensitivity: {
         praise: 2.0,
         criticism: 0.5,
@@ -256,8 +254,8 @@ describe("createCustomProfile full override", () => {
     assert.equal(profile.name, "full-override");
     assert.equal(profile.description, "Everything customized");
     assert.equal(profile.baseMBTI, "ESTP");
-    assert.equal(profile.baseline.DA, 80);
-    assert.equal(profile.baseline.END, 85);
+    assert.equal(profile.baseline.flow, 80);
+    assert.equal(profile.baseline.resonance, 50);
     assert.equal(profile.sensitivityMap.praise, 2.0);
     assert.equal(profile.sensitivityMap.vulnerability, 1.2);
     assert.equal(profile.temperament.expressiveness, 0.85);
@@ -310,11 +308,11 @@ describe("validateProfileConfig", () => {
   it("catches out-of-range baseline values", () => {
     const result = validateProfileConfig({
       name: "test",
-      baseline: { DA: 150, HT: -10 },
+      baseline: { flow: 150, order: -10 },
     });
     assert.equal(result.valid, false);
-    assert.ok(result.errors.some(e => e.includes("DA")));
-    assert.ok(result.errors.some(e => e.includes("HT")));
+    assert.ok(result.errors.some(e => e.includes("flow")));
+    assert.ok(result.errors.some(e => e.includes("order")));
   });
 
   it("catches invalid baseline keys", () => {
@@ -329,10 +327,10 @@ describe("validateProfileConfig", () => {
   it("catches non-number baseline values", () => {
     const result = validateProfileConfig({
       name: "test",
-      baseline: { DA: "high" },
+      baseline: { flow: "high" },
     });
     assert.equal(result.valid, false);
-    assert.ok(result.errors.some(e => e.includes("DA")));
+    assert.ok(result.errors.some(e => e.includes("flow")));
   });
 
   it("catches out-of-range sensitivity values", () => {
@@ -405,7 +403,7 @@ describe("validateProfileConfig", () => {
       name: "valid-complex",
       description: "A fully valid config",
       baseMBTI: "ENFP",
-      baseline: { DA: 80, HT: 60 },
+      baseline: { flow: 80, order: 60 },
       sensitivity: { praise: 2.0, intellectual: 1.5 },
       temperament: { expressiveness: 0.8, volatility: 0.3, resilience: 0.9 },
       selfModel: { values: ["a", "b"], preferences: ["c"] },
@@ -419,7 +417,7 @@ describe("validateProfileConfig", () => {
     const result = validateProfileConfig({
       name: "",
       baseMBTI: "INVALID",
-      baseline: { DA: 200 },
+      baseline: { flow: 200 },
       temperament: { expressiveness: 5.0 },
     });
     assert.equal(result.valid, false);
@@ -443,7 +441,7 @@ describe("preset profiles", () => {
       const profile = createCustomProfile(config as CustomProfileConfig);
       assert.equal(profile.name, name);
       // All baseline values in [0, 100]
-      for (const key of CHEMICAL_KEYS) {
+      for (const key of DIMENSION_KEYS) {
         assert.ok(profile.baseline[key] >= 0 && profile.baseline[key] <= 100,
           `${name}.baseline.${key} = ${profile.baseline[key]}`);
       }
@@ -459,10 +457,10 @@ describe("preset profiles", () => {
     }
   });
 
-  it("cheerful has high DA and END, high expressiveness, low volatility", () => {
+  it("cheerful has high flow and resonance, high expressiveness, low volatility", () => {
     const profile = createCustomProfile(PRESET_PROFILES.cheerful as CustomProfileConfig);
-    assert.ok(profile.baseline.DA >= 75, `DA should be high, got ${profile.baseline.DA}`);
-    assert.ok(profile.baseline.END >= 70, `END should be high, got ${profile.baseline.END}`);
+    assert.ok(profile.baseline.flow >= 75, `flow should be high, got ${profile.baseline.flow}`);
+    assert.ok(profile.baseline.resonance >= 70, `resonance should be high, got ${profile.baseline.resonance}`);
     assert.ok(profile.temperament.expressiveness >= 0.8, "expressiveness should be high");
     assert.ok(profile.temperament.volatility <= 0.3, "volatility should be low");
   });
@@ -476,16 +474,16 @@ describe("preset profiles", () => {
     assert.ok(lowSensCount >= 8, `Most sensitivities should be narrow, got ${lowSensCount} below 1.0`);
   });
 
-  it("empathetic has high OT and high sensitivity to intimacy/vulnerability", () => {
+  it("empathetic has high resonance and high sensitivity to intimacy/vulnerability", () => {
     const profile = createCustomProfile(PRESET_PROFILES.empathetic as CustomProfileConfig);
-    assert.ok(profile.baseline.OT >= 75, `OT should be high, got ${profile.baseline.OT}`);
+    assert.ok(profile.baseline.resonance >= 75, `resonance should be high, got ${profile.baseline.resonance}`);
     assert.ok(profile.sensitivityMap.intimacy >= 2.0, "intimacy sensitivity should be high");
     assert.ok(profile.sensitivityMap.vulnerability >= 2.0, "vulnerability sensitivity should be high");
   });
 
-  it("analytical has high NE and high intellectual sensitivity, low intimacy sensitivity", () => {
+  it("analytical has high flow and high intellectual sensitivity, low intimacy sensitivity", () => {
     const profile = createCustomProfile(PRESET_PROFILES.analytical as CustomProfileConfig);
-    assert.ok(profile.baseline.NE >= 70, `NE should be high, got ${profile.baseline.NE}`);
+    assert.ok(profile.baseline.flow >= 70, `flow should be high, got ${profile.baseline.flow}`);
     assert.ok(profile.sensitivityMap.intellectual >= 2.0, "intellectual sensitivity should be high");
     assert.ok(profile.sensitivityMap.intimacy <= 0.5, "intimacy sensitivity should be low");
   });

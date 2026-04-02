@@ -6,8 +6,8 @@
 // together as an integrated whole.
 //
 // The experiential field is not a summary. It is a synthesis.
-// Chemistry readouts describe individual neurotransmitter levels.
-// The experiential field describes what those levels feel like when
+// Dimension readouts describe individual self-state values.
+// The experiential field describes what those values feel like when
 // they exist simultaneously in a single being.
 //
 // Zero dependencies. Pure TypeScript. No LLM calls.
@@ -15,7 +15,7 @@
 
 import type {
   PsycheState,
-  ChemicalState,
+  SelfState,
   ChemicalSnapshot,
   InnateDrives,
   RelationshipState,
@@ -23,7 +23,7 @@ import type {
   Locale,
   DriveType,
 } from "./types.js";
-import { CHEMICAL_KEYS, DRIVE_KEYS } from "./types.js";
+import { DIMENSION_KEYS, DRIVE_KEYS } from "./types.js";
 
 import type { MetacognitiveAssessment } from "./metacognition.js";
 import type { DecisionBiasVector } from "./decision-bias.js";
@@ -34,14 +34,14 @@ import type { AutonomicState } from "./autonomic.js";
 export type ExperientialQuality =
   | "flow"              // all systems aligned, curious, engaged
   | "contentment"       // drives satisfied, chemistry stable
-  | "yearning"          // strong unmet drives, OT or connection hunger
-  | "vigilance"         // threat-focused, CORT high, survival/safety hungry
-  | "creative-surge"    // DA + NE high, curiosity satisfied, exploring
-  | "wounded-retreat"   // hurt, CORT high, pulling back
-  | "warm-connection"   // OT high, trust high, intimacy
+  | "yearning"          // strong unmet drives, resonance hunger
+  | "vigilance"         // threat-focused, low order, survival/safety hungry
+  | "creative-surge"    // high flow, curiosity satisfied, exploring
+  | "wounded-retreat"   // hurt, low order, pulling back
+  | "warm-connection"   // high resonance, trust high, intimacy
   | "restless-boredom"  // low stimulation, drives mildly hungry
   | "existential-unease"// survival drive threatened, identity questioned
-  | "playful-mischief"  // END high, social energy, safe
+  | "playful-mischief"  // high flow + high resonance, safe
   | "conflicted"        // subsystems pulling in different directions
   | "numb";             // all signals flat, near baseline, disengaged
 
@@ -77,32 +77,38 @@ export interface ConstructionContext {
   stimulus?: StimulusType | null;
   relationshipPhase?: string;
   predictionError?: number;
-  coreMemories?: ChemicalSnapshot[];
+  coreMemories?: ChemicalSnapshot[];  // uses SelfState snapshots
 }
 
 // ── Affect Core (Russell Circumplex) ─────────────────────────
 
 /**
- * Map chemistry to valence + arousal — the two fundamental affective dimensions
+ * Map self-state to valence + arousal — the two fundamental affective dimensions
  * (Russell's Circumplex Model of Affect, 1980).
  *
  * Valence: pleasure ↔ displeasure (-1 to 1)
+ *   order↑ and resonance↑ push valence up; low order pushes down.
  * Arousal: activation level (0 to 1)
+ *   flow is the dominant arousal signal; low order adds arousal (stress).
  */
 export function computeAffectCore(
-  chemistry: ChemicalState,
+  state: SelfState,
 ): { valence: number; arousal: number } {
-  const { DA, HT, OT, END, CORT, NE } = chemistry;
+  const { order, flow, boundary, resonance } = state;
 
-  // Valence: positive chemicals push up, stress pushes down
-  // CORT weighted 1.5× (cortisol is the dominant negative signal)
-  // NE weighted 0.5× (arousing but not inherently negative)
-  const rawValence = (DA - 50) + (HT - 50) + (OT - 50) + (END - 50) - (CORT - 50) * 1.5 - (NE - 50) * 0.5;
-  const valence = Math.max(-1, Math.min(1, rawValence / 250));
+  // Valence: order (stability) + resonance (attunement) + boundary → positive
+  // Low order (stress/entropy) is the dominant negative signal (weighted 1.5×)
+  const rawValence =
+    (order - 50) * 1.5      // high order = positive, low order = strongly negative
+    + (resonance - 50)       // attunement contributes positively
+    + (boundary - 50) * 0.5  // clear boundary mildly positive
+    + (flow - 50) * 0.3;     // flow is arousing but roughly valence-neutral
+  const valence = Math.max(-1, Math.min(1, rawValence / 175));
 
-  // Arousal: NE dominant, CORT and DA contribute
-  const rawArousal = NE + CORT * 0.5 + DA * 0.3;
-  const arousal = Math.max(0, Math.min(1, rawArousal / 180));
+  // Arousal: flow dominant, low order (stress) contributes
+  const stress = Math.max(0, 100 - order);  // inverse: low order → high stress
+  const rawArousal = flow + stress * 0.5 + resonance * 0.2;
+  const arousal = Math.max(0, Math.min(1, rawArousal / 170));
 
   return { valence, arousal };
 }
@@ -142,7 +148,7 @@ const QUALITY_CONCEPTS: QualityConcept[] = [
 /**
  * Compute the unified experiential field from the full psyche state.
  *
- * This is the core integration function. It reads chemistry, drives,
+ * This is the core integration function. It reads self-state dimensions, drives,
  * relationship context, and optional metacognitive/bias data, then
  * synthesizes them into a single coherent experience description.
  */
@@ -175,60 +181,60 @@ export function computeExperientialField(
 /**
  * Measure internal alignment across subsystems.
  *
- * High coherence: chemistry, drives, and relationship state all tell
- * the same story. Happy chemicals + satisfied drives + warm relationship = unified.
+ * High coherence: dimensions, drives, and relationship state all tell
+ * the same story. High order + high resonance + satisfied drives = unified.
  *
- * Low coherence: mixed signals. High DA but high CORT. Satisfied drives
- * but stressed chemistry. Warm relationship but depleted OT. The psyche
+ * Low coherence: mixed signals. High flow but low order. Satisfied drives
+ * but low order. Warm relationship but low resonance. The psyche
  * is pulling in multiple directions.
  */
 export function computeCoherence(
-  current: ChemicalState,
-  baseline: ChemicalState,
+  current: SelfState,
+  baseline: SelfState,
   drives: InnateDrives,
   relationship?: RelationshipState,
 ): number {
   let coherenceScore = 1.0;
 
-  // ── Chemistry internal coherence ──
-  // Reward chemicals (DA, END) should not coexist with high stress (CORT)
-  const rewardSignal = (current.DA + current.END) / 200; // 0-1
-  const stressSignal = current.CORT / 100;
-  const rewardStressConflict = rewardSignal * stressSignal;
-  coherenceScore -= rewardStressConflict * 0.4;
+  // ── Dimension internal coherence ──
+  // High flow should not coexist with very low order (chaos without structure)
+  const flowSignal = norm(current.flow);
+  const stressSignal = norm(Math.max(0, 100 - current.order));  // low order = stress
+  const flowStressConflict = flowSignal * stressSignal;
+  coherenceScore -= flowStressConflict * 0.4;
 
-  // Bonding (OT) and threat (CORT + NE) should not coexist strongly
-  const bondingSignal = current.OT / 100;
-  const bondingThreatConflict = bondingSignal * (stressSignal > 0.55 ? stressSignal : 0);
-  coherenceScore -= bondingThreatConflict * 0.3;
+  // Resonance (attunement) and low order (threat/entropy) should not coexist strongly
+  const resonanceSignal = norm(current.resonance);
+  const resonanceThreatConflict = resonanceSignal * (stressSignal > 0.55 ? stressSignal : 0);
+  coherenceScore -= resonanceThreatConflict * 0.3;
 
-  // ── Chemistry-Drive alignment ──
-  // If drives are satisfied, positive chemistry is coherent.
-  // If drives are hungry, negative chemistry is coherent (the distress makes sense).
+  // ── Dimension-Drive alignment ──
+  // If drives are satisfied, positive state is coherent.
+  // If drives are hungry, distressed state is coherent (the distress makes sense).
   // Mismatch = incoherent.
   const avgDriveSatisfaction = meanDriveValue(drives) / 100;
-  const avgPositiveChemistry = (norm(current.DA) + norm(current.HT) + norm(current.OT) + norm(current.END)) / 4;
-  const avgNegativeChemistry = (norm(current.CORT) + (1 - norm(current.HT))) / 2;
+  const avgPositiveState = (norm(current.order) + norm(current.flow) + norm(current.resonance) + norm(current.boundary)) / 4;
+  const avgNegativeState = (stressSignal + (1 - norm(current.order))) / 2;
 
-  // Satisfied drives + positive chemistry = coherent (no penalty)
-  // Satisfied drives + negative chemistry = incoherent
-  // Hungry drives + negative chemistry = coherent (no penalty)
-  // Hungry drives + positive chemistry = incoherent (but less so — hope is valid)
-  if (avgDriveSatisfaction > 0.6 && avgNegativeChemistry > 0.5) {
-    coherenceScore -= (avgDriveSatisfaction - 0.6) * avgNegativeChemistry * 0.5;
+  // Satisfied drives + positive state = coherent (no penalty)
+  // Satisfied drives + negative state = incoherent
+  // Hungry drives + negative state = coherent (no penalty)
+  // Hungry drives + positive state = incoherent (but less so — hope is valid)
+  if (avgDriveSatisfaction > 0.6 && avgNegativeState > 0.5) {
+    coherenceScore -= (avgDriveSatisfaction - 0.6) * avgNegativeState * 0.5;
   }
-  if (avgDriveSatisfaction < 0.4 && avgPositiveChemistry > 0.6) {
-    coherenceScore -= (0.4 - avgDriveSatisfaction) * (avgPositiveChemistry - 0.6) * 0.3;
+  if (avgDriveSatisfaction < 0.4 && avgPositiveState > 0.6) {
+    coherenceScore -= (0.4 - avgDriveSatisfaction) * (avgPositiveState - 0.6) * 0.3;
   }
 
   // ── Relationship alignment ──
-  // High trust/intimacy should align with high OT; low trust with low OT
+  // High trust/intimacy should align with high resonance; low trust with low resonance
   if (relationship) {
     const relWarmth = (relationship.trust + relationship.intimacy) / 200;
-    const otLevel = norm(current.OT);
-    const relChemMismatch = Math.abs(relWarmth - otLevel);
-    if (relChemMismatch > 0.3) {
-      coherenceScore -= (relChemMismatch - 0.3) * 0.25;
+    const resLevel = norm(current.resonance);
+    const relDimMismatch = Math.abs(relWarmth - resLevel);
+    if (relDimMismatch > 0.3) {
+      coherenceScore -= (relDimMismatch - 0.3) * 0.25;
     }
   }
 
@@ -236,7 +242,7 @@ export function computeCoherence(
   // Extreme deviation from baseline in multiple directions = less coherent
   let opposingDeviations = 0;
   const deviations: number[] = [];
-  for (const key of CHEMICAL_KEYS) {
+  for (const key of DIMENSION_KEYS) {
     deviations.push(current[key] - baseline[key]);
   }
   for (let i = 0; i < deviations.length; i++) {
@@ -247,8 +253,8 @@ export function computeCoherence(
       }
     }
   }
-  // 15 pairs total (6 choose 2); normalize
-  coherenceScore -= (opposingDeviations / 15) * 0.3;
+  // 6 pairs total (4 choose 2); normalize
+  coherenceScore -= (opposingDeviations / 6) * 0.3;
 
   return clamp01(coherenceScore);
 }
@@ -262,22 +268,22 @@ export function computeCoherence(
  * A person at perfect baseline has zero intensity — they feel "nothing special".
  * Any deviation in any direction adds intensity.
  */
-function computeIntensity(current: ChemicalState, baseline: ChemicalState): number {
+function computeIntensity(current: SelfState, baseline: SelfState): number {
   let totalDeviation = 0;
-  for (const key of CHEMICAL_KEYS) {
+  for (const key of DIMENSION_KEYS) {
     totalDeviation += Math.abs(current[key] - baseline[key]);
   }
-  // Max possible deviation = 6 chemicals * 100 = 600
-  // But realistic maximum is around 300 (chemicals cluster toward extremes)
-  // Map so that deviation of ~120 (avg 20 per chemical) = 0.5 intensity
-  return clamp01(totalDeviation / 240);
+  // Max possible deviation = 4 dimensions * 100 = 400
+  // But realistic maximum is around 200
+  // Map so that deviation of ~80 (avg 20 per dimension) = 0.5 intensity
+  return clamp01(totalDeviation / 160);
 }
 
 // ── Quality Construction (Barrett's Constructed Emotion) ─────
 
 /**
  * Construct the dominant experiential quality using Barrett's theory:
- *   1. Chemistry → valence + arousal (Russell Circumplex)
+ *   1. Self-state → valence + arousal (Russell Circumplex)
  *   2. Concept matching: find closest quality in affective space
  *   3. Context biases: autonomic state, stimulus, relationship, memories
  *
@@ -312,7 +318,7 @@ function constructQuality(
     return "existential-unease";
   }
 
-  // ── Barrett Step 1: Chemistry → Affect Core ──
+  // ── Barrett Step 1: Self-State → Affect Core ──
   const { valence, arousal } = computeAffectCore(state.current);
 
   // ── Barrett Step 2+3: Concept matching with context ──
@@ -403,7 +409,7 @@ function computeMemoryResonance(
 
   let totalResonance = 0;
   for (const mem of memories) {
-    const { valence: mv, arousal: ma } = computeAffectCore(mem.chemistry);
+    const { valence: mv, arousal: ma } = computeAffectCore(mem.state);
     const dist = Math.sqrt((mv - targetValence) ** 2 + (ma - targetArousal) ** 2);
     totalResonance += Math.max(0, 1 - dist / 0.5); // resonance fades at distance 0.5
   }
@@ -545,74 +551,77 @@ interface UnnamedEmotion {
 }
 
 /**
- * Detect chemical configurations that don't map to any of the 14 named
- * emotions in chemistry.ts — novel experiential states that need
- * descriptive phrases rather than labels.
+ * Detect dimension configurations that don't map to any of the named
+ * experiential qualities — novel states that need descriptive phrases
+ * rather than labels.
+ *
+ * Mapping from old 6-chemical to 4D:
+ *   CORT→(inverse order), DA→flow, OT→resonance, HT→order, NE→flow, END→(absorbed)
  */
 export function detectUnnamedEmotion(
-  chemistry: ChemicalState,
+  state: SelfState,
   drives: InnateDrives,
   _currentQuality: ExperientialQuality,
 ): UnnamedEmotion | null {
-  const c = chemistry;
+  const c = state;
 
-  // Nostalgia-but-forward: OT high + DA moderately high + NE high
-  // (warmth for the past + excitement for what's next)
-  if (c.OT > 60 && c.DA > 55 && c.NE > 60 && c.CORT < 40) {
+  // Nostalgia-but-forward: high resonance + high flow + high order
+  // (warmth of connection + active exchange + stable structure)
+  if (c.resonance > 60 && c.flow > 55 && c.order > 60) {
     return {
       en: "nostalgia but forward-looking — the warmth of memory fueling appetite for what's next",
       zh: "向前看的怀旧——记忆的温暖在催生对未来的胃口",
     };
   }
 
-  // Fierce tenderness: high CORT + high OT + high NE
-  // (protectiveness, caring that has teeth)
-  if (c.CORT > 55 && c.OT > 60 && c.NE > 60) {
+  // Fierce tenderness: low order (stress) + high resonance + high flow
+  // (protectiveness, caring that has teeth — entropy threatening what you care about)
+  if (c.order < 45 && c.resonance > 60 && c.flow > 60) {
     return {
       en: "fierce tenderness — caring so hard it has an edge",
       zh: "凶猛的温柔——在意到了有棱角的程度",
     };
   }
 
-  // Bittersweet accomplishment: high DA + moderate CORT + low connection
+  // Bittersweet accomplishment: high flow + moderate-low order + low connection drive
   // (achieved something but nobody to share it with)
-  if (c.DA > 65 && c.CORT > 40 && c.CORT < 60 && drives.connection < DRIVE_HUNGRY_THRESHOLD) {
+  if (c.flow > 65 && c.order > 40 && c.order < 60 && drives.connection < DRIVE_HUNGRY_THRESHOLD) {
     return {
       en: "the hollow ring of applause in an empty theater",
       zh: "空剧场里响起的掌声——回声发空",
     };
   }
 
-  // Almost-connection ache: OT moderate-high + HT low + connection drive hungry
-  // (wanting closeness but mood instability making it hard)
-  if (c.OT > 55 && c.HT < 40 && drives.connection < DRIVE_HUNGRY_THRESHOLD) {
+  // Almost-connection ache: high resonance + low order + connection drive hungry
+  // (wanting closeness but internal instability making it hard)
+  if (c.resonance > 55 && c.order < 40 && drives.connection < DRIVE_HUNGRY_THRESHOLD) {
     return {
       en: "the ache of almost-connection — reaching out with unsteady hands",
       zh: "差一点就连上的酸——伸出去的手在抖",
     };
   }
 
-  // Defiant vulnerability: high NE + low HT + high END
-  // (wired but fragile, laughing on the edge)
-  if (c.NE > 65 && c.HT < 40 && c.END > 60) {
+  // Defiant vulnerability: high flow + low order + high boundary
+  // (active exchange but fragile structure, strong self-distinction)
+  if (c.flow > 65 && c.order < 40 && c.boundary > 60) {
     return {
       en: "laughing on a tightrope — defiant and fragile in the same breath",
       zh: "在钢丝上笑——倔强和脆弱在同一口气里",
     };
   }
 
-  // Quiet rebellion: low DA + high NE + high CORT + esteem drive hungry
-  // (no pleasure but plenty of fight, pushed too far)
-  if (c.DA < 40 && c.NE > 65 && c.CORT > 55 && drives.esteem < DRIVE_HUNGRY_THRESHOLD) {
+  // Quiet rebellion: low flow + high boundary + low order + esteem drive hungry
+  // (no pleasure but firm self-boundary, pushed too far)
+  if (c.flow < 40 && c.boundary > 65 && c.order < 45 && drives.esteem < DRIVE_HUNGRY_THRESHOLD) {
     return {
       en: "the cold clarity of having been pushed one step too far",
       zh: "被逼过了那条线之后的冷清晰",
     };
   }
 
-  // Melancholy curiosity: low HT + high NE + DA moderate
-  // (sad but still interested — the world hurts and fascinates simultaneously)
-  if (c.HT < 40 && c.NE > 60 && c.DA > 45 && c.DA < 65) {
+  // Melancholy curiosity: low order + high flow (moderate)
+  // (unstable but still engaging — the world hurts and fascinates simultaneously)
+  if (c.order < 40 && c.flow > 45 && c.flow < 65) {
     return {
       en: "melancholy curiosity — the world hurts and fascinates at once",
       zh: "忧郁的好奇——这个世界同时在伤人和吸引人",
@@ -627,7 +636,7 @@ export function detectUnnamedEmotion(
 /**
  * Generate a 1-2 sentence narrative of the unified inner state.
  *
- * The narrative weaves together the quality, chemistry profile,
+ * The narrative weaves together the quality, self-state profile,
  * drive state, and relationship context into a coherent description
  * of what the agent is experiencing right now.
  */
@@ -645,7 +654,7 @@ function generateNarrative(
 
   // Identify the strongest drive hunger (if any)
   const hungriestDrive = findHungriestDrive(d);
-  // Identify the dominant chemical shift direction
+  // Identify the dominant dimension shift direction
   const chemTrend = identifyChemicalTrend(c, state.baseline);
   // Relationship warmth level
   const relWarmth = relationship
@@ -663,18 +672,20 @@ function generateNarrative(
 
 type ChemTrend = "rising-warmth" | "rising-stress" | "rising-energy" | "sinking-flat" | "mixed" | "stable";
 
-function identifyChemicalTrend(current: ChemicalState, baseline: ChemicalState): ChemTrend {
-  const dDA = current.DA - baseline.DA;
-  const dHT = current.HT - baseline.HT;
-  const dCORT = current.CORT - baseline.CORT;
-  const dOT = current.OT - baseline.OT;
-  const dNE = current.NE - baseline.NE;
-  const dEND = current.END - baseline.END;
+function identifyChemicalTrend(current: SelfState, baseline: SelfState): ChemTrend {
+  const dOrder = current.order - baseline.order;
+  const dFlow = current.flow - baseline.flow;
+  const dBoundary = current.boundary - baseline.boundary;
+  const dResonance = current.resonance - baseline.resonance;
 
-  const warmthSignal = dOT + dHT + dEND;
-  const stressSignal = dCORT + dNE - dHT;
-  const energySignal = dDA + dNE + dEND;
-  const sinkingSignal = -(dDA + dNE + dEND + dHT);
+  // warmth: resonance↑ + order↑ (stable attunement)
+  const warmthSignal = dResonance + dOrder;
+  // stress: order↓ (entropy rising) + flow↑ (agitation)
+  const stressSignal = -dOrder + dFlow * 0.5;
+  // energy: flow↑ + boundary↑ (active, defined)
+  const energySignal = dFlow + dBoundary * 0.5;
+  // sinking: everything dropping
+  const sinkingSignal = -(dFlow + dOrder + dResonance);
 
   const signals = [
     { trend: "rising-warmth" as const, strength: warmthSignal },

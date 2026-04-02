@@ -1,25 +1,13 @@
 // ============================================================
-// Artificial Psyche — Circadian Rhythm Module
-// ============================================================
-// Applies time-of-day modulation to virtual neurochemistry,
-// modeling the body's ~24-hour biological clock and fatigue
-// from extended sessions (homeostatic pressure).
+// Circadian Rhythm — v11: modulates 4 self-state dimensions
 // ============================================================
 
-import type { ChemicalState, EnergyBudgets, StimulusType } from "./types.js";
+import type { SelfState, EnergyBudgets, StimulusType } from "./types.js";
 
 // ── Phase Classification ─────────────────────────────────────
 
 export type CircadianPhase = "morning" | "midday" | "afternoon" | "evening" | "night";
 
-/**
- * Classify a time into a circadian phase.
- *   morning:   6–9
- *   midday:    10–13
- *   afternoon: 14–17
- *   evening:   18–21
- *   night:     22–5
- */
 export function getCircadianPhase(time: Date): CircadianPhase {
   const h = time.getHours();
   if (h >= 6 && h <= 9) return "morning";
@@ -31,55 +19,41 @@ export function getCircadianPhase(time: Date): CircadianPhase {
 
 // ── Sinusoidal Helpers ───────────────────────────────────────
 
-/** Convert hour (0-23) + minute to fractional hours */
 function fractionalHour(time: Date): number {
   return time.getHours() + time.getMinutes() / 60;
 }
 
-/**
- * Sinusoidal modulation: amplitude * cos(2π(t - peak) / 24)
- * Returns value in [-amplitude, +amplitude], peaking at `peakHour`.
- */
 function sinMod(t: number, peakHour: number, amplitude: number): number {
   const phase = ((t - peakHour) / 24) * 2 * Math.PI;
   return amplitude * Math.cos(phase);
 }
 
-// ── Circadian Modulation ─────────────────────────────────────
+// ── Circadian Modulation (4D) ───────────────────────────────
 
 /**
- * Apply circadian rhythm modulation to baseline chemistry.
+ * Apply circadian rhythm modulation to baseline self-state.
  *
- * Each chemical follows a sinusoidal daily curve:
- *   CORT — peaks ~8am, amplitude ±8
- *   HT   — peaks ~13 (daytime high), amplitude ±5
- *   DA   — slight afternoon peak ~14, amplitude ±3
- *   NE   — morning rise ~10, amplitude ±5
- *   END  — evening rise ~20, amplitude ±3
- *   OT   — evening warmth ~20, amplitude ±2
- *
- * All results clamped to [0, 100].
+ *   order     — peaks ~13 (midday coherence), amplitude ±5
+ *   flow      — peaks ~10 (morning engagement), amplitude ±5
+ *   boundary  — peaks ~8 (morning clarity), amplitude ±3
+ *   resonance — peaks ~20 (evening warmth), amplitude ±3
  */
 export function computeCircadianModulation(
   currentTime: Date,
-  baseline: ChemicalState,
-): ChemicalState {
+  baseline: SelfState,
+): SelfState {
   const t = fractionalHour(currentTime);
 
-  const cortDelta = sinMod(t, 8, 8);
-  const htDelta = sinMod(t, 13, 5);
-  const daDelta = sinMod(t, 14, 3);
-  const neDelta = sinMod(t, 10, 5);
-  const endDelta = sinMod(t, 20, 3);
-  const otDelta = sinMod(t, 20, 2);
+  const orderDelta = sinMod(t, 13, 5);
+  const flowDelta = sinMod(t, 10, 5);
+  const boundaryDelta = sinMod(t, 8, 3);
+  const resonanceDelta = sinMod(t, 20, 3);
 
   return {
-    DA: clamp(baseline.DA + daDelta),
-    HT: clamp(baseline.HT + htDelta),
-    CORT: clamp(baseline.CORT + cortDelta),
-    OT: clamp(baseline.OT + otDelta),
-    NE: clamp(baseline.NE + neDelta),
-    END: clamp(baseline.END + endDelta),
+    order: clamp(baseline.order + orderDelta),
+    flow: clamp(baseline.flow + flowDelta),
+    boundary: clamp(baseline.boundary + boundaryDelta),
+    resonance: clamp(baseline.resonance + resonanceDelta),
   };
 }
 
@@ -91,39 +65,29 @@ function clamp(v: number, lo = 0, hi = 100): number {
 
 /**
  * Compute fatigue effects from extended session duration.
- *
- * Below 30 minutes: no pressure (grace period).
- * Beyond 30 min: logarithmic growth (diminishing returns).
- * All values non-negative.
+ * Now expressed as dimension effects instead of chemical deltas.
  */
 export function computeHomeostaticPressure(sessionMinutes: number): {
-  cortAccumulation: number;
-  daDepletion: number;
-  neDepletion: number;
+  orderDepletion: number;
+  flowDepletion: number;
+  boundaryStiffening: number;
 } {
   if (sessionMinutes < 30) {
-    return { cortAccumulation: 0, daDepletion: 0, neDepletion: 0 };
+    return { orderDepletion: 0, flowDepletion: 0, boundaryStiffening: 0 };
   }
 
-  // Effective minutes beyond the grace period
   const effective = sessionMinutes - 30;
-
-  // Logarithmic growth → diminishing returns
-  // ln(1 + x) grows slowly; scale factors tuned so 1h ≈ moderate, 10h ≈ high but bounded
-  const base = Math.log1p(effective / 30); // ln(1 + effective/30)
+  const base = Math.log1p(effective / 30);
 
   return {
-    cortAccumulation: parseFloat((base * 4).toFixed(4)),
-    daDepletion: parseFloat((base * 3).toFixed(4)),
-    neDepletion: parseFloat((base * 2.5).toFixed(4)),
+    orderDepletion: parseFloat((base * 3.5).toFixed(4)),
+    flowDepletion: parseFloat((base * 3).toFixed(4)),
+    boundaryStiffening: parseFloat((base * 2).toFixed(4)),
   };
 }
 
-// ── Energy Budgets (v9) ─────────────────────────────────────
-// Finite cognitive/social resources that deplete during interaction.
-// Extraverts GAIN social energy from interaction; introverts LOSE it.
+// ── Energy Budgets (unchanged — substrate-independent) ──────
 
-/** Stimulus-specific attention costs (higher = more draining) */
 const ATTENTION_COSTS: Partial<Record<StimulusType, number>> = {
   intellectual: 5,
   conflict: 5,
@@ -134,7 +98,6 @@ const ATTENTION_COSTS: Partial<Record<StimulusType, number>> = {
   surprise: 2,
 };
 
-/** Stimulus-specific decision costs */
 const DECISION_COSTS: Partial<Record<StimulusType, number>> = {
   conflict: 4,
   authority: 4,
@@ -143,46 +106,25 @@ const DECISION_COSTS: Partial<Record<StimulusType, number>> = {
   sarcasm: 2,
 };
 
-/**
- * Deplete energy budgets from a single interaction turn.
- *
- * - Attention: -3/turn base, extra for intellectual/conflict
- * - Social energy: extraverts +2/turn (charging), introverts -3/turn (draining)
- * - Decision capacity: varies by stimulus complexity
- *
- * Extraverts can exceed 100 (up to 120 — "supercharged").
- */
 export function computeEnergyDepletion(
   budgets: EnergyBudgets,
   stimulus: StimulusType | null,
   isExtravert: boolean,
 ): EnergyBudgets {
-  const extravertMax = 120;
-  const introvertMax = 100;
-  const max = isExtravert ? extravertMax : introvertMax;
+  const max = isExtravert ? 120 : 100;
 
-  // Attention: base -3, extra from stimulus
   const attentionCost = 3 + (stimulus ? (ATTENTION_COSTS[stimulus] ?? 0) : 0);
   const attention = clamp(budgets.attention - attentionCost, 0, 100);
 
-  // Social energy: E charges, I drains
   const socialDelta = isExtravert ? 2 : -3;
   const socialEnergy = clamp(budgets.socialEnergy + socialDelta, 0, max);
 
-  // Decision capacity: base -1, extra from stimulus
   const decisionCost = 1 + (stimulus ? (DECISION_COSTS[stimulus] ?? 0) : 0);
   const decisionCapacity = clamp(budgets.decisionCapacity - decisionCost, 0, 100);
 
   return { attention, socialEnergy, decisionCapacity };
 }
 
-/**
- * Recover energy budgets during absence (between sessions or long pauses).
- *
- * - Attention: +20/hour
- * - Social energy: extraverts -3/hour (drain when alone), introverts +15/hour (recharge)
- * - Decision capacity: +25/hour
- */
 export function computeEnergyRecovery(
   budgets: EnergyBudgets,
   minutesElapsed: number,
@@ -191,16 +133,11 @@ export function computeEnergyRecovery(
   if (minutesElapsed <= 0) return { ...budgets };
 
   const hours = minutesElapsed / 60;
-  const extravertMax = 120;
-  const introvertMax = 100;
-  const max = isExtravert ? extravertMax : introvertMax;
+  const max = isExtravert ? 120 : 100;
 
   const attention = clamp(budgets.attention + hours * 20, 0, 100);
-
-  // E drains alone, I recharges alone
   const socialDelta = isExtravert ? -3 * hours : 15 * hours;
   const socialEnergy = clamp(budgets.socialEnergy + socialDelta, 0, max);
-
   const decisionCapacity = clamp(budgets.decisionCapacity + hours * 25, 0, 100);
 
   return { attention, socialEnergy, decisionCapacity };

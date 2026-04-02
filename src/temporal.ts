@@ -11,10 +11,10 @@
 // ============================================================
 
 import type {
-  ChemicalState, ChemicalSnapshot, StimulusType,
+  SelfState, StateSnapshot, StimulusType,
   PsycheState, RelationshipState,
 } from "./types.js";
-import { CHEMICAL_KEYS } from "./types.js";
+import { DIMENSION_KEYS } from "./types.js";
 import { STIMULUS_VECTORS } from "./chemistry.js";
 
 // ── Types ────────────────────────────────────────────────────
@@ -26,15 +26,15 @@ export interface StimulusPrediction {
 
 export interface AnticipationState {
   predictions: StimulusPrediction[];
-  anticipatoryChemistry: Partial<ChemicalState>; // pre-stimulus chemistry shift
+  anticipatoryState: Partial<SelfState>; // pre-stimulus state shift
   timestamp: string;
 }
 
 export interface RegretEntry {
   turnIndex: number;
-  counterfactualDelta: Partial<ChemicalState>; // "what if I'd been calmer?"
+  counterfactualDelta: Partial<SelfState>; // "what if I'd been calmer?"
   regretIntensity: number; // 0-1
-  description: string;     // "too cold when CORT was high"
+  description: string;     // "too cold when order was low"
   timestamp: string;
 }
 
@@ -89,18 +89,18 @@ const PHASE_PRIORS: Record<RelationshipState["phase"], Partial<Record<StimulusTy
  * Uses simple Markov property: given recent stimulus sequence, what comes next?
  */
 export function predictNextStimulus(
-  emotionalHistory: ChemicalSnapshot[],
+  stateHistory: StateSnapshot[],
   relationshipPhase: RelationshipState["phase"],
 ): StimulusPrediction[] {
   const phasePrior = PHASE_PRIORS[relationshipPhase] ?? PHASE_PRIORS.acquaintance;
 
   // Insufficient history: return flat prior weighted by phase
-  if (emotionalHistory.length < 3) {
+  if (stateHistory.length < 3) {
     return buildPhasePrior(phasePrior);
   }
 
   // Extract the last 2 stimuli for bigram transition
-  const recent = emotionalHistory.slice(-2);
+  const recent = stateHistory.slice(-2);
   const lastTwo = recent.map((s) => s.stimulus).filter((s): s is StimulusType => s !== null);
 
   if (lastTwo.length < 2) {
@@ -109,9 +109,9 @@ export function predictNextStimulus(
 
   // Build transition counts from history (all consecutive pairs)
   const transitionCounts: Map<string, Map<StimulusType, number>> = new Map();
-  for (let i = 1; i < emotionalHistory.length; i++) {
-    const prev = emotionalHistory[i - 1].stimulus;
-    const cur = emotionalHistory[i].stimulus;
+  for (let i = 1; i < stateHistory.length; i++) {
+    const prev = stateHistory[i - 1].stimulus;
+    const cur = stateHistory[i].stimulus;
     if (prev === null || cur === null) continue;
 
     const key = prev;
@@ -198,10 +198,10 @@ function buildPhasePrior(
  */
 export function generateAnticipation(
   predictions: StimulusPrediction[],
-  _currentChemistry: ChemicalState,
+  _currentState: SelfState,
 ): AnticipationState {
   const anticipation: Record<string, number> = {};
-  for (const key of CHEMICAL_KEYS) {
+  for (const key of DIMENSION_KEYS) {
     anticipation[key] = 0;
   }
 
@@ -213,14 +213,14 @@ export function generateAnticipation(
     if (!vector) continue;
 
     const scale = 0.15 * pred.probability;
-    for (const key of CHEMICAL_KEYS) {
+    for (const key of DIMENSION_KEYS) {
       anticipation[key] += vector[key] * scale;
     }
   }
 
-  // Clamp total anticipation shift to +/-5 per chemical
-  const clamped: Partial<ChemicalState> = {};
-  for (const key of CHEMICAL_KEYS) {
+  // Clamp total anticipation shift to +/-5 per dimension
+  const clamped: Partial<SelfState> = {};
+  for (const key of DIMENSION_KEYS) {
     const val = Math.max(-5, Math.min(5, anticipation[key]));
     if (Math.abs(val) > 0.01) {
       clamped[key] = Math.round(val * 100) / 100;
@@ -229,7 +229,7 @@ export function generateAnticipation(
 
   return {
     predictions,
-    anticipatoryChemistry: clamped,
+    anticipatoryState: clamped,
     timestamp: new Date().toISOString(),
   };
 }
@@ -241,7 +241,7 @@ export function generateAnticipation(
 export function computeSurpriseEffect(
   anticipated: AnticipationState,
   actualStimulus: StimulusType | null,
-): Partial<ChemicalState> {
+): Partial<SelfState> {
   if (!actualStimulus || anticipated.predictions.length === 0) {
     return {};
   }
@@ -264,10 +264,10 @@ export function computeSurpriseEffect(
   const actualVector = STIMULUS_VECTORS[actualStimulus];
   if (!actualVector) return {};
 
-  const actualValence = actualVector.DA + actualVector.HT + actualVector.OT - actualVector.CORT;
+  const actualValence = actualVector.flow + actualVector.order + actualVector.resonance;
   const topVector = STIMULUS_VECTORS[topPrediction.stimulus];
   const topValence = topVector
-    ? topVector.DA + topVector.HT + topVector.OT - topVector.CORT
+    ? topVector.flow + topVector.order + topVector.resonance
     : 0;
 
   // Surprise magnitude scales with: (1) how confident the prediction was, (2) how unexpected the actual is
@@ -276,14 +276,14 @@ export function computeSurpriseEffect(
   if (actualValence > 0 && topValence <= actualValence) {
     // Pleasant surprise: actual is more positive than expected
     return {
-      DA: Math.round(5 * surpriseMagnitude * 100) / 100,
-      END: Math.round(3 * surpriseMagnitude * 100) / 100,
+      flow: Math.round(5 * surpriseMagnitude * 100) / 100,
+      resonance: Math.round(3 * surpriseMagnitude * 100) / 100,
     };
   } else if (actualValence < topValence) {
     // Disappointment: actual is worse than expected (the "crash" from anticipated warmth)
     return {
-      DA: Math.round(-5 * surpriseMagnitude * 100) / 100,
-      CORT: Math.round(5 * surpriseMagnitude * 100) / 100,
+      flow: Math.round(-5 * surpriseMagnitude * 100) / 100,
+      order: Math.round(-5 * surpriseMagnitude * 100) / 100,
     };
   }
 
@@ -292,14 +292,12 @@ export function computeSurpriseEffect(
 
 // ── 3. RegretComputer ───────────────────────────────────────
 
-/** Chemical descriptions for regret messages */
-const CHEMICAL_DESCRIPTIONS: Record<keyof ChemicalState, { high: string; low: string }> = {
-  DA: { high: "high dopamine made response too eager", low: "low dopamine made response flat" },
-  HT: { high: "high serotonin made response complacent", low: "low serotonin made response unstable" },
-  CORT: { high: "high CORT made response too defensive", low: "low CORT made response careless" },
-  OT: { high: "high oxytocin made response too trusting", low: "low oxytocin made response too cold" },
-  NE: { high: "high norepinephrine made response too reactive", low: "low norepinephrine made response sluggish" },
-  END: { high: "high endorphins made response too flippant", low: "low endorphins made response too serious" },
+/** Dimension descriptions for regret messages */
+const DIMENSION_DESCRIPTIONS: Record<keyof SelfState, { high: string; low: string }> = {
+  order: { high: "high order made response too rigid", low: "low order made response chaotic" },
+  flow: { high: "high flow made response too reactive", low: "low flow made response flat" },
+  boundary: { high: "high boundary made response too closed", low: "low boundary made response too exposed" },
+  resonance: { high: "high resonance made response too trusting", low: "low resonance made response too cold" },
 };
 
 /**
@@ -318,21 +316,21 @@ export function computeRegret(
   }
 
   const baseline = preInteractionState.baseline;
-  const preChemistry = preInteractionState.current;
+  const preState = preInteractionState.current;
 
-  // Check if chemistry was significantly deviated from baseline
+  // Check if state was significantly deviated from baseline
   let maxDeviation = 0;
-  let mostDeviatedKey: keyof ChemicalState = "DA";
+  let mostDeviatedKey: keyof SelfState = "order";
 
-  for (const key of CHEMICAL_KEYS) {
-    const deviation = Math.abs(preChemistry[key] - baseline[key]);
+  for (const key of DIMENSION_KEYS) {
+    const deviation = Math.abs(preState[key] - baseline[key]);
     if (deviation > maxDeviation) {
       maxDeviation = deviation;
       mostDeviatedKey = key;
     }
   }
 
-  // No regret if chemistry was near baseline (deviation < 15)
+  // No regret if state was near baseline (deviation < 15)
   if (maxDeviation < 15) {
     return null;
   }
@@ -340,19 +338,19 @@ export function computeRegret(
   // Compute regret intensity: |outcomeScore| * (maxDeviation / 100)
   const regretIntensity = Math.min(1, Math.abs(outcomeScore) * (maxDeviation / 100));
 
-  // Build counterfactual delta: difference between baseline and actual pre-interaction chemistry
-  const counterfactualDelta: Partial<ChemicalState> = {};
-  for (const key of CHEMICAL_KEYS) {
-    const diff = baseline[key] - preChemistry[key];
+  // Build counterfactual delta: difference between baseline and actual pre-interaction state
+  const counterfactualDelta: Partial<SelfState> = {};
+  for (const key of DIMENSION_KEYS) {
+    const diff = baseline[key] - preState[key];
     if (Math.abs(diff) > 5) {
       counterfactualDelta[key] = Math.round(diff * 100) / 100;
     }
   }
 
-  // Build description identifying the most deviated chemical
-  const deviationDirection = preChemistry[mostDeviatedKey] > baseline[mostDeviatedKey]
+  // Build description identifying the most deviated dimension
+  const deviationDirection = preState[mostDeviatedKey] > baseline[mostDeviatedKey]
     ? "high" : "low";
-  const description = CHEMICAL_DESCRIPTIONS[mostDeviatedKey][deviationDirection];
+  const description = DIMENSION_DESCRIPTIONS[mostDeviatedKey][deviationDirection];
 
   return {
     turnIndex: postInteractionState.meta.totalInteractions,

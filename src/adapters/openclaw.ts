@@ -3,7 +3,7 @@
 //
 // Hooks used:
 //   before_prompt_build  — inject emotional context into system prompt
-//   llm_output           — observe LLM response, update chemistry
+//   llm_output           — observe LLM response, update self-state
 //   before_message_write — strip <psyche_update> tags before display
 //   message_sending      — strip tags for external channels (Discord, etc.)
 //   agent_end            — log final state
@@ -49,7 +49,7 @@ interface OpenClawPsycheConfig {
   enabled: boolean;
   stripUpdateTags: boolean;
   emotionalContagionRate: number;
-  maxChemicalDelta: number;
+  maxDimensionDelta: number;
   compactMode: boolean;
   mode: PsycheMode;
   personalityIntensity: number;
@@ -69,7 +69,7 @@ function resolveConfig(raw?: Record<string, unknown>): OpenClawPsycheConfig {
     enabled: (raw?.enabled as boolean) ?? true,
     stripUpdateTags: (raw?.stripUpdateTags as boolean) ?? true,
     emotionalContagionRate: (raw?.emotionalContagionRate as number) ?? 0.2,
-    maxChemicalDelta: (raw?.maxChemicalDelta as number) ?? 25,
+    maxDimensionDelta: (raw?.maxDimensionDelta as number) ?? (raw?.maxChemicalDelta as number) ?? 25,
     compactMode: (raw?.compactMode as boolean) ?? true,
     mode: isPsycheMode(raw?.mode) ? raw.mode : "natural",
     personalityIntensity: (raw?.personalityIntensity as number) ?? 0.7,
@@ -157,7 +157,7 @@ export function register(api: PluginApi) {
         locale: state?.meta.locale,
         stripUpdateTags: config.stripUpdateTags,
         emotionalContagionRate: config.emotionalContagionRate,
-        maxChemicalDelta: config.maxChemicalDelta,
+        maxDimensionDelta: config.maxDimensionDelta,
         compactMode: config.compactMode,
         mode: config.mode,
         personalityIntensity: config.personalityIntensity,
@@ -199,8 +199,8 @@ export function register(api: PluginApi) {
         logger.info(
           `Psyche [input] stimulus=${result.stimulus ?? "none"} | ` +
           (dominantAppraisal ? `appraisal=${dominantAppraisal} | ` : "") +
-          `DA:${Math.round(state.current.DA)} HT:${Math.round(state.current.HT)} ` +
-          `CORT:${Math.round(state.current.CORT)} OT:${Math.round(state.current.OT)} | ` +
+          `order:${Math.round(state.current.order)} flow:${Math.round(state.current.flow)} ` +
+          `boundary:${Math.round(state.current.boundary)} resonance:${Math.round(state.current.resonance)} | ` +
           `context=${result.dynamicContext.length}chars` +
           (controls?.maxTokens ? ` | out<=${controls.maxTokens}t` : "") +
           (controls?.requireConfirmation ? " | confirm" : ""),
@@ -218,7 +218,7 @@ export function register(api: PluginApi) {
       }
     }, { priority: 10 });
 
-    // ── Hook 2: Observe LLM output, update chemistry ────────
+    // ── Hook 2: Observe LLM output, update self-state ────────
     // llm_output: event.assistantTexts (string[]), returns void
 
     api.on("llm_output", async (event, ctx) => {
@@ -239,8 +239,8 @@ export function register(api: PluginApi) {
         const state = engine.getState();
         logger.info(
           `Psyche [output] updated=${result.stateChanged} | ` +
-          `DA:${Math.round(state.current.DA)} HT:${Math.round(state.current.HT)} ` +
-          `CORT:${Math.round(state.current.CORT)} OT:${Math.round(state.current.OT)} | ` +
+          `order:${Math.round(state.current.order)} flow:${Math.round(state.current.flow)} ` +
+          `boundary:${Math.round(state.current.boundary)} resonance:${Math.round(state.current.resonance)} | ` +
           `interactions=${state.meta.totalInteractions}`,
         );
       } catch (err) {
@@ -314,12 +314,10 @@ export function register(api: PluginApi) {
           const state = engine.getState();
           logger.info(
             `Psyche: session ended for ${state.meta.agentName}, ` +
-            `chemistry saved (DA:${Math.round(state.current.DA)} ` +
-            `HT:${Math.round(state.current.HT)} ` +
-            `CORT:${Math.round(state.current.CORT)} ` +
-            `OT:${Math.round(state.current.OT)} ` +
-            `NE:${Math.round(state.current.NE)} ` +
-            `END:${Math.round(state.current.END)})`,
+            `state saved (order:${Math.round(state.current.order)} ` +
+            `flow:${Math.round(state.current.flow)} ` +
+            `boundary:${Math.round(state.current.boundary)} ` +
+            `resonance:${Math.round(state.current.resonance)})`,
           );
 
           if (report) {

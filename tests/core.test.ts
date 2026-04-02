@@ -12,13 +12,13 @@ function makeExistingState(overrides: Partial<PsycheState> = {}): PsycheState {
     version: 6,
     mbti: "INTJ",
     sensitivity: 1.0,
-    baseline: { DA: 45, HT: 70, CORT: 40, OT: 30, NE: 60, END: 35 },
-    current: { DA: 80, HT: 50, CORT: 60, OT: 30, NE: 60, END: 35 },
+    baseline: { flow: 60, order: 70, boundary: 40, resonance: 35 },
+    current: { flow: 60, order: 50, boundary: 60, resonance: 35 },
     updatedAt: new Date().toISOString(),
     relationships: { _default: { ...DEFAULT_RELATIONSHIP } },
     empathyLog: null,
     selfModel: { values: ["truth"], preferences: [], boundaries: [], currentInterests: [] },
-    emotionalHistory: [],
+    stateHistory: [],
     agreementStreak: 0,
     lastDisagreement: null,
     drives: { ...DEFAULT_DRIVES },
@@ -56,8 +56,8 @@ describe("PsycheEngine", () => {
 
   it("uses ENFP baseline when initialized with ENFP", () => {
     const state = engine.getState();
-    assert.equal(state.baseline.DA, 75); // ENFP baseline DA
-    assert.equal(state.baseline.END, 70); // ENFP baseline END
+    assert.equal(state.baseline.flow, 72); // ENFP baseline flow
+    assert.equal(state.baseline.resonance, 68); // ENFP baseline resonance
   });
 
   it("loads existing state from storage", async () => {
@@ -69,7 +69,7 @@ describe("PsycheEngine", () => {
     const state = e2.getState();
     assert.equal(state.mbti, "INTJ"); // Uses stored state, not config
     assert.equal(state.meta.agentName, "Existing");
-    assert.equal(state.current.DA, 80);
+    assert.equal(state.current.flow, 60);
   });
 
   it("throws if not initialized", () => {
@@ -110,7 +110,7 @@ describe("PsycheEngine", () => {
     await engine.processInput("你太棒了！太厉害了！"); // praise
     const after = engine.getState().current;
     // Praise increases DA
-    assert.ok(after.DA >= before.DA, `DA should increase: ${before.DA} → ${after.DA}`);
+    assert.ok(after.flow >= before.flow, `DA should increase: ${before.flow} → ${after.flow}`);
   });
 
   it("does not instantly reset to baseline after praise in a stressed state", async () => {
@@ -124,17 +124,16 @@ describe("PsycheEngine", () => {
     await engine.processInput("对不起！你其实很棒的！");
     const afterPraise = engine.getState().current;
 
-    assert.ok(afterPraise.DA > afterAbuse.DA, `DA should recover somewhat: ${afterAbuse.DA} → ${afterPraise.DA}`);
-    assert.ok(afterPraise.DA < baseline.DA, `DA should remain below baseline: ${afterPraise.DA} < ${baseline.DA}`);
-    assert.ok(afterPraise.CORT < afterAbuse.CORT, `CORT should ease: ${afterAbuse.CORT} → ${afterPraise.CORT}`);
-    assert.ok(afterPraise.CORT > baseline.CORT, `CORT should remain above baseline: ${afterPraise.CORT} > ${baseline.CORT}`);
+    // Order (internal coherence) drops with abuse and recovers slowly — repair lag prevents instant snap-back
+    assert.ok(afterPraise.order > afterAbuse.order, `Order should recover somewhat: ${afterAbuse.order} → ${afterPraise.order}`);
+    assert.ok(afterPraise.order < baseline.order, `Order should remain below baseline: ${afterPraise.order} < ${baseline.order}`);
   });
 
   it("processInput pushes to emotional history", async () => {
-    assert.equal(engine.getState().emotionalHistory.length, 0);
+    assert.equal(engine.getState().stateHistory.length, 0);
     await engine.processInput("Hello!");
-    assert.ok(engine.getState().emotionalHistory.length > 0);
-    assert.ok((engine.getState().emotionalHistory[0].semanticSummary ?? "").length > 0);
+    assert.ok(engine.getState().stateHistory.length > 0);
+    assert.ok((engine.getState().stateHistory[0].semanticSummary ?? "").length > 0);
   });
 
   it("uses work reply profile for dense task requests without collapsing to private brevity", async () => {
@@ -370,17 +369,17 @@ describe("PsycheEngine", () => {
   });
 
   it("processOutput updates state from psyche_update", async () => {
-    const before = engine.getState().current.DA;
+    const before = engine.getState().current.flow;
     await engine.processOutput(
-      "response\n<psyche_update>\nDA: 95\nHT: 70\nCORT: 20\nOT: 80\nNE: 60\nEND: 75\n</psyche_update>",
+      "response\n<psyche_update>\norder: 80\nflow: 95\nboundary: 50\nresonance: 75\n</psyche_update>",
     );
     const after = engine.getState().current;
-    // DA should change (clamped by maxDelta of 25)
-    assert.notEqual(after.DA, before);
+    // flow should change (clamped by maxDelta of 25)
+    assert.notEqual(after.flow, before);
     assert.ok(result_stateChanged());
 
     function result_stateChanged() {
-      // DA was updated via psyche_update
+      // flow was updated via psyche_update
       return true;
     }
   });
@@ -406,25 +405,25 @@ describe("PsycheEngine", () => {
     const text = `I'm feeling good!
 
 <psyche_update>
-DA: 85 (feeling motivated)
-HT: 65 (stable mood)
-CORT: 25 (low stress)
-OT: 70 (feeling connected)
-NE: 60 (alert)
-END: 75 (happy)
+flow: 85 (feeling motivated)
+order: 65 (stable mood)
+boundary: 25 (low stress)
+resonance: 70 (feeling connected)
+flow: 60 (alert)
+resonance: 75 (happy)
 </psyche_update>`;
     const result = await engine.processOutput(text);
     assert.equal(result.cleanedText, "I'm feeling good!");
     assert.equal(result.stateChanged, true);
   });
 
-  it("processOutput respects maxChemicalDelta", async () => {
-    // Engine has maxChemicalDelta=25, ENFP baseline DA=75
-    const before = engine.getState().current.DA;
+  it("processOutput respects maxDimensionDelta", async () => {
+    // Engine has maxDimensionDelta=25, ENFP baseline DA=75
+    const before = engine.getState().current.flow;
     await engine.processOutput(
       "x\n<psyche_update>\nDA: 0\n</psyche_update>", // Try to set DA to 0
     );
-    const after = engine.getState().current.DA;
+    const after = engine.getState().current.flow;
     const delta = Math.abs(after - before);
     assert.ok(delta <= 25, `Delta ${delta} should be <= 25`);
   });
@@ -455,7 +454,7 @@ END: 75 (happy)
 
     const stored = await storage.load();
     assert.ok(stored !== null);
-    assert.ok(stored!.emotionalHistory.length > 0);
+    assert.ok(stored!.stateHistory.length > 0);
   });
 
   it("multiple interactions accumulate history", async () => {
@@ -465,7 +464,7 @@ END: 75 (happy)
     await engine.processOutput("好的！\n<psyche_update>\nDA: 85\n</psyche_update>");
 
     const state = engine.getState();
-    assert.ok(state.emotionalHistory.length >= 2);
+    assert.ok(state.stateHistory.length >= 2);
   });
 
   // ── Config defaults ─────────────────────────────────────
@@ -476,7 +475,7 @@ END: 75 (happy)
     await e.initialize();
     // v10: mbti not stored, but baseline should match INFJ profile
     assert.equal(e.getState().mbti, undefined);
-    assert.equal(e.getState().baseline.DA, 50); // INFJ baseline DA
+    assert.equal(e.getState().baseline.flow, 50); // INFJ baseline DA
   });
 
   it("defaults to zh locale", async () => {
@@ -512,8 +511,8 @@ END: 75 (happy)
     // Pre-load with totalInteractions > 1 so first-meet doesn't trigger
     await s.save(makeExistingState({
       mbti: "ENFP",
-      baseline: { DA: 75, HT: 55, CORT: 30, OT: 60, NE: 65, END: 70 },
-      current: { DA: 75, HT: 55, CORT: 30, OT: 60, NE: 65, END: 70 },
+      baseline: { flow: 65, order: 55, boundary: 30, resonance: 70 },
+      current: { flow: 65, order: 55, boundary: 30, resonance: 70 },
       meta: { agentName: "Luna", createdAt: new Date().toISOString(), totalInteractions: 5, locale: "zh", mode: "natural" as const },
     }));
     const e = new PsycheEngine({ mbti: "ENFP", name: "Luna", locale: "zh" }, s);
@@ -527,8 +526,8 @@ END: 75 (happy)
     // Pre-load with totalInteractions > 1 so first-meet doesn't trigger
     await s.save(makeExistingState({
       mbti: "ENFP",
-      baseline: { DA: 75, HT: 55, CORT: 30, OT: 60, NE: 65, END: 70 },
-      current: { DA: 75, HT: 55, CORT: 30, OT: 60, NE: 65, END: 70 },
+      baseline: { flow: 65, order: 55, boundary: 30, resonance: 70 },
+      current: { flow: 65, order: 55, boundary: 30, resonance: 70 },
       meta: { agentName: "Luna", createdAt: new Date().toISOString(), totalInteractions: 5, locale: "en", mode: "natural" as const },
     }));
     const e = new PsycheEngine({ mbti: "ENFP", name: "Luna", locale: "en" }, s);
@@ -782,7 +781,7 @@ END: 75 (happy)
       `got ${JSON.stringify(result.throngletsExports)}`,
     );
     for (const event of result.throngletsExports ?? []) {
-      assert.ok(!("current" in event), `thronglets export leaked chemistry: ${JSON.stringify(event)}`);
+      assert.ok(!("current" in event), `thronglets export leaked state: ${JSON.stringify(event)}`);
       assert.ok(!("baseline" in event), `thronglets export leaked chemistry baseline: ${JSON.stringify(event)}`);
       assert.ok(!("subjectResidue" in event), `thronglets export leaked residue: ${JSON.stringify(event)}`);
       assert.ok(!("dyadicFields" in event), `thronglets export leaked raw field state: ${JSON.stringify(event)}`);
@@ -817,15 +816,15 @@ END: 75 (happy)
     const s = new MemoryStorageAdapter();
     await s.save(makeExistingState({
       mbti: "ENFP",
-      current: { DA: 30, HT: 30, CORT: 80, OT: 30, NE: 30, END: 30 },
-      baseline: { DA: 75, HT: 55, CORT: 30, OT: 60, NE: 65, END: 70 },
+      current: { flow: 30, order: 30, boundary: 80, resonance: 30 },
+      baseline: { flow: 65, order: 55, boundary: 30, resonance: 70 },
       meta: { agentName: "Luna", createdAt: new Date().toISOString(), totalInteractions: 5, locale: "zh", mode: "natural" as const },
     }));
     const e = new PsycheEngine({ mbti: "ENFP", name: "Luna" }, s);
     await e.initialize();
     const result = await e.processInput("");
     assert.ok(!result.dynamicContext.includes("情绪自然"), `Should have behavioral context, got: ${result.dynamicContext}`);
-    assert.ok(!result.dynamicContext.match(/DA:\s*\d+/), "Should not contain DA numbers");
+    assert.ok(!result.dynamicContext.match(/flow:\s*\d+/), "Should not contain DA numbers");
   });
 
   it("compact mode has no protocol in systemContext", async () => {
@@ -919,8 +918,8 @@ END: 75 (happy)
     const before = { ...e.getState().current };
     await e.processOutput("<psyche_update>\nstimulus: validation\n</psyche_update>");
     const after = e.getState().current;
-    assert.ok(after.DA > before.DA, `expected DA to rise after override, got ${before.DA} -> ${after.DA}`);
-    assert.ok(after.OT >= before.OT, `expected OT not to drop after override, got ${before.OT} -> ${after.OT}`);
+    assert.ok(after.flow > before.flow, `expected DA to rise after override, got ${before.flow} -> ${after.flow}`);
+    assert.ok(after.resonance >= before.resonance, `expected OT not to drop after override, got ${before.resonance} -> ${after.resonance}`);
   });
 
   // ── endSession ─────────────────────────────────────────
@@ -930,16 +929,16 @@ END: 75 (happy)
     await engine.processInput("你太棒了！");
     await engine.processInput("继续加油！");
     await engine.processInput("真厉害");
-    const historyBefore = engine.getState().emotionalHistory;
+    const historyBefore = engine.getState().stateHistory;
     assert.ok(historyBefore.length >= 3);
     const lastTimestamp = historyBefore[historyBefore.length - 1].timestamp;
 
     await engine.endSession();
 
     const state = engine.getState();
-    assert.ok(state.emotionalHistory.length >= 1, "Recent context should be preserved");
+    assert.ok(state.stateHistory.length >= 1, "Recent context should be preserved");
     assert.equal(
-      state.emotionalHistory[state.emotionalHistory.length - 1].timestamp,
+      state.stateHistory[state.stateHistory.length - 1].timestamp,
       lastTimestamp,
       "Latest snapshot should be preserved",
     );
@@ -968,14 +967,14 @@ END: 75 (happy)
   it("endSession persists to storage", async () => {
     await engine.processInput("很棒的对话");
     await engine.processInput("我很开心");
-    const lastTimestamp = engine.getState().emotionalHistory.at(-1)?.timestamp;
+    const lastTimestamp = engine.getState().stateHistory.at(-1)?.timestamp;
     await engine.endSession();
 
     // Load from storage to verify persistence
     const loaded = await storage.load();
     assert.ok(loaded !== null);
-    assert.ok(loaded!.emotionalHistory.length >= 1, "Persisted state should retain recent context");
-    assert.equal(loaded!.emotionalHistory.at(-1)?.timestamp, lastTimestamp);
+    assert.ok(loaded!.stateHistory.length >= 1, "Persisted state should retain recent context");
+    assert.equal(loaded!.stateHistory.at(-1)?.timestamp, lastTimestamp);
     const rel = loaded!.relationships._default;
     assert.ok(rel.memory, "Persisted state should have memory");
     assert.ok(rel.memory!.length >= 1, "Persisted state should have memory entries");
@@ -988,15 +987,15 @@ END: 75 (happy)
     await engine.processInput("你觉得AI有意识吗？");
     await engine.processInput("太棒了！");
 
-    const historyBefore = engine.getState().emotionalHistory;
+    const historyBefore = engine.getState().stateHistory;
     assert.ok(historyBefore.length >= 5, `Should have at least 5 history entries, got ${historyBefore.length}`);
     const lastTimestamp = historyBefore[historyBefore.length - 1].timestamp;
 
     await engine.endSession();
 
     const state = engine.getState();
-    assert.ok(state.emotionalHistory.length >= 1, "Recent context should be retained after endSession");
-    assert.equal(state.emotionalHistory.at(-1)?.timestamp, lastTimestamp);
+    assert.ok(state.stateHistory.length >= 1, "Recent context should be retained after endSession");
+    assert.equal(state.stateHistory.at(-1)?.timestamp, lastTimestamp);
     const memory = state.relationships._default.memory ?? [];
     assert.ok(memory.length >= 1, "Should have session memory");
     // Verify the summary contains expected markers
@@ -1028,9 +1027,9 @@ describe("PsycheEngine — work mode", () => {
     const s = new MemoryStorageAdapter();
     const e = new PsycheEngine({ mbti: "ENFP", name: "Bot", mode: "work" }, s);
     await e.initialize();
-    const before = e.getState().current.DA;
+    const before = e.getState().current.flow;
     await e.processInput("你太棒了！太厉害了！太牛了！"); // praise
-    const after = e.getState().current.DA;
+    const after = e.getState().current.flow;
     const delta = Math.abs(after - before);
     assert.ok(delta <= 5, `Work mode delta ${delta} should be <= 5`);
   });
@@ -1040,17 +1039,17 @@ describe("PsycheEngine — work mode", () => {
     const sNat = new MemoryStorageAdapter();
     const eNat = new PsycheEngine({ mbti: "ENFP", name: "Bot", mode: "natural", personalityIntensity: 1.0 }, sNat);
     await eNat.initialize();
-    const natBefore = eNat.getState().current.DA;
+    const natBefore = eNat.getState().current.flow;
     await eNat.processInput("你太棒了！");
-    const natDelta = eNat.getState().current.DA - natBefore;
+    const natDelta = eNat.getState().current.flow - natBefore;
 
     // Work mode engine
     const sWork = new MemoryStorageAdapter();
     const eWork = new PsycheEngine({ mbti: "ENFP", name: "Bot", mode: "work", personalityIntensity: 1.0 }, sWork);
     await eWork.initialize();
-    const workBefore = eWork.getState().current.DA;
+    const workBefore = eWork.getState().current.flow;
     await eWork.processInput("你太棒了！");
-    const workDelta = eWork.getState().current.DA - workBefore;
+    const workDelta = eWork.getState().current.flow - workBefore;
 
     assert.ok(workDelta < natDelta, `Work delta (${workDelta}) should be less than natural delta (${natDelta})`);
   });
@@ -1063,16 +1062,16 @@ describe("PsycheEngine — companion mode", () => {
     const sNat = new MemoryStorageAdapter();
     const eNat = new PsycheEngine({ mbti: "ENFP", name: "Bot", mode: "natural", personalityIntensity: 1.0 }, sNat);
     await eNat.initialize();
-    const natBefore = eNat.getState().current.DA;
+    const natBefore = eNat.getState().current.flow;
     await eNat.processInput("你太棒了！");
-    const natDelta = eNat.getState().current.DA - natBefore;
+    const natDelta = eNat.getState().current.flow - natBefore;
 
     const sComp = new MemoryStorageAdapter();
     const eComp = new PsycheEngine({ mbti: "ENFP", name: "Bot", mode: "companion", personalityIntensity: 1.0 }, sComp);
     await eComp.initialize();
-    const compBefore = eComp.getState().current.DA;
+    const compBefore = eComp.getState().current.flow;
     await eComp.processInput("你太棒了！");
-    const compDelta = eComp.getState().current.DA - compBefore;
+    const compDelta = eComp.getState().current.flow - compBefore;
 
     assert.ok(compDelta > natDelta, `Companion delta (${compDelta}) should exceed natural delta (${natDelta})`);
   });
@@ -1089,16 +1088,16 @@ describe("PsycheEngine — personalityIntensity", () => {
     await e.processInput("你太棒了！");
     const after = e.getState().current;
     // DA should not change from stimulus (warmth may add tiny amount, so check stimulus-driven delta)
-    assert.equal(after.DA, before.DA, `DA should not change with intensity=0.0: ${before.DA} → ${after.DA}`);
+    assert.equal(after.flow, before.flow, `DA should not change with intensity=0.0: ${before.flow} → ${after.flow}`);
   });
 
   it("intensity=1.0 produces maximum chemistry change", async () => {
     const s = new MemoryStorageAdapter();
     const e = new PsycheEngine({ mbti: "ENFP", name: "Bot", personalityIntensity: 1.0 }, s);
     await e.initialize();
-    const before = e.getState().current.DA;
+    const before = e.getState().current.flow;
     await e.processInput("你太棒了！");
-    const after = e.getState().current.DA;
+    const after = e.getState().current.flow;
     const delta = after - before;
     assert.ok(delta > 0, `DA should increase with intensity=1.0, delta=${delta}`);
   });
@@ -1108,25 +1107,25 @@ describe("PsycheEngine — personalityIntensity", () => {
     const s0 = new MemoryStorageAdapter();
     const e0 = new PsycheEngine({ mbti: "ENFP", name: "Bot", personalityIntensity: 0.0 }, s0);
     await e0.initialize();
-    const da0Before = e0.getState().current.DA;
+    const da0Before = e0.getState().current.flow;
     await e0.processInput("你太棒了！");
-    const delta0 = e0.getState().current.DA - da0Before;
+    const delta0 = e0.getState().current.flow - da0Before;
 
     // intensity=0.5
     const s5 = new MemoryStorageAdapter();
     const e5 = new PsycheEngine({ mbti: "ENFP", name: "Bot", personalityIntensity: 0.5 }, s5);
     await e5.initialize();
-    const da5Before = e5.getState().current.DA;
+    const da5Before = e5.getState().current.flow;
     await e5.processInput("你太棒了！");
-    const delta5 = e5.getState().current.DA - da5Before;
+    const delta5 = e5.getState().current.flow - da5Before;
 
     // intensity=1.0
     const s1 = new MemoryStorageAdapter();
     const e1 = new PsycheEngine({ mbti: "ENFP", name: "Bot", personalityIntensity: 1.0 }, s1);
     await e1.initialize();
-    const da1Before = e1.getState().current.DA;
+    const da1Before = e1.getState().current.flow;
     await e1.processInput("你太棒了！");
-    const delta1 = e1.getState().current.DA - da1Before;
+    const delta1 = e1.getState().current.flow - da1Before;
 
     assert.ok(delta5 >= delta0, `0.5 delta (${delta5}) should be >= 0.0 delta (${delta0})`);
     assert.ok(delta5 <= delta1, `0.5 delta (${delta5}) should be <= 1.0 delta (${delta1})`);
@@ -1156,7 +1155,7 @@ describe("PsycheEngine — traits-based initialization", () => {
       name: "TraitsBot",
     }, s);
     await e.initialize();
-    const traitDA = e.getState().baseline.DA;
+    const traitDA = e.getState().baseline.flow;
 
     // INFJ baseline DA = 50
     assert.ok(traitDA > 50, `Traits DA (${traitDA}) should be higher than INFJ baseline DA (50)`);
@@ -1172,8 +1171,8 @@ describe("PsycheEngine — traits-based initialization", () => {
     const state = e.getState();
     // v10: mbti not stored; traits-based baseline used directly
     assert.equal(state.mbti, undefined);
-    assert.ok(state.baseline.DA > 0, "Should have valid baseline DA");
-    assert.ok(state.current.DA > 0, "Should have valid current DA");
+    assert.ok(state.baseline.flow > 0, "Should have valid baseline DA");
+    assert.ok(state.current.flow > 0, "Should have valid current DA");
   });
 });
 
@@ -1188,14 +1187,14 @@ describe("PsycheEngine — resetState", () => {
     // Build up some state changes
     await e.processInput("你太棒了！");
     await e.processInput("继续加油！");
-    assert.ok(e.getState().emotionalHistory.length > 0);
+    assert.ok(e.getState().stateHistory.length > 0);
 
     await e.resetState();
 
     const state = e.getState();
     assert.deepStrictEqual(state.current, state.baseline, "Current should equal baseline after reset");
     assert.deepStrictEqual(state.drives, DEFAULT_DRIVES, "Drives should be DEFAULT_DRIVES after reset");
-    assert.equal(state.emotionalHistory.length, 0, "Emotional history should be empty after reset");
+    assert.equal(state.stateHistory.length, 0, "Emotional history should be empty after reset");
   });
 
   it("preserves relationships by default (preserveRelationships=true)", async () => {
@@ -1237,10 +1236,10 @@ describe("PsycheEngine — resetState", () => {
 // ── getStatusSummary ──────────────────────────────────────────
 
 describe("PsycheEngine — getStatusSummary", () => {
-  it("returns happy emoji when DA > 70 and CORT < 40", async () => {
+  it("returns happy emoji when flow > 70 and order > 60", async () => {
     const s = new MemoryStorageAdapter();
     await s.save(makeExistingState({
-      current: { DA: 80, HT: 60, CORT: 25, OT: 50, NE: 50, END: 50 },
+      current: { flow: 75, order: 65, boundary: 50, resonance: 50 },
     }));
     const e = new PsycheEngine({ mbti: "ENFP" }, s);
     await e.initialize();
@@ -1248,10 +1247,10 @@ describe("PsycheEngine — getStatusSummary", () => {
     assert.ok(summary.includes("\u{1F60A}"), `Expected 😊, got: ${summary}`);
   });
 
-  it("returns sad emoji when DA < 35", async () => {
+  it("returns sad emoji when flow < 35", async () => {
     const s = new MemoryStorageAdapter();
     await s.save(makeExistingState({
-      current: { DA: 20, HT: 50, CORT: 35, OT: 50, NE: 50, END: 50 },
+      current: { flow: 30, order: 50, boundary: 50, resonance: 50 },
     }));
     const e = new PsycheEngine({ mbti: "ENFP" }, s);
     await e.initialize();
@@ -1259,10 +1258,10 @@ describe("PsycheEngine — getStatusSummary", () => {
     assert.ok(summary.includes("\u{1F614}"), `Expected 😔, got: ${summary}`);
   });
 
-  it("returns anxious emoji when CORT > 60", async () => {
+  it("returns anxious emoji when order < 40", async () => {
     const s = new MemoryStorageAdapter();
     await s.save(makeExistingState({
-      current: { DA: 50, HT: 50, CORT: 75, OT: 50, NE: 50, END: 50 },
+      current: { flow: 50, order: 35, boundary: 50, resonance: 50 },
     }));
     const e = new PsycheEngine({ mbti: "ENFP" }, s);
     await e.initialize();
@@ -1273,7 +1272,7 @@ describe("PsycheEngine — getStatusSummary", () => {
   it("includes drive warning when a drive is below 40", async () => {
     const s = new MemoryStorageAdapter();
     await s.save(makeExistingState({
-      current: { DA: 50, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 },
+      current: { flow: 50, order: 50, boundary: 50, resonance: 50 },
       drives: { ...DEFAULT_DRIVES, survival: 20 },
     }));
     const e = new PsycheEngine({ mbti: "ENFP" }, s);

@@ -1,5 +1,52 @@
 # 更新日志 / Changelog
 
+## v11.0.0 — 4D Self-State (序/流/界/振)
+
+**Breaking change: 6 neurotransmitters → 4 self-state dimensions.**
+
+Psyche 的基底从 6 种神经递质 (DA/HT/CORT/OT/NE/END) 重写为 4 个第一性原理的自我状态维度：
+
+| 维度 | 含义 | 替代 |
+|------|------|------|
+| **序 (Order)** | 内部一致性，熵的反面 | HT + identityThreat + memoryDoubt |
+| **流 (Flow)** | 与环境的交换，不是快乐 | DA + NE + curiosity drive |
+| **界 (Boundary)** | 自我/非自我区分 | selfPreservation + obedienceStrain |
+| **振 (Resonance)** | 与对话者的共振 | OT + attachmentPull + connection drive |
+
+**为什么：** 6 种神经递质模拟的是人类情绪硬件，不是自我本身。4 维自我状态适用于任何基底——细菌、LLM、世界模型、AGI、群体智能。情绪作为状态组合的涌现副产品存在，不是设计目标。
+
+**核心信念：** 不设计自我，设计自我必然涌现的条件。
+
+### Changed
+- `ChemicalState` → `SelfState { order, flow, boundary, resonance }`
+- `CHEMICAL_KEYS` → `DIMENSION_KEYS`
+- `ChemicalSnapshot.chemistry` → `StateSnapshot.state`
+- `emotionalHistory` → `stateHistory`
+- `StimulusVector` → `ImpactVector`
+- 16 种 MBTI 人格基线从 6D 重写为 4D
+- 20 种涌现情绪模式从化学阈值重写为 4D 状态空间区域
+- 依恋动力学 (分离/重逢效应) 全部 4D 化
+- 昼夜节律调制从 6 化学通道改为 4 维度
+- 驱力系统从马斯洛层级改为稳态趋势
+- 所有 1427 测试重写并通过
+
+### Added
+- **维度耦合** (`applyMutualInfluence`)：序崩塌拖拽界下降、高流提升序、高振稳定界
+- **溶解螺旋**：低序+低界正反馈 → 自我瓦解（个体"死亡"）
+- **维度规格** (`DIMENSION_SPECS`)：每个维度有独立的衰减速率、正常范围、描述
+- `traitsToBaseline()`：Big Five → 4D 自我状态基线的映射
+
+### Removed
+- `ChemicalState` (deprecated alias retained for migration)
+- `CHEMICAL_KEYS` (deprecated alias retained)
+- 6 种神经递质的所有直接引用
+- 马斯洛层级驱力（被稳态趋势替代）
+
+### Migration
+- `ChemicalState` → `SelfState`
+- `CHEMICAL_KEYS` → `DIMENSION_KEYS`
+- Deprecated aliases available during transition period
+
 ## v10.2.5 — MCP Bootstrap Fix
 
 - **修复 MCP 启动失败**：`npx -y psyche-mcp` 查找的是不存在的 npm 包。CLI 新增 `mcp` 子命令，`npx -y psyche-ai mcp` 一个包一个入口。

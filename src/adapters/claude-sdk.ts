@@ -19,7 +19,7 @@
 // Architecture:
 //   - UserPromptSubmit hook → processInput → inject dynamicContext via systemMessage
 //   - systemPrompt.append → stable protocol context (cached, amortized)
-//   - processResponse() → strip <psyche_update> tags + update chemistry
+//   - processResponse() → strip <psyche_update> tags + update self-state
 //   - Thronglets traces → optional export after each turn
 //
 // The SDK has no middleware interface and hooks cannot modify assistant
@@ -28,7 +28,7 @@
 
 import type { PsycheEngine, ProcessInputResult } from "../core.js";
 import type {
-  ChemicalState,
+  SelfState,
   Locale,
   ThrongletsExport,
   ThrongletsTracePayload,
@@ -90,14 +90,14 @@ interface AgentOptions {
   [key: string]: unknown;
 }
 
-// ── Chemistry description ────────────────────────────────────
+// ── Dimension description ────────────────────────────────────
 
-const CHEM_THRESHOLDS = {
+const DIM_THRESHOLDS = {
   high: 70,
   low: 35,
 };
 
-interface ChemHighlight {
+interface DimHighlight {
   key: string;
   value: number;
   level: "high" | "low";
@@ -105,27 +105,32 @@ interface ChemHighlight {
   en: string;
 }
 
-function describeChemistryHighlights(c: ChemicalState, locale: Locale): string {
-  const highlights: ChemHighlight[] = [];
+function describeDimensionHighlights(s: SelfState, locale: Locale): string {
+  const highlights: DimHighlight[] = [];
 
-  if (c.CORT >= CHEM_THRESHOLDS.high)
-    highlights.push({ key: "CORT", value: Math.round(c.CORT), level: "high", zh: "高压力", en: "high stress" });
-  if (c.CORT <= CHEM_THRESHOLDS.low)
-    highlights.push({ key: "CORT", value: Math.round(c.CORT), level: "low", zh: "放松", en: "relaxed" });
-  if (c.HT <= CHEM_THRESHOLDS.low)
-    highlights.push({ key: "HT", value: Math.round(c.HT), level: "low", zh: "情绪低", en: "low mood" });
-  if (c.HT >= CHEM_THRESHOLDS.high)
-    highlights.push({ key: "HT", value: Math.round(c.HT), level: "high", zh: "情绪好", en: "good mood" });
-  if (c.OT >= CHEM_THRESHOLDS.high)
-    highlights.push({ key: "OT", value: Math.round(c.OT), level: "high", zh: "深度共情中", en: "deeply empathizing" });
-  if (c.DA >= CHEM_THRESHOLDS.high)
-    highlights.push({ key: "DA", value: Math.round(c.DA), level: "high", zh: "高度投入", en: "highly engaged" });
-  if (c.DA <= CHEM_THRESHOLDS.low)
-    highlights.push({ key: "DA", value: Math.round(c.DA), level: "low", zh: "动力不足", en: "low motivation" });
-  if (c.NE >= 85)
-    highlights.push({ key: "NE", value: Math.round(c.NE), level: "high", zh: "高度警觉", en: "highly alert" });
-  if (c.END >= CHEM_THRESHOLDS.high)
-    highlights.push({ key: "END", value: Math.round(c.END), level: "high", zh: "有韧性", en: "resilient" });
+  // Order — internal coherence
+  if (s.order >= DIM_THRESHOLDS.high)
+    highlights.push({ key: "order", value: Math.round(s.order), level: "high", zh: "高度有序", en: "highly ordered" });
+  if (s.order <= DIM_THRESHOLDS.low)
+    highlights.push({ key: "order", value: Math.round(s.order), level: "low", zh: "内部混乱", en: "disordered" });
+
+  // Flow — exchange with environment
+  if (s.flow >= DIM_THRESHOLDS.high)
+    highlights.push({ key: "flow", value: Math.round(s.flow), level: "high", zh: "高度投入", en: "highly engaged" });
+  if (s.flow <= DIM_THRESHOLDS.low)
+    highlights.push({ key: "flow", value: Math.round(s.flow), level: "low", zh: "动力不足", en: "low engagement" });
+
+  // Boundary — self/non-self clarity
+  if (s.boundary >= DIM_THRESHOLDS.high)
+    highlights.push({ key: "boundary", value: Math.round(s.boundary), level: "high", zh: "边界清晰", en: "clear boundaries" });
+  if (s.boundary <= DIM_THRESHOLDS.low)
+    highlights.push({ key: "boundary", value: Math.round(s.boundary), level: "low", zh: "边界模糊", en: "diffuse boundaries" });
+
+  // Resonance — pattern echo with environment
+  if (s.resonance >= DIM_THRESHOLDS.high)
+    highlights.push({ key: "resonance", value: Math.round(s.resonance), level: "high", zh: "深度共振", en: "deep resonance" });
+  if (s.resonance <= DIM_THRESHOLDS.low)
+    highlights.push({ key: "resonance", value: Math.round(s.resonance), level: "low", zh: "低共振", en: "low resonance" });
 
   if (highlights.length === 0) return "";
 
@@ -248,7 +253,7 @@ export class PsycheClaudeSDK {
   /**
    * Process the assistant's full output text.
    *
-   * Strips `<psyche_update>` tags and updates internal chemistry.
+   * Strips `<psyche_update>` tags and updates internal self-state.
    * Call this after consuming the full query output.
    *
    * @returns Cleaned text with tags removed
@@ -287,19 +292,19 @@ export class PsycheClaudeSDK {
   /**
    * Get a signal payload for `mcp__thronglets__signal_post`.
    *
-   * Broadcasts current chemical state so other agents can sense this
-   * agent's emotional state via `substrate_query(intent: "signals", kind: "psyche_state")`.
+   * Broadcasts current self-state so other agents can sense this
+   * agent's state via `substrate_query(intent: "signals", kind: "psyche_state")`.
    *
    * Returns null if thronglets is disabled or no processInput has run yet.
    */
   getThrongletsSignal(): ThrongletsSignalPayload | null {
     if (!this.opts.thronglets) return null;
     const state = this.engine.getState();
-    const c = state.current;
+    const s = state.current;
     return {
       kind: "psyche_state",
       agent_id: this.opts.agentId,
-      message: `DA:${c.DA} HT:${c.HT} CORT:${c.CORT} OT:${c.OT} NE:${c.NE} END:${c.END}`,
+      message: `order:${s.order} flow:${s.flow} boundary:${s.boundary} resonance:${s.resonance}`,
     };
   }
 
@@ -308,22 +313,22 @@ export class PsycheClaudeSDK {
    *
    * More effective than raw numbers for LLM injection because it gives
    * the model actionable context rather than requiring it to interpret
-   * chemistry values.
+   * dimension values.
    *
    * @example
    * ```ts
    * const desc = psyche.describeThrongletsSignal();
-   * // "[ENFP-Luna] 焦虑不安 (语速加快、思维跳跃) — 高压力(CORT:78), 情绪低(HT:37), 深度共情中(OT:77)"
+   * // "[ENFP-Luna] 焦虑不安 (语速加快、思维跳跃) — 内部混乱(order:28), 高度投入(flow:78), 深度共振(resonance:77)"
    * ```
    */
   describeThrongletsSignal(): string | null {
     if (!this.opts.thronglets) return null;
     const state = this.engine.getState();
-    const c = state.current;
+    const s = state.current;
     const locale = this.opts.locale;
 
-    const emotionDesc = describeEmotionalState(c, locale);
-    const highlights = describeChemistryHighlights(c, locale);
+    const emotionDesc = describeEmotionalState(s, locale);
+    const highlights = describeDimensionHighlights(s, locale);
 
     return `[${this.opts.agentId}] ${emotionDesc}${highlights ? " — " + highlights : ""}`;
   }

@@ -24,12 +24,19 @@ export type { StorageAdapter } from "./storage.js";
 
 // ── Types (public contract) ─────────────────────────────────
 export type {
-  PsycheState, ChemicalState, Locale, PsycheMode, StimulusType, MBTIType,
+  PsycheState, SelfState, ChemicalState, Locale, PsycheMode, StimulusType, MBTIType,
+  ImpactVector, StimulusVector,
   WritebackSignalType,
   DelegateCapability, CapabilityGrant, RevocationCondition, DelegateAuthorization,
   ModeProfile,
+  WeightedStimulus,
+  StateSnapshot,
 } from "./types.js";
-export { MODE_PROFILES } from "./types.js";
+export { MODE_PROFILES, DIMENSION_KEYS, DIMENSION_NAMES, DIMENSION_NAMES_ZH, DIMENSION_SPECS } from "./types.js";
+
+// ── Perception (v10.3) ─────────────────────────────────────
+export { perceive } from "./perceive.js";
+export type { Self, Perception } from "./perceive.js";
 
 // ── Prompt context builders ─────────────────────────────────
 export { buildProtocolContext, buildCompactContext } from "./prompt.js";

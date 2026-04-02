@@ -6,17 +6,17 @@ import {
   clamp,
   STIMULUS_VECTORS, EMOTION_PATTERNS,
 } from "../src/chemistry.js";
-import type { ChemicalState, StimulusType } from "../src/types.js";
-import { CHEMICAL_KEYS } from "../src/types.js";
+import type { SelfState, StimulusType } from "../src/types.js";
+import { DIMENSION_KEYS } from "../src/types.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
-function makeState(overrides: Partial<ChemicalState> = {}): ChemicalState {
-  return { DA: 50, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50, ...overrides };
+function makeState(overrides: Partial<SelfState> = {}): SelfState {
+  return { flow: 50, order: 50, boundary: 50, resonance: 50, ...overrides };
 }
 
-function assertInRange(state: ChemicalState): void {
-  for (const key of CHEMICAL_KEYS) {
+function assertInRange(state: SelfState): void {
+  for (const key of DIMENSION_KEYS) {
     assert.ok(state[key] >= 0, `${key} should be >= 0, got ${state[key]}`);
     assert.ok(state[key] <= 100, `${key} should be <= 100, got ${state[key]}`);
   }
@@ -51,56 +51,55 @@ describe("clamp", () => {
 
 describe("applyDecay", () => {
   it("returns copy when minutesElapsed <= 0", () => {
-    const current = makeState({ DA: 80 });
-    const baseline = makeState({ DA: 50 });
+    const current = makeState({ flow: 80 });
+    const baseline = makeState({ flow: 50 });
     const result = applyDecay(current, baseline, 0);
     assert.deepStrictEqual(result, current);
     assert.notStrictEqual(result, current); // new object
   });
 
   it("decays toward baseline over time", () => {
-    const current = makeState({ DA: 80, NE: 90, HT: 30 });
-    const baseline = makeState({ DA: 50, NE: 50, HT: 60 });
+    const current = makeState({ flow: 90, order: 30 });
+    const baseline = makeState({ flow: 50, order: 60 });
     const result = applyDecay(current, baseline, 60);
 
-    // DA should be closer to 50 than 80
-    assert.ok(result.DA < 80 && result.DA > 50, `DA should decay toward baseline: ${result.DA}`);
-    // NE decays fast
-    assert.ok(result.NE < 90 && result.NE >= 50, `NE should decay fast: ${result.NE}`);
-    // HT was below baseline, should rise toward it
-    assert.ok(result.HT > 30 && result.HT <= 60, `HT should rise toward baseline: ${result.HT}`);
+    // flow should decay toward baseline 50
+    assert.ok(result.flow < 90 && result.flow > 50, `flow should decay toward baseline: ${result.flow}`);
+    // order was below baseline, should rise toward it
+    assert.ok(result.order > 30 && result.order <= 60, `order should rise toward baseline: ${result.order}`);
   });
 
-  it("fast chemicals decay faster than slow ones", () => {
-    const current = makeState({ NE: 90, HT: 90 });
-    const baseline = makeState({ NE: 50, HT: 50 });
+  it("order decays faster than flow (lower decayRate = faster)", () => {
+    // order decayRate=0.75, flow decayRate=0.82
+    const current = makeState({ flow: 90, order: 90 });
+    const baseline = makeState({ flow: 50, order: 50 });
     const result = applyDecay(current, baseline, 60);
 
-    const neDelta = 90 - result.NE;
-    const htDelta = 90 - result.HT;
-    assert.ok(neDelta > htDelta, `NE should decay faster than HT: NE delta=${neDelta}, HT delta=${htDelta}`);
+    const orderDelta = 90 - result.order;
+    const flowDelta = 90 - result.flow;
+    assert.ok(orderDelta > flowDelta, `order should decay faster than flow: order delta=${orderDelta}, flow delta=${flowDelta}`);
   });
 
   it("never decays past baseline (overshoots)", () => {
-    const current = makeState({ DA: 90 });
-    const baseline = makeState({ DA: 50 });
+    const current = makeState({ flow: 90 });
+    const baseline = makeState({ flow: 50 });
     // Even after a very long time
     const result = applyDecay(current, baseline, 10000);
-    assert.ok(result.DA >= 50, `DA should not decay past baseline: ${result.DA}`);
+    assert.ok(result.flow >= 50, `DA should not decay past baseline: ${result.flow}`);
   });
 
   it("all values stay in [0, 100]", () => {
-    const current = makeState({ DA: 100, HT: 0, CORT: 100, OT: 0, NE: 100, END: 0 });
+    const current = makeState({ flow: 100, order: 0, boundary: 100, resonance: 0 });
     const baseline = makeState();
     const result = applyDecay(current, baseline, 120);
     assertInRange(result);
   });
 
   it("returns baseline when minutes is very large", () => {
-    const current = makeState({ DA: 100 });
-    const baseline = makeState({ DA: 50 });
+    const current = makeState({ flow: 100 });
+    const baseline = makeState({ flow: 50 });
     const result = applyDecay(current, baseline, 100000);
-    assert.ok(Math.abs(result.DA - 50) < 1, `DA should converge to baseline: ${result.DA}`);
+    assert.ok(Math.abs(result.flow - 50) < 1, `DA should converge to baseline: ${result.flow}`);
   });
 });
 
@@ -110,16 +109,20 @@ describe("applyStimulus", () => {
   it("applies praise stimulus correctly", () => {
     const current = makeState();
     const result = applyStimulus(current, "praise", 1.0, 25);
-    assert.ok(result.DA > current.DA, "DA should increase on praise");
-    assert.ok(result.CORT < current.CORT, "CORT should decrease on praise");
+    // praise: order +10, flow +8, boundary +5, resonance +12
+    assert.ok(result.order > current.order, "order should increase on praise");
+    assert.ok(result.resonance > current.resonance, "resonance should increase on praise");
+    assert.ok(result.boundary > current.boundary, "boundary should increase on praise");
     assertInRange(result);
   });
 
   it("applies criticism stimulus correctly", () => {
     const current = makeState();
     const result = applyStimulus(current, "criticism", 1.0, 25);
-    assert.ok(result.DA < current.DA, "DA should decrease on criticism");
-    assert.ok(result.CORT > current.CORT, "CORT should increase on criticism");
+    // criticism: order -12, flow +5, boundary -8, resonance -10
+    assert.ok(result.order < current.order, "order should decrease on criticism");
+    assert.ok(result.resonance < current.resonance, "resonance should decrease on criticism");
+    assert.ok(result.boundary < current.boundary, "boundary should decrease on criticism");
     assertInRange(result);
   });
 
@@ -127,7 +130,7 @@ describe("applyStimulus", () => {
     const current = makeState();
     const maxDelta = 10;
     const result = applyStimulus(current, "conflict", 1.0, maxDelta);
-    for (const key of CHEMICAL_KEYS) {
+    for (const key of DIMENSION_KEYS) {
       const delta = Math.abs(result[key] - current[key]);
       assert.ok(delta <= maxDelta + 0.001, `${key} delta ${delta} should be <= ${maxDelta}`);
     }
@@ -137,7 +140,7 @@ describe("applyStimulus", () => {
     const current = makeState();
     const low = applyStimulus(current, "praise", 0.5, 25);
     const high = applyStimulus(current, "praise", 1.5, 25);
-    assert.ok(high.DA > low.DA, "Higher sensitivity should produce larger DA change");
+    assert.ok(high.flow > low.flow, "Higher sensitivity should produce larger DA change");
   });
 
   it("returns copy for unknown stimulus (with warn)", () => {
@@ -157,8 +160,8 @@ describe("applyStimulus", () => {
   });
 
   it("never exceeds [0, 100] even at extreme states", () => {
-    const low = makeState({ DA: 0, HT: 0, CORT: 0, OT: 0, NE: 0, END: 0 });
-    const high = makeState({ DA: 100, HT: 100, CORT: 100, OT: 100, NE: 100, END: 100 });
+    const low = makeState({ flow: 0, order: 0, boundary: 0, resonance: 0 });
+    const high = makeState({ flow: 100, order: 100, boundary: 100, resonance: 100 });
 
     for (const type of Object.keys(STIMULUS_VECTORS) as StimulusType[]) {
       assertInRange(applyStimulus(low, type, 1.5, 30));
@@ -171,11 +174,11 @@ describe("applyStimulus", () => {
 
 describe("applyContagion", () => {
   it("applies partial influence from user emotion", () => {
-    const agent = makeState({ DA: 50 });
+    const agent = makeState({ flow: 50 });
     const result = applyContagion(agent, "praise", 0.2, 1.0);
-    // praise has DA: +15, contagion 0.2 → +3
-    assert.ok(result.DA > agent.DA, "DA should increase via contagion");
-    assert.ok(result.DA - agent.DA < 5, "Contagion effect should be small");
+    // praise has flow: +8, contagion 0.2 → +1.6
+    assert.ok(result.flow > agent.flow, "flow should increase via contagion");
+    assert.ok(result.flow - agent.flow < 5, "Contagion effect should be small");
   });
 
   it("returns copy for unknown stimulus", () => {
@@ -185,7 +188,7 @@ describe("applyContagion", () => {
   });
 
   it("all values stay in [0, 100]", () => {
-    const extreme = makeState({ DA: 100, HT: 0, CORT: 100, OT: 0, NE: 100, END: 0 });
+    const extreme = makeState({ flow: 100, order: 0, boundary: 100, resonance: 0 });
     const result = applyContagion(extreme, "conflict", 1.0, 1.5);
     assertInRange(result);
   });
@@ -195,25 +198,29 @@ describe("applyContagion", () => {
 
 describe("detectEmotions", () => {
   it("detects excited joy", () => {
-    const state = makeState({ DA: 80, NE: 70, CORT: 20 });
+    // excited joy: order > 65 && flow > 60 && boundary > 55 && resonance > 55
+    const state = makeState({ order: 70, flow: 70, boundary: 60, resonance: 60 });
     const emotions = detectEmotions(state);
     assert.ok(emotions.some((e) => e.name === "excited joy"), "Should detect excited joy");
   });
 
   it("detects burnout", () => {
-    const state = makeState({ DA: 30, NE: 30, CORT: 50 });
+    // burnout: flow < 35 && order < 40
+    const state = makeState({ flow: 30, order: 35, boundary: 50, resonance: 50 });
     const emotions = detectEmotions(state);
     assert.ok(emotions.some((e) => e.name === "burnout"), "Should detect burnout");
   });
 
   it("detects boredom (new v0.2)", () => {
-    const state = makeState({ DA: 30, NE: 30, CORT: 30 });
+    // boredom: flow < 35 && order < 45 && boundary > 40
+    const state = makeState({ flow: 30, order: 40, boundary: 50, resonance: 50 });
     const emotions = detectEmotions(state);
     assert.ok(emotions.some((e) => e.name === "boredom"), "Should detect boredom");
   });
 
   it("detects nostalgia (new v0.2)", () => {
-    const state = makeState({ DA: 40, OT: 60, HT: 55, END: 55 });
+    // nostalgia: order > 50 && flow < 45 && resonance > 55
+    const state = makeState({ order: 55, flow: 40, resonance: 60, boundary: 50 });
     const emotions = detectEmotions(state);
     assert.ok(emotions.some((e) => e.name === "nostalgia"), "Should detect nostalgia");
   });
@@ -248,13 +255,14 @@ describe("describeEmotionalState", () => {
   });
 
   it("includes emotion name when detected", () => {
-    const state = makeState({ DA: 80, NE: 70, CORT: 20 });
+    // excited joy: order > 65 && flow > 60 && boundary > 55 && resonance > 55
+    const state = makeState({ order: 70, flow: 70, boundary: 60, resonance: 60 });
     const desc = describeEmotionalState(state, "zh");
     assert.ok(desc.includes("愉悦兴奋"), `Should contain emotion name: ${desc}`);
   });
 
   it("supports English locale", () => {
-    const state = makeState({ DA: 80, NE: 70, CORT: 20 });
+    const state = makeState({ order: 70, flow: 70, boundary: 60, resonance: 60 });
     const desc = describeEmotionalState(state, "en");
     assert.ok(desc.includes("excited joy"), `Should contain English name: ${desc}`);
   });
@@ -269,7 +277,7 @@ describe("getExpressionHint", () => {
   });
 
   it("uses fallback hints when no emotion matches", () => {
-    const state = makeState({ DA: 80 }); // High DA but maybe no full pattern match
+    const state = makeState({ flow: 80 }); // High DA but maybe no full pattern match
     const hint = getExpressionHint(state);
     assert.ok(typeof hint === "string" && hint.length > 0);
   });
@@ -287,7 +295,7 @@ describe("getBehaviorGuide", () => {
   });
 
   it("returns guide when emotion detected", () => {
-    const state = makeState({ DA: 80, NE: 70, CORT: 20 });
+    const state = makeState({ order: 70, flow: 70, boundary: 60, resonance: 60 });
     const guide = getBehaviorGuide(state, "zh");
     assert.ok(guide !== null, "Should return behavior guide");
     assert.ok(guide!.includes("愉悦兴奋"), "Should include emotion name");
@@ -301,9 +309,9 @@ describe("STIMULUS_VECTORS", () => {
     assert.equal(Object.keys(STIMULUS_VECTORS).length, 14);
   });
 
-  it("all vectors have all 6 chemical keys", () => {
+  it("all vectors have all 4 dimension keys", () => {
     for (const [type, vec] of Object.entries(STIMULUS_VECTORS)) {
-      for (const key of CHEMICAL_KEYS) {
+      for (const key of DIMENSION_KEYS) {
         assert.ok(typeof vec[key] === "number", `${type}.${key} should be a number`);
       }
     }
@@ -319,15 +327,15 @@ describe("habituation (Weber-Fechner)", () => {
     const first = applyStimulus(base, "praise", 1.0, 25, undefined, 1);
     const second = applyStimulus(base, "praise", 1.0, 25, undefined, 2);
     // Both should be identical (no habituation)
-    assert.equal(first.DA, second.DA, "1st and 2nd exposure should be equal");
+    assert.equal(first.flow, second.flow, "1st and 2nd exposure should be equal");
   });
 
   it("3rd exposure is reduced (~77%)", () => {
     const base = makeState();
     const first = applyStimulus(base, "praise", 1.0, 25, undefined, 1);
     const third = applyStimulus(base, "praise", 1.0, 25, undefined, 3);
-    const firstDelta = first.DA - base.DA;
-    const thirdDelta = third.DA - base.DA;
+    const firstDelta = first.flow - base.flow;
+    const thirdDelta = third.flow - base.flow;
     const ratio = thirdDelta / firstDelta;
     assert.ok(ratio > 0.7 && ratio < 0.85,
       `3rd exposure ratio should be ~0.77, got ${ratio.toFixed(3)}`);
@@ -337,7 +345,7 @@ describe("habituation (Weber-Fechner)", () => {
     const base = makeState();
     const first = applyStimulus(base, "praise", 1.0, 25, undefined, 1);
     const fifth = applyStimulus(base, "praise", 1.0, 25, undefined, 5);
-    const ratio = (fifth.DA - base.DA) / (first.DA - base.DA);
+    const ratio = (fifth.flow - base.flow) / (first.flow - base.flow);
     assert.ok(ratio > 0.45 && ratio < 0.6,
       `5th exposure ratio should be ~0.53, got ${ratio.toFixed(3)}`);
   });
@@ -346,7 +354,7 @@ describe("habituation (Weber-Fechner)", () => {
     const base = makeState();
     const first = applyStimulus(base, "praise", 1.0, 25, undefined, 1);
     const tenth = applyStimulus(base, "praise", 1.0, 25, undefined, 10);
-    const ratio = (tenth.DA - base.DA) / (first.DA - base.DA);
+    const ratio = (tenth.flow - base.flow) / (first.flow - base.flow);
     assert.ok(ratio > 0.2 && ratio < 0.4,
       `10th exposure ratio should be ~0.29, got ${ratio.toFixed(3)}`);
   });
@@ -355,15 +363,15 @@ describe("habituation (Weber-Fechner)", () => {
     const base = makeState();
     const noCount = applyStimulus(base, "praise", 1.0, 25);
     const firstCount = applyStimulus(base, "praise", 1.0, 25, undefined, 1);
-    assert.equal(noCount.DA, firstCount.DA, "undefined count should equal count=1");
+    assert.equal(noCount.flow, firstCount.flow, "undefined count should equal count=1");
   });
 
   it("works for negative stimulus (criticism)", () => {
     const base = makeState();
     const first = applyStimulus(base, "criticism", 1.0, 25, undefined, 1);
     const fifth = applyStimulus(base, "criticism", 1.0, 25, undefined, 5);
-    const firstDelta = Math.abs(first.CORT - base.CORT);
-    const fifthDelta = Math.abs(fifth.CORT - base.CORT);
+    const firstDelta = Math.abs(first.boundary - base.boundary);
+    const fifthDelta = Math.abs(fifth.boundary - base.boundary);
     assert.ok(fifthDelta < firstDelta,
       "5th criticism should have smaller CORT effect");
   });
@@ -371,7 +379,7 @@ describe("habituation (Weber-Fechner)", () => {
   it("habituation only reduces magnitude, doesn't reverse direction", () => {
     const base = makeState();
     const result = applyStimulus(base, "praise", 1.0, 25, undefined, 20);
-    assert.ok(result.DA >= base.DA, "DA should still increase even at high count");
+    assert.ok(result.flow >= base.flow, "DA should still increase even at high count");
   });
 
   it("all values remain in [0, 100] with high habituation", () => {
@@ -384,12 +392,12 @@ describe("habituation (Weber-Fechner)", () => {
     const base = makeState();
     const r1 = applyStimulus(base, "praise", 1.0, 25, undefined, 0);
     const r2 = applyStimulus(base, "praise", 1.0, 25, undefined, undefined);
-    assert.equal(r1.DA, r2.DA);
+    assert.equal(r1.flow, r2.flow);
   });
 
   it("habituation with count=100 still produces some effect", () => {
     const base = makeState();
     const result = applyStimulus(base, "praise", 1.0, 25, undefined, 100);
-    assert.ok(result.DA > base.DA, "Should still have some effect even at count=100");
+    assert.ok(result.flow > base.flow, "Should still have some effect even at count=100");
   });
 });

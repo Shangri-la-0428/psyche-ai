@@ -9,7 +9,7 @@ import type {
   SharedIntentionalityState,
   TheoryOfMindModel,
 } from "../src/shared-intentionality.js";
-import type { PsycheState, ChemicalState, RelationshipState, StimulusType } from "../src/types.js";
+import type { PsycheState, SelfState, RelationshipState, StimulusType } from "../src/types.js";
 import {
   DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE,
   DEFAULT_PERSONHOOD_STATE, DEFAULT_RELATIONSHIP,
@@ -17,8 +17,8 @@ import {
 
 // -- Helpers ------------------------------------------------------------------
 
-function makeChemistry(overrides: Partial<ChemicalState> = {}): ChemicalState {
-  return { DA: 55, HT: 65, CORT: 35, OT: 60, NE: 45, END: 50, ...overrides };
+function makeChemistry(overrides: Partial<SelfState> = {}): SelfState {
+  return { order: 65, flow: 55, boundary: 35, resonance: 60, ...overrides };
 }
 
 function makeState(overrides?: Partial<PsycheState>): PsycheState {
@@ -26,14 +26,14 @@ function makeState(overrides?: Partial<PsycheState>): PsycheState {
     version: 6,
     mbti: "INFJ",
     sensitivity: 1.0,
-    baseline: { DA: 55, HT: 65, CORT: 35, OT: 60, NE: 45, END: 50 },
-    current: { DA: 55, HT: 65, CORT: 35, OT: 60, NE: 45, END: 50 },
+    baseline: { order: 65, flow: 55, boundary: 35, resonance: 60 },
+    current: { order: 65, flow: 55, boundary: 35, resonance: 60 },
     drives: { survival: 80, safety: 70, connection: 60, esteem: 60, curiosity: 70 },
     updatedAt: new Date().toISOString(),
     relationships: { _default: { trust: 50, intimacy: 30, phase: "acquaintance" } },
     empathyLog: null,
     selfModel: { values: ["authenticity"], preferences: ["depth"], boundaries: ["no dishonesty"], currentInterests: ["philosophy"] },
-    emotionalHistory: [],
+    stateHistory: [],
     agreementStreak: 0,
     lastDisagreement: null,
     learning: { ...DEFAULT_LEARNING_STATE },

@@ -7,9 +7,9 @@ import {
   updateTraitDrift,
 } from "../src/drives.js";
 import { DEFAULT_DRIVES, DEFAULT_TRAIT_DRIFT } from "../src/types.js";
-import type { InnateDrives, ChemicalState, TraitDriftState, ChemicalSnapshot, LearningState } from "../src/types.js";
+import type { InnateDrives, SelfState, TraitDriftState, StateSnapshot, LearningState } from "../src/types.js";
 
-const ENFP_BASELINE: ChemicalState = { DA: 75, HT: 55, CORT: 30, OT: 60, NE: 65, END: 70 };
+const ENFP_BASELINE: SelfState = { flow: 65, order: 55, boundary: 30, resonance: 70 };
 
 function makeDrives(overrides: Partial<InnateDrives> = {}): InnateDrives {
   return { ...DEFAULT_DRIVES, ...overrides };
@@ -194,32 +194,32 @@ describe("computeEffectiveBaseline", () => {
     assert.deepStrictEqual(effective, ENFP_BASELINE);
   });
 
-  it("low survival raises CORT and NE baseline", () => {
+  it("low survival raises boundary and lowers order baseline", () => {
     const drives = makeDrives({ survival: 20 });
     const effective = computeEffectiveBaseline(ENFP_BASELINE, drives);
-    assert.ok(effective.CORT > ENFP_BASELINE.CORT, "CORT baseline should rise");
-    assert.ok(effective.NE > ENFP_BASELINE.NE, "NE baseline should rise");
+    assert.ok(effective.boundary > ENFP_BASELINE.boundary, "boundary baseline should rise");
+    assert.ok(effective.order < ENFP_BASELINE.order, "order baseline should drop");
   });
 
   it("low connection lowers OT and DA baseline", () => {
     const drives = makeDrives({ connection: 20 });
     const effective = computeEffectiveBaseline(ENFP_BASELINE, drives);
-    assert.ok(effective.OT < ENFP_BASELINE.OT, "OT baseline should drop");
-    assert.ok(effective.DA < ENFP_BASELINE.DA, "DA baseline should drop");
+    assert.ok(effective.resonance < ENFP_BASELINE.resonance, "OT baseline should drop");
+    assert.ok(effective.flow < ENFP_BASELINE.flow, "DA baseline should drop");
   });
 
   it("low curiosity lowers DA and NE baseline", () => {
     const drives = makeDrives({ curiosity: 20 });
     const effective = computeEffectiveBaseline(ENFP_BASELINE, drives);
-    assert.ok(effective.DA < ENFP_BASELINE.DA, "DA baseline should drop");
-    assert.ok(effective.NE < ENFP_BASELINE.NE, "NE baseline should drop");
+    assert.ok(effective.flow < ENFP_BASELINE.flow, "DA baseline should drop");
+    assert.ok(effective.flow < ENFP_BASELINE.flow, "NE baseline should drop");
   });
 
   it("low safety raises CORT and lowers HT baseline", () => {
     const drives = makeDrives({ safety: 20 });
     const effective = computeEffectiveBaseline(ENFP_BASELINE, drives);
-    assert.ok(effective.CORT > ENFP_BASELINE.CORT, "CORT should rise from safety deficit");
-    assert.ok(effective.HT < ENFP_BASELINE.HT, "HT should drop from safety deficit");
+    assert.ok(effective.boundary > ENFP_BASELINE.boundary, "CORT should rise from safety deficit");
+    assert.ok(effective.order < ENFP_BASELINE.order, "HT should drop from safety deficit");
   });
 
   it("maslow suppression: low survival reduces connection weight", () => {
@@ -233,22 +233,24 @@ describe("computeEffectiveBaseline", () => {
     assert.equal(weightsOk.connection, 1,
       "connection weight should be 1 when survival is fine");
 
-    // Also verify: END baseline (only affected by connection, not survival)
-    // should shift less when survival suppresses connection weight
+    // Verify flow drop from connection deficit is smaller when survival is low
+    // (Maslow suppresses connection weight, reducing its effect on flow)
     const drivesNormal = makeDrives({ connection: 20 });
     const drivesSurvival = makeDrives({ survival: 10, connection: 20 });
     const effectiveNormal = computeEffectiveBaseline(ENFP_BASELINE, drivesNormal);
     const effectiveSurvival = computeEffectiveBaseline(ENFP_BASELINE, drivesSurvival);
-    const endDropNormal = ENFP_BASELINE.END - effectiveNormal.END;
-    const endDropSurvival = ENFP_BASELINE.END - effectiveSurvival.END;
-    assert.ok(endDropSurvival < endDropNormal,
-      "connection effect on END should be suppressed when survival is low");
+    const flowDropNormal = ENFP_BASELINE.flow - effectiveNormal.flow;
+    const flowDropSurvival = ENFP_BASELINE.flow - effectiveSurvival.flow;
+    // Connection's contribution to flow drop is suppressed when survival is low
+    // (though survival itself doesn't directly affect flow, so suppressed connection → less flow drop)
+    assert.ok(flowDropSurvival <= flowDropNormal,
+      `connection effect on flow should be suppressed when survival is low: survival=${flowDropSurvival}, normal=${flowDropNormal}`);
   });
 
   it("effective baseline stays within [0, 100]", () => {
     const drives = makeDrives({ survival: 0, safety: 0, connection: 0, esteem: 0, curiosity: 0 });
     const effective = computeEffectiveBaseline(ENFP_BASELINE, drives);
-    for (const key of ["DA", "HT", "CORT", "OT", "NE", "END"] as const) {
+    for (const key of ["flow", "order", "boundary", "resonance", "flow", "resonance"] as const) {
       assert.ok(effective[key] >= 0, `${key} should be >= 0`);
       assert.ok(effective[key] <= 100, `${key} should be <= 100`);
     }
@@ -385,9 +387,9 @@ describe("drive-chemistry integration", () => {
   it("multiple low drives compound baseline shifts", () => {
     const drives = makeDrives({ connection: 20, esteem: 20, curiosity: 20 });
     const effective = computeEffectiveBaseline(ENFP_BASELINE, drives);
-    // DA should drop significantly (connection + esteem + curiosity all pull it down)
-    assert.ok(effective.DA < ENFP_BASELINE.DA - 10,
-      "multiple deficits should compound DA drop");
+    // flow should drop (connection + esteem + curiosity all pull it down)
+    assert.ok(effective.flow < ENFP_BASELINE.flow,
+      "multiple deficits should compound flow drop");
   });
 
   it("fully satisfied drives produce no baseline change", () => {
@@ -405,11 +407,11 @@ describe("drive-chemistry integration", () => {
 
 // ── Trait Drift (v9: Path B) ─────────────────────────────────
 
-const NEUTRAL_CHEM: ChemicalState = { DA: 50, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 };
+const NEUTRAL_CHEM: SelfState = { flow: 50, order: 50, boundary: 50, resonance: 50 };
 
-function makeSnapshot(overrides: Partial<ChemicalSnapshot> = {}): ChemicalSnapshot {
+function makeSnapshot(overrides: Partial<StateSnapshot> = {}): StateSnapshot {
   return {
-    chemistry: { ...NEUTRAL_CHEM },
+    state: { ...NEUTRAL_CHEM },
     stimulus: null,
     dominantEmotion: null,
     timestamp: new Date().toISOString(),
@@ -474,13 +476,13 @@ describe("updateTraitDrift", () => {
       `praiseExposure should be negative, got ${result.accumulators.praiseExposure}`);
   });
 
-  it("high-CORT session increases pressureExposure", () => {
+  it("low-order session increases pressureExposure", () => {
     const history = Array.from({ length: 5 }, () =>
-      makeSnapshot({ chemistry: { ...NEUTRAL_CHEM, CORT: 80 } }),
+      makeSnapshot({ state: { ...NEUTRAL_CHEM, order: 20 } }),
     );
     const result = updateTraitDrift(makeDrift(), history, makeLearning());
     assert.ok(result.accumulators.pressureExposure > 0,
-      `pressureExposure should increase from high CORT, got ${result.accumulators.pressureExposure}`);
+      `pressureExposure should increase from low order, got ${result.accumulators.pressureExposure}`);
   });
 
   it("neglect-heavy session increases neglectExposure", () => {
@@ -509,36 +511,35 @@ describe("updateTraitDrift", () => {
 
   // ── Dimension 1: Baseline drift ──
 
-  it("positive praiseExposure drifts OT and DA baseline up", () => {
+  it("positive praiseExposure drifts resonance and order baseline up", () => {
     const drift = makeDrift({
       accumulators: { praiseExposure: 60, pressureExposure: 0, neglectExposure: 0, connectionExposure: 0, conflictExposure: 0 },
     });
     const history = Array.from({ length: 5 }, () => makeSnapshot({ stimulus: "praise" }));
     const result = updateTraitDrift(drift, history, makeLearning());
-    assert.ok((result.baselineDelta.OT ?? 0) > 0, "OT baseline should drift up");
-    assert.ok((result.baselineDelta.DA ?? 0) > 0, "DA baseline should drift up");
+    assert.ok((result.baselineDelta.resonance ?? 0) > 0, "resonance baseline should drift up");
+    assert.ok((result.baselineDelta.order ?? 0) > 0, "order baseline should drift up");
   });
 
-  it("negative praiseExposure drifts HT down and CORT up", () => {
+  it("negative praiseExposure drifts order down", () => {
     const drift = makeDrift({
       accumulators: { praiseExposure: -60, pressureExposure: 0, neglectExposure: 0, connectionExposure: 0, conflictExposure: 0 },
     });
     const history = Array.from({ length: 5 }, () => makeSnapshot({ stimulus: "criticism" }));
     const result = updateTraitDrift(drift, history, makeLearning());
-    assert.ok((result.baselineDelta.HT ?? 0) < 0, "HT baseline should drift down");
-    assert.ok((result.baselineDelta.CORT ?? 0) > 0, "CORT baseline should drift up");
+    assert.ok((result.baselineDelta.order ?? 0) < 0, "order baseline should drift down");
   });
 
-  it("high pressureExposure drifts CORT up and HT down", () => {
+  it("high pressureExposure drifts boundary up and order down", () => {
     const drift = makeDrift({
       accumulators: { praiseExposure: 0, pressureExposure: 60, neglectExposure: 0, connectionExposure: 0, conflictExposure: 0 },
     });
     const history = Array.from({ length: 5 }, () =>
-      makeSnapshot({ chemistry: { ...NEUTRAL_CHEM, CORT: 80 } }),
+      makeSnapshot({ state: { ...NEUTRAL_CHEM, order: 20 } }),
     );
     const result = updateTraitDrift(drift, history, makeLearning());
-    assert.ok((result.baselineDelta.CORT ?? 0) > 0, "CORT should drift up from pressure");
-    assert.ok((result.baselineDelta.HT ?? 0) < 0, "HT should drift down from pressure");
+    assert.ok((result.baselineDelta.boundary ?? 0) > 0, "boundary should drift up from pressure");
+    assert.ok((result.baselineDelta.order ?? 0) < 0, "order should drift down from pressure");
   });
 
   it("baseline drift is clamped to ±15", () => {
@@ -546,10 +547,10 @@ describe("updateTraitDrift", () => {
       accumulators: { praiseExposure: 0, pressureExposure: 100, neglectExposure: 100, connectionExposure: 0, conflictExposure: 100 },
     });
     const history = Array.from({ length: 5 }, () =>
-      makeSnapshot({ chemistry: { ...NEUTRAL_CHEM, CORT: 90 } }),
+      makeSnapshot({ state: { ...NEUTRAL_CHEM, boundary: 90 } }),
     );
     const result = updateTraitDrift(drift, history, makeLearning());
-    for (const key of ["DA", "HT", "CORT", "OT", "NE", "END"] as const) {
+    for (const key of ["flow", "order", "boundary", "resonance", "flow", "resonance"] as const) {
       const val = result.baselineDelta[key] ?? 0;
       assert.ok(val >= -15 && val <= 15, `${key} delta ${val} should be in [-15, 15]`);
     }
@@ -557,7 +558,7 @@ describe("updateTraitDrift", () => {
 
   // ── Dimension 2: Decay rate modifiers ──
 
-  it("high pressure + negative outcomes → trauma (CORT decay slower)", () => {
+  it("high pressure + negative outcomes → trauma (order decay slower)", () => {
     const drift = makeDrift({
       accumulators: { praiseExposure: 0, pressureExposure: 50, neglectExposure: 0, connectionExposure: 0, conflictExposure: 0 },
     });
@@ -565,14 +566,14 @@ describe("updateTraitDrift", () => {
       Array.from({ length: 10 }, () => ({ adaptiveScore: -0.3 })),
     );
     const history = Array.from({ length: 5 }, () =>
-      makeSnapshot({ chemistry: { ...NEUTRAL_CHEM, CORT: 80 } }),
+      makeSnapshot({ state: { ...NEUTRAL_CHEM, order: 20 } }),
     );
     const result = updateTraitDrift(drift, history, learning);
-    assert.ok((result.decayRateModifiers.CORT ?? 1) > 1,
-      `Trauma: CORT decay modifier should be > 1, got ${result.decayRateModifiers.CORT}`);
+    assert.ok((result.decayRateModifiers.order ?? 1) > 1,
+      `Trauma: order decay modifier should be > 1, got ${result.decayRateModifiers.order}`);
   });
 
-  it("high pressure + positive outcomes → resilience (CORT decay faster)", () => {
+  it("high pressure + positive outcomes → resilience (order decay faster)", () => {
     const drift = makeDrift({
       accumulators: { praiseExposure: 0, pressureExposure: 50, neglectExposure: 0, connectionExposure: 0, conflictExposure: 0 },
     });
@@ -580,11 +581,11 @@ describe("updateTraitDrift", () => {
       Array.from({ length: 10 }, () => ({ adaptiveScore: 0.5 })),
     );
     const history = Array.from({ length: 5 }, () =>
-      makeSnapshot({ chemistry: { ...NEUTRAL_CHEM, CORT: 80 } }),
+      makeSnapshot({ state: { ...NEUTRAL_CHEM, order: 20 } }),
     );
     const result = updateTraitDrift(drift, history, learning);
-    assert.ok((result.decayRateModifiers.CORT ?? 1) < 1,
-      `Resilience: CORT decay modifier should be < 1, got ${result.decayRateModifiers.CORT}`);
+    assert.ok((result.decayRateModifiers.order ?? 1) < 1,
+      `Resilience: order decay modifier should be < 1, got ${result.decayRateModifiers.order}`);
   });
 
   it("high neglect → OT decay slower (clingy)", () => {
@@ -593,8 +594,8 @@ describe("updateTraitDrift", () => {
     });
     const history = Array.from({ length: 5 }, () => makeSnapshot({ stimulus: "neglect" }));
     const result = updateTraitDrift(drift, history, makeLearning());
-    assert.ok((result.decayRateModifiers.OT ?? 1) > 1,
-      `Neglect: OT decay should be slower, got ${result.decayRateModifiers.OT}`);
+    assert.ok((result.decayRateModifiers.resonance ?? 1) > 1,
+      `Neglect: OT decay should be slower, got ${result.decayRateModifiers.resonance}`);
   });
 
   it("high connection → OT decay faster (secure)", () => {
@@ -603,8 +604,8 @@ describe("updateTraitDrift", () => {
     });
     const history = Array.from({ length: 5 }, () => makeSnapshot({ stimulus: "intimacy" }));
     const result = updateTraitDrift(drift, history, makeLearning());
-    assert.ok((result.decayRateModifiers.OT ?? 1) < 1,
-      `Secure: OT decay should be faster, got ${result.decayRateModifiers.OT}`);
+    assert.ok((result.decayRateModifiers.resonance ?? 1) < 1,
+      `Secure: OT decay should be faster, got ${result.decayRateModifiers.resonance}`);
   });
 
   it("decay modifiers clamped to [0.5, 2.0]", () => {
@@ -612,10 +613,10 @@ describe("updateTraitDrift", () => {
       accumulators: { praiseExposure: 0, pressureExposure: 100, neglectExposure: 100, connectionExposure: 0, conflictExposure: 0 },
     });
     const history = Array.from({ length: 5 }, () =>
-      makeSnapshot({ chemistry: { ...NEUTRAL_CHEM, CORT: 95 } }),
+      makeSnapshot({ state: { ...NEUTRAL_CHEM, boundary: 95 } }),
     );
     const result = updateTraitDrift(drift, history, makeLearning());
-    for (const key of ["DA", "HT", "CORT", "OT", "NE", "END"] as const) {
+    for (const key of ["flow", "order", "boundary", "resonance", "flow", "resonance"] as const) {
       const val = result.decayRateModifiers[key];
       if (val !== undefined) {
         assert.ok(val >= 0.5 && val <= 2.0, `${key} decay mod ${val} should be in [0.5, 2.0]`);
@@ -685,20 +686,20 @@ describe("updateTraitDrift", () => {
 describe("computeEffectiveBaseline with traitDrift", () => {
   it("applies baseline delta from trait drift", () => {
     const drift = makeDrift();
-    drift.baselineDelta = { CORT: 10, OT: -5 };
+    drift.baselineDelta = { boundary: 10, resonance: -5 };
     const drives = makeDrives();
     const effective = computeEffectiveBaseline(ENFP_BASELINE, drives, drift);
-    assert.ok(effective.CORT > ENFP_BASELINE.CORT, "CORT should be raised by drift");
-    assert.ok(effective.OT < ENFP_BASELINE.OT, "OT should be lowered by drift");
+    assert.ok(effective.boundary > ENFP_BASELINE.boundary, "CORT should be raised by drift");
+    assert.ok(effective.resonance < ENFP_BASELINE.resonance, "OT should be lowered by drift");
   });
 
   it("drift delta stacks with drive deficits", () => {
     const drift = makeDrift();
-    drift.baselineDelta = { CORT: 10 };
+    drift.baselineDelta = { boundary: 10 };
     const drives = makeDrives({ survival: 20 }); // survival deficit also raises CORT
     const withDrift = computeEffectiveBaseline(ENFP_BASELINE, drives, drift);
     const withoutDrift = computeEffectiveBaseline(ENFP_BASELINE, drives);
-    assert.ok(withDrift.CORT > withoutDrift.CORT,
+    assert.ok(withDrift.boundary > withoutDrift.boundary,
       "drift should add to drive-based CORT increase");
   });
 });

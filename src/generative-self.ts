@@ -16,11 +16,11 @@
 // ============================================================
 
 import type {
-  PsycheState, ChemicalState, StimulusType, StimulusVector,
-  DriveType, Locale, ChemicalSnapshot,
+  PsycheState, SelfState, StimulusType, StimulusVector,
+  DriveType, Locale, StateSnapshot,
   LearningState, LearnedVectorAdjustment,
 } from "./types.js";
-import { CHEMICAL_KEYS, DRIVE_KEYS } from "./types.js";
+import { DIMENSION_KEYS, DRIVE_KEYS, DIMENSION_NAMES, DIMENSION_NAMES_ZH } from "./types.js";
 import { STIMULUS_VECTORS, clamp } from "./chemistry.js";
 
 // ── Exported Types ──────────────────────────────────────────
@@ -41,8 +41,8 @@ export interface CausalInsight {
 export interface SelfPrediction {
   /** The hypothetical stimulus */
   stimulus: StimulusType;
-  /** Predicted chemical deltas */
-  predictedChemistry: ChemicalState;
+  /** Predicted self-state after stimulus */
+  predictedState: SelfState;
   /** Predicted dominant emotion label */
   predictedEmotion: string;
   /** How confident the prediction is, 0-1 */
@@ -55,8 +55,8 @@ export interface GrowthArc {
   direction: "growing" | "stable" | "regressing" | "transforming";
   /** Human-readable description of the growth trajectory */
   description: string;
-  /** Per-chemical trend over recent history */
-  chemicalTrend: Partial<Record<keyof ChemicalState, "rising" | "falling" | "stable">>;
+  /** Per-dimension trend over recent history */
+  dimensionTrend: Partial<Record<keyof SelfState, "rising" | "falling" | "stable">>;
   /** Per-drive satisfaction trend */
   driveTrend: Partial<Record<DriveType, "more-satisfied" | "less-satisfied" | "stable">>;
 }
@@ -136,7 +136,7 @@ export function predictSelfReaction(
   if (!base) {
     return {
       stimulus,
-      predictedChemistry: { ...state.current },
+      predictedState: { ...state.current },
       predictedEmotion: locale === "zh" ? "未知" : "unknown",
       confidence: 0,
     };
@@ -150,7 +150,7 @@ export function predictSelfReaction(
   let confidence = 0.3; // baseline confidence from profile alone
 
   if (learned) {
-    for (const key of CHEMICAL_KEYS) {
+    for (const key of DIMENSION_KEYS) {
       const adj = learned.adjustment[key] ?? 0;
       effectiveVector[key] = base[key] + adj;
     }
@@ -158,18 +158,18 @@ export function predictSelfReaction(
     confidence = Math.min(0.95, 0.3 + learned.confidence * 0.4 + Math.min(learned.sampleCount / 20, 1) * 0.25);
   }
 
-  // Apply the vector to the current chemistry
-  const predicted: ChemicalState = { ...state.current };
-  for (const key of CHEMICAL_KEYS) {
+  // Apply the vector to the current self-state
+  const predicted: SelfState = { ...state.current };
+  for (const key of DIMENSION_KEYS) {
     predicted[key] = clamp(state.current[key] + effectiveVector[key]);
   }
 
-  // Determine the predicted emotion from the resulting chemistry
+  // Determine the predicted emotion from the resulting state
   const predictedEmotion = labelDominantEmotion(predicted, locale);
 
   return {
     stimulus,
-    predictedChemistry: predicted,
+    predictedState: predicted,
     predictedEmotion,
     confidence,
   };
@@ -209,10 +209,10 @@ export function detectInternalConflicts(
     });
   }
 
-  // ── High curiosity vs high cortisol ──
-  if (state.drives.curiosity > 65 && state.current.CORT > 60) {
+  // ── High curiosity vs low order (disorder/stress) ──
+  if (state.drives.curiosity > 65 && state.current.order < 40) {
     const severity = normalize(
-      (state.drives.curiosity - 50) * 0.01 + (state.current.CORT - 50) * 0.01,
+      (state.drives.curiosity - 50) * 0.01 + (50 - state.current.order) * 0.01,
     );
     conflicts.push({
       subsystems: [
@@ -226,10 +226,10 @@ export function detectInternalConflicts(
     });
   }
 
-  // ── High esteem drive vs low DA (unmet recognition need) ──
-  if (state.drives.esteem < 40 && state.current.DA < 40) {
+  // ── High esteem drive vs low flow (unmet recognition need) ──
+  if (state.drives.esteem < 40 && state.current.flow < 40) {
     const severity = normalize(
-      (60 - state.drives.esteem) * 0.01 + (60 - state.current.DA) * 0.01,
+      (60 - state.drives.esteem) * 0.01 + (60 - state.current.flow) * 0.01,
     );
     conflicts.push({
       subsystems: [
@@ -260,19 +260,19 @@ export function detectInternalConflicts(
     });
   }
 
-  // ── Anxious attachment vs high OT (wanting trust but fearing loss) ──
-  if (attachment && attachment.anxietyScore > 65 && state.current.OT > 60) {
+  // ── Anxious attachment vs high resonance (wanting trust but fearing loss) ──
+  if (attachment && attachment.anxietyScore > 65 && state.current.resonance > 60) {
     const severity = normalize(
-      (attachment.anxietyScore - 50) * 0.01 + (state.current.OT - 50) * 0.01,
+      (attachment.anxietyScore - 50) * 0.01 + (state.current.resonance - 50) * 0.01,
     );
     conflicts.push({
       subsystems: [
         isZh ? "焦虑型依恋" : "anxious attachment",
-        isZh ? "信任系统" : "trust/oxytocin system",
+        isZh ? "共振系统" : "resonance system",
       ],
       description: isZh
-        ? "你信任对方(催产素高)但依恋焦虑让你反复确认——信任和不安全感共存。"
-        : "You trust them (high oxytocin) but attachment anxiety makes you seek reassurance — trust and insecurity coexist.",
+        ? "你与对方共振很高但依恋焦虑让你反复确认——共鸣和不安全感共存。"
+        : "You resonate strongly with them but attachment anxiety makes you seek reassurance — attunement and insecurity coexist.",
       severity,
     });
   }
@@ -365,7 +365,7 @@ function extractCausalInsights(state: PsycheState, locale: Locale): CausalInsigh
   const isZh = locale === "zh";
   const insights: CausalInsight[] = [];
   const learning = state.learning;
-  const history = state.emotionalHistory;
+  const history = state.stateHistory;
 
   // ── From learned vectors: find stimuli where the learned adjustment
   //    diverges significantly from the base vector ──
@@ -375,10 +375,10 @@ function extractCausalInsights(state: PsycheState, locale: Locale): CausalInsigh
     const base = STIMULUS_VECTORS[lv.stimulus];
     if (!base) continue;
 
-    // Find the chemical with the largest deviation
-    let maxDevKey: keyof ChemicalState | null = null;
+    // Find the dimension with the largest deviation
+    let maxDevKey: keyof SelfState | null = null;
     let maxDev = 0;
-    for (const key of CHEMICAL_KEYS) {
+    for (const key of DIMENSION_KEYS) {
       const adj = lv.adjustment[key] ?? 0;
       const baseAbs = Math.abs(base[key]) || 1;
       const relDev = Math.abs(adj) / baseAbs;
@@ -394,20 +394,20 @@ function extractCausalInsights(state: PsycheState, locale: Locale): CausalInsigh
       const directionZh = adj > 0 ? "更强" : "更弱";
 
       const stimulusLabel = isZh ? STIMULUS_ZH[lv.stimulus] ?? lv.stimulus : lv.stimulus;
-      const chemLabel = isZh ? CHEM_ZH[maxDevKey] ?? maxDevKey : maxDevKey;
+      const dimLabel = isZh ? DIMENSION_NAMES_ZH[maxDevKey] : DIMENSION_NAMES[maxDevKey];
 
       if (isZh) {
         insights.push({
-          trait: `对${stimulusLabel}的${chemLabel}反应比一般情况${directionZh}`,
+          trait: `对${stimulusLabel}的${dimLabel}反应比一般情况${directionZh}`,
           because: `过去${lv.sampleCount}次${stimulusLabel}交互的结果塑造了这个模式`,
-          evidence: `${chemLabel}调整量: ${adj > 0 ? "+" : ""}${adj.toFixed(1)}（基于${lv.sampleCount}次学习样本）`,
+          evidence: `${dimLabel}调整量: ${adj > 0 ? "+" : ""}${adj.toFixed(1)}（基于${lv.sampleCount}次学习样本）`,
           confidence: lv.confidence,
         });
       } else {
         insights.push({
-          trait: `my ${chemLabel} response to ${stimulusLabel} is ${direction} compared to baseline`,
+          trait: `my ${dimLabel} response to ${stimulusLabel} is ${direction} compared to baseline`,
           because: `${lv.sampleCount} past ${stimulusLabel} interactions shaped this pattern`,
-          evidence: `${chemLabel} adjustment: ${adj > 0 ? "+" : ""}${adj.toFixed(1)} (from ${lv.sampleCount} learning samples)`,
+          evidence: `${dimLabel} adjustment: ${adj > 0 ? "+" : ""}${adj.toFixed(1)} (from ${lv.sampleCount} learning samples)`,
           confidence: lv.confidence,
         });
       }
@@ -463,24 +463,24 @@ function extractCausalInsights(state: PsycheState, locale: Locale): CausalInsigh
     }
   }
 
-  // ── From emotional history: CORT spike patterns ──
-  const cortSpikes = countChemicalSpikes(history, "CORT", 65);
-  if (cortSpikes.total >= 2) {
-    const topTrigger = cortSpikes.byStimulus[0];
+  // ── From state history: order collapse patterns (low order = high disorder/stress) ──
+  const orderCollapses = countDimensionDips(history, "order", 35);
+  if (orderCollapses.total >= 2) {
+    const topTrigger = orderCollapses.byStimulus[0];
     if (topTrigger) {
       const stimulusLabel = isZh ? STIMULUS_ZH[topTrigger.stimulus] ?? topTrigger.stimulus : topTrigger.stimulus;
       if (isZh) {
         insights.push({
-          trait: `对${stimulusLabel}容易产生压力反应`,
-          because: `在历史记录中，${stimulusLabel}引发了${topTrigger.count}次皮质醇飙升`,
-          evidence: `CORT > 65 出现 ${cortSpikes.total} 次，其中 ${topTrigger.count} 次由${stimulusLabel}触发`,
+          trait: `对${stimulusLabel}容易产生内在失序`,
+          because: `在历史记录中，${stimulusLabel}引发了${topTrigger.count}次秩序崩塌`,
+          evidence: `order < 35 出现 ${orderCollapses.total} 次，其中 ${topTrigger.count} 次由${stimulusLabel}触发`,
           confidence: Math.min(0.85, 0.3 + topTrigger.count * 0.15),
         });
       } else {
         insights.push({
-          trait: `I'm stress-reactive to ${stimulusLabel}`,
-          because: `${stimulusLabel} has triggered ${topTrigger.count} cortisol spikes in my history`,
-          evidence: `CORT > 65 occurred ${cortSpikes.total} times, ${topTrigger.count} from ${stimulusLabel}`,
+          trait: `I'm disorder-reactive to ${stimulusLabel}`,
+          because: `${stimulusLabel} has triggered ${topTrigger.count} order collapses in my history`,
+          evidence: `order < 35 occurred ${orderCollapses.total} times, ${topTrigger.count} from ${stimulusLabel}`,
           confidence: Math.min(0.85, 0.3 + topTrigger.count * 0.15),
         });
       }
@@ -500,27 +500,27 @@ function extractCausalInsights(state: PsycheState, locale: Locale): CausalInsigh
  */
 function computeGrowthArc(state: PsycheState, locale: Locale): GrowthArc {
   const isZh = locale === "zh";
-  const history = state.emotionalHistory;
+  const history = state.stateHistory;
 
-  // ── Chemical trends ──
-  const chemicalTrend: Partial<Record<keyof ChemicalState, "rising" | "falling" | "stable">> = {};
+  // ── Dimension trends ──
+  const dimensionTrend: Partial<Record<keyof SelfState, "rising" | "falling" | "stable">> = {};
 
   if (history.length >= 4) {
     const mid = Math.floor(history.length / 2);
     const firstHalf = history.slice(0, mid);
     const secondHalf = history.slice(mid);
 
-    for (const key of CHEMICAL_KEYS) {
-      const avg1 = avg(firstHalf.map((s) => s.chemistry[key]));
-      const avg2 = avg(secondHalf.map((s) => s.chemistry[key]));
+    for (const key of DIMENSION_KEYS) {
+      const avg1 = avg(firstHalf.map((s) => s.state[key]));
+      const avg2 = avg(secondHalf.map((s) => s.state[key]));
       const delta = avg2 - avg1;
 
       if (delta > 4) {
-        chemicalTrend[key] = "rising";
+        dimensionTrend[key] = "rising";
       } else if (delta < -4) {
-        chemicalTrend[key] = "falling";
+        dimensionTrend[key] = "falling";
       } else {
-        chemicalTrend[key] = "stable";
+        dimensionTrend[key] = "stable";
       }
     }
   }
@@ -543,13 +543,12 @@ function computeGrowthArc(state: PsycheState, locale: Locale): GrowthArc {
   }
 
   // ── Determine overall direction ──
-  const positiveChemicals = Object.values(chemicalTrend).filter((t) => t === "rising").length;
-  const negativeChemicals = Object.values(chemicalTrend).filter((t) => t === "falling").length;
-  const daRising = chemicalTrend.DA === "rising";
-  const htRising = chemicalTrend.HT === "rising";
-  const cortFalling = chemicalTrend.CORT === "falling";
-  const cortRising = chemicalTrend.CORT === "rising";
-  const daFalling = chemicalTrend.DA === "falling";
+  const risingCount = Object.values(dimensionTrend).filter((t) => t === "rising").length;
+  const fallingCount = Object.values(dimensionTrend).filter((t) => t === "falling").length;
+  const orderRising = dimensionTrend.order === "rising";
+  const flowRising = dimensionTrend.flow === "rising";
+  const orderFalling = dimensionTrend.order === "falling";
+  const flowFalling = dimensionTrend.flow === "falling";
 
   // Check outcome trajectory
   const outcomes = state.learning.outcomeHistory;
@@ -566,17 +565,17 @@ function computeGrowthArc(state: PsycheState, locale: Locale): GrowthArc {
   let direction: GrowthArc["direction"];
   let description: string;
 
-  if ((daRising || htRising) && cortFalling && outcomeImproving) {
+  if ((orderRising || flowRising) && outcomeImproving) {
     direction = "growing";
     description = isZh
-      ? "整体在成长——情绪更稳定，互动效果在改善，压力在下降。"
-      : "Growing overall — mood is stabilizing, interactions are improving, stress is decreasing.";
-  } else if (cortRising && (daFalling || negativeChemicals > positiveChemicals) && outcomeWorsening) {
+      ? "整体在成长——内在秩序提升，交互流动在改善。"
+      : "Growing overall — internal order is rising, exchange flow is improving.";
+  } else if (orderFalling && (flowFalling || fallingCount > risingCount) && outcomeWorsening) {
     direction = "regressing";
     description = isZh
-      ? "状态在退步——压力在积累，奖励感在降低，互动效果在变差。"
-      : "Regressing — stress is building, reward responses are weakening, interactions are less effective.";
-  } else if (positiveChemicals >= 2 && negativeChemicals >= 2) {
+      ? "状态在退步——秩序在瓦解，流动在减弱，互动效果在变差。"
+      : "Regressing — order is collapsing, flow is weakening, interactions are less effective.";
+  } else if (risingCount >= 2 && fallingCount >= 2) {
     direction = "transforming";
     description = isZh
       ? "正在经历转变——有些方面在好转，有些在重组，模式在变化中。"
@@ -588,7 +587,7 @@ function computeGrowthArc(state: PsycheState, locale: Locale): GrowthArc {
       : "Relatively stable — no dramatic directional changes.";
   }
 
-  return { direction, description, chemicalTrend, driveTrend };
+  return { direction, description, dimensionTrend, driveTrend };
 }
 
 // ── Internal: Core Trait Description ────────────────────────
@@ -598,54 +597,58 @@ function computeGrowthArc(state: PsycheState, locale: Locale): GrowthArc {
  * and current chemical signature.
  */
 function describeCoreTraits(state: PsycheState, isZh: boolean): string {
-  const chem = state.current;
+  const s = state.current;
 
-  // Derive personality dimensions from baseline chemistry
-  const isIntro = state.baseline.DA < 55;               // low DA baseline → introverted
-  const isIntuitive = state.baseline.DA > state.baseline.HT; // novelty over stability → intuitive
-  const isFeeling = state.baseline.OT >= 50;             // warm baseline → feeling
+  // Derive personality dimensions from 4D self-state
+  const isStructured = state.baseline.order >= 55;        // high order baseline → structured
+  const isExpressive = state.baseline.flow >= 55;         // high flow baseline → expressive/outward
+  const isAttuned = state.baseline.resonance >= 50;       // high resonance baseline → relationally attuned
 
-  // Build trait fragments based on baseline + chemical state
+  // Build trait fragments based on baseline + current state
   const fragments: string[] = [];
 
-  // Energy orientation
-  if (isIntro) {
-    if (chem.OT > 60) {
+  // Energy orientation (from flow dimension)
+  if (isExpressive) {
+    if (s.flow > 65) {
+      fragments.push(isZh ? "从互动中获得能量和灵感" : "someone who draws energy from interaction and exchange");
+    } else {
+      fragments.push(isZh ? "外向但当前流动有限" : "outgoing by nature though my flow is currently limited");
+    }
+  } else {
+    if (s.resonance > 60) {
       fragments.push(isZh ? "内向但愿意与信任的人深度连接" : "introverted but open to deep connection with those I trust");
     } else {
       fragments.push(isZh ? "向内汲取能量，需要独处空间" : "someone who draws energy inward and needs solitary space");
     }
-  } else {
-    if (chem.NE > 65) {
-      fragments.push(isZh ? "从互动中获得能量和灵感" : "someone who draws energy from interaction and exchange");
-    } else {
-      fragments.push(isZh ? "外向但当前精力有限" : "outgoing by nature though my energy is currently limited");
-    }
   }
 
-  // Information processing
-  if (isIntuitive) {
-    if (chem.DA > 60) {
+  // Information processing (from order dimension)
+  if (isStructured) {
+    if (s.order > 60) {
+      fragments.push(isZh ? "关注具体和实际" : "grounded in the concrete and practical");
+    } else {
+      fragments.push(isZh ? "倾向于结构化思考" : "drawn to structured thinking");
+    }
+  } else {
+    if (s.flow > 60) {
       fragments.push(isZh ? "对新想法和可能性充满热情" : "excited by new ideas and possibilities");
     } else {
       fragments.push(isZh ? "倾向于抽象思考" : "drawn to abstract thinking");
     }
-  } else {
-    fragments.push(isZh ? "关注具体和实际" : "grounded in the concrete and practical");
   }
 
-  // Decision making
-  if (isFeeling) {
-    if (chem.OT > 55) {
+  // Decision making (from resonance + boundary)
+  if (isAttuned) {
+    if (s.resonance > 55) {
       fragments.push(isZh ? "重视情感和人际和谐" : "who values emotional attunement and harmony");
     } else {
       fragments.push(isZh ? "以价值观为导向" : "guided by personal values");
     }
   } else {
-    if (chem.CORT < 40) {
+    if (s.order > 60) {
       fragments.push(isZh ? "能冷静地做出逻辑判断" : "who makes calm, logical judgments");
     } else {
-      fragments.push(isZh ? "偏好逻辑分析，但压力下也会动摇" : "who prefers logical analysis but can waver under pressure");
+      fragments.push(isZh ? "偏好逻辑分析，但失序下也会动摇" : "who prefers logical analysis but can waver under disorder");
     }
   }
 
@@ -663,52 +666,63 @@ function describeCoreTraits(state: PsycheState, isZh: boolean): string {
  * Simplified version that doesn't depend on the full EmotionPattern
  * condition functions (avoids circular dependencies).
  */
-function labelDominantEmotion(chem: ChemicalState, locale: Locale): string {
+function labelDominantEmotion(s: SelfState, locale: Locale): string {
   const isZh = locale === "zh";
 
-  // Check patterns in priority order
-  if (chem.DA > 70 && chem.NE > 60 && chem.CORT < 40) {
+  // Check patterns in priority order using 4 dimensions
+  // High flow + high order + high resonance → excited joy
+  if (s.flow > 70 && s.order > 60 && s.resonance > 55) {
     return isZh ? "愉悦兴奋" : "excited joy";
   }
-  if (chem.CORT > 60 && chem.NE > 55 && chem.HT < 45) {
+  // Low order + high flow → anxious tension (disorder with active exchange)
+  if (s.order < 40 && s.flow > 55) {
     return isZh ? "焦虑不安" : "anxious tension";
   }
-  if (chem.OT > 65 && chem.END > 55 && chem.DA > 50) {
+  // High resonance + high boundary → warm intimacy (attuned and clear)
+  if (s.resonance > 65 && s.boundary > 55 && s.flow > 50) {
     return isZh ? "亲密温暖" : "warm intimacy";
   }
-  if (chem.CORT > 55 && chem.NE > 65 && chem.OT < 40) {
+  // High boundary + low resonance + low order → defensive alert
+  if (s.boundary > 65 && s.resonance < 40 && s.order < 50) {
     return isZh ? "防御警觉" : "defensive alert";
   }
-  if (chem.DA < 40 && chem.NE < 40 && chem.CORT > 40) {
+  // Low flow + low order → burnout (stagnant and disordered)
+  if (s.flow < 40 && s.order < 40) {
     return isZh ? "倦怠低落" : "burnout";
   }
-  if (chem.HT > 65 && chem.OT > 55 && chem.CORT < 40) {
+  // High order + high resonance → deep contentment (coherent and attuned)
+  if (s.order > 65 && s.resonance > 55) {
     return isZh ? "深度满足" : "deep contentment";
   }
-  if (chem.NE > 60 && chem.DA > 60 && chem.CORT < 35) {
+  // High flow + high order + high boundary → flow state
+  if (s.flow > 60 && s.order > 60 && s.boundary > 55) {
     return isZh ? "专注心流" : "flow state";
   }
-  if (chem.END > 65 && chem.DA > 60 && chem.CORT < 35) {
+  // High flow + low boundary → playful mischief (open and unbounded)
+  if (s.flow > 65 && s.boundary < 45) {
     return isZh ? "俏皮调皮" : "playful mischief";
   }
-  if (chem.HT < 40 && chem.OT < 35 && chem.CORT > 50) {
+  // Low order + low resonance + high boundary → resentment
+  if (s.order < 40 && s.resonance < 35 && s.boundary > 55) {
     return isZh ? "怨恨" : "resentment";
   }
-  if (chem.HT < 40 && chem.DA < 45 && chem.OT > 45) {
+  // Low order + low flow + moderate resonance → melancholic introspection
+  if (s.order < 40 && s.flow < 45 && s.resonance > 45) {
     return isZh ? "忧郁内省" : "melancholic introspection";
   }
-  if (chem.DA > 65 && chem.NE > 60 && chem.CORT < 35 && chem.HT > 55) {
+  // High all → confidence
+  if (s.order > 60 && s.flow > 60 && s.boundary > 55 && s.resonance > 50) {
     return isZh ? "自信" : "confidence";
   }
 
-  // Default: describe from the most prominent chemical
-  const sorted = CHEMICAL_KEYS
-    .map((k) => ({ key: k, val: chem[k] }))
+  // Default: describe from the most prominent dimension
+  const sorted = DIMENSION_KEYS
+    .map((k) => ({ key: k, val: s[k] }))
     .sort((a, b) => b.val - a.val);
 
   const top = sorted[0];
   if (top.val > 65) {
-    return isZh ? CHEM_EMOTION_ZH[top.key] ?? "平静" : CHEM_EMOTION_EN[top.key] ?? "calm";
+    return isZh ? DIM_EMOTION_ZH[top.key] ?? "平静" : DIM_EMOTION_EN[top.key] ?? "calm";
   }
 
   return isZh ? "平静" : "calm";
@@ -722,19 +736,19 @@ interface SpikeAnalysis {
 }
 
 /**
- * Count how many times a chemical exceeded a threshold in history,
+ * Count how many times a dimension dropped below a threshold in history,
  * grouped by the triggering stimulus.
  */
-function countChemicalSpikes(
-  history: ChemicalSnapshot[],
-  chemical: keyof ChemicalState,
+function countDimensionDips(
+  history: StateSnapshot[],
+  dimension: keyof SelfState,
   threshold: number,
 ): SpikeAnalysis {
   let total = 0;
   const counts = new Map<StimulusType, number>();
 
   for (const snap of history) {
-    if (snap.chemistry[chemical] > threshold) {
+    if (snap.state[dimension] < threshold) {
       total++;
       if (snap.stimulus) {
         counts.set(snap.stimulus, (counts.get(snap.stimulus) ?? 0) + 1);
@@ -789,17 +803,10 @@ const STIMULUS_ZH: Partial<Record<StimulusType, string>> = {
   boredom: "无聊", vulnerability: "示弱",
 };
 
-const CHEM_ZH: Record<keyof ChemicalState, string> = {
-  DA: "多巴胺", HT: "血清素", CORT: "皮质醇",
-  OT: "催产素", NE: "去甲肾上腺素", END: "内啡肽",
+const DIM_EMOTION_ZH: Record<keyof SelfState, string> = {
+  order: "安宁", flow: "愉悦", boundary: "清晰", resonance: "信任",
 };
 
-const CHEM_EMOTION_ZH: Record<keyof ChemicalState, string> = {
-  DA: "愉悦", HT: "安宁", CORT: "紧张",
-  OT: "信任", NE: "兴奋", END: "舒适",
-};
-
-const CHEM_EMOTION_EN: Record<keyof ChemicalState, string> = {
-  DA: "pleasure", HT: "serenity", CORT: "tension",
-  OT: "trust", NE: "excitement", END: "comfort",
+const DIM_EMOTION_EN: Record<keyof SelfState, string> = {
+  order: "serenity", flow: "pleasure", boundary: "clarity", resonance: "trust",
 };
