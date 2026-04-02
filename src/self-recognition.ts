@@ -6,7 +6,7 @@
 // and build a coherent self-narrative from its own history.
 // ============================================================
 
-import type { ChemicalSnapshot, StimulusType, Locale } from "./types.js";
+import type { StateSnapshot, StimulusType, Locale } from "./types.js";
 
 /** Result of self-reflection over emotional history */
 export interface SelfReflection {
@@ -22,7 +22,7 @@ export interface SelfReflection {
  * Analyzes stimulus frequencies, dominant emotions, and chemical trends
  * to build an awareness of recurring patterns.
  */
-export function computeSelfReflection(history: ChemicalSnapshot[], locale: Locale): SelfReflection {
+export function computeSelfReflection(history: StateSnapshot[], locale: Locale): SelfReflection {
   // Not enough history for meaningful reflection
   if (history.length < 3) {
     return {
@@ -79,38 +79,38 @@ export function computeSelfReflection(history: ChemicalSnapshot[], locale: Local
  * Compares first-half vs second-half averages for DA and CORT,
  * checks variance for volatility, and detects oscillation patterns.
  */
-export function computeEmotionalTendency(history: ChemicalSnapshot[]): SelfReflection["tendency"] {
+export function computeEmotionalTendency(history: StateSnapshot[]): SelfReflection["tendency"] {
   if (history.length < 3) return "stable";
 
   const mid = Math.floor(history.length / 2);
   const firstHalf = history.slice(0, mid);
   const secondHalf = history.slice(mid);
 
-  const avgDA1 = average(firstHalf.map((s) => s.chemistry.DA));
-  const avgDA2 = average(secondHalf.map((s) => s.chemistry.DA));
-  const avgCORT1 = average(firstHalf.map((s) => s.chemistry.CORT));
-  const avgCORT2 = average(secondHalf.map((s) => s.chemistry.CORT));
+  const avgFlow1 = average(firstHalf.map((s) => s.state.flow));
+  const avgFlow2 = average(secondHalf.map((s) => s.state.flow));
+  const avgOrder1 = average(firstHalf.map((s) => s.state.order));
+  const avgOrder2 = average(secondHalf.map((s) => s.state.order));
 
   // Directional trends (check first — a steady ramp has high stddev but clear direction)
-  const daRising = avgDA2 - avgDA1 > 5;
-  const daFalling = avgDA1 - avgDA2 > 5;
-  const cortFalling = avgCORT1 - avgCORT2 > 5;
-  const cortRising = avgCORT2 - avgCORT1 > 5;
+  const flowRising = avgFlow2 - avgFlow1 > 5;
+  const flowFalling = avgFlow1 - avgFlow2 > 5;
+  const orderRising = avgOrder2 - avgOrder1 > 5;
+  const orderFalling = avgOrder1 - avgOrder2 > 5;
 
-  if (daRising && cortFalling) return "ascending";
-  if (daFalling && cortRising) return "descending";
+  if (flowRising && orderRising) return "ascending";
+  if (flowFalling && orderFalling) return "descending";
 
   // Check volatility — only when there's no clear directional trend
-  const allDA = history.map((s) => s.chemistry.DA);
-  const daStddev = stddev(allDA);
-  if (daStddev > 15) {
-    if (isOscillating(allDA)) return "oscillating";
+  const allFlow = history.map((s) => s.state.flow);
+  const flowStddev = stddev(allFlow);
+  if (flowStddev > 15) {
+    if (isOscillating(allFlow)) return "oscillating";
     return "volatile";
   }
 
-  // Weaker signals: DA alone
-  if (daRising) return "ascending";
-  if (daFalling) return "descending";
+  // Weaker signals: flow alone
+  if (flowRising) return "ascending";
+  if (flowFalling) return "descending";
 
   return "stable";
 }

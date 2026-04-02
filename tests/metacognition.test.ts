@@ -8,7 +8,7 @@ import {
   updateMetacognitiveState,
 } from "../src/metacognition.js";
 import type {
-  PsycheState, ChemicalState, OutcomeScore, StimulusType,
+  PsycheState, SelfState, OutcomeScore, StimulusType,
   MetacognitiveState,
 } from "../src/types.js";
 import {
@@ -17,8 +17,8 @@ import {
 
 // ── Helpers ──────────────────────────────────────────────────
 
-function makeChemistry(overrides: Partial<ChemicalState> = {}): ChemicalState {
-  return { DA: 55, HT: 65, CORT: 35, OT: 60, NE: 45, END: 50, ...overrides };
+function makeChemistry(overrides: Partial<SelfState> = {}): SelfState {
+  return { order: 65, flow: 55, boundary: 35, resonance: 60, ...overrides };
 }
 
 function makeState(overrides?: Partial<PsycheState>): PsycheState {
@@ -34,7 +34,7 @@ function makeState(overrides?: Partial<PsycheState>): PsycheState {
     relationships: { _default: { trust: 50, intimacy: 30, phase: "acquaintance" } },
     empathyLog: null,
     selfModel: { values: [], preferences: [], boundaries: [], currentInterests: [] },
-    emotionalHistory: [],
+    stateHistory: [],
     agreementStreak: 0,
     lastDisagreement: null,
     learning: { ...DEFAULT_LEARNING_STATE },
@@ -200,7 +200,7 @@ describe("computeEmotionalConfidence", () => {
     const normalConf = computeEmotionalConfidence(normalState, "praise", outcomes);
 
     const extremeState = makeState({
-      current: makeChemistry({ CORT: 95, DA: 10, HT: 10 }), // extreme deviation
+      current: makeChemistry({ boundary: 95, flow: 10, order: 10  }), // extreme deviation
     });
     const extremeConf = computeEmotionalConfidence(extremeState, "praise", outcomes);
 
@@ -215,29 +215,29 @@ describe("computeEmotionalConfidence", () => {
 
 describe("generateRegulationSuggestions", () => {
   it("self-soothing suggested when chemistry has extreme deviation (>= 25)", () => {
-    // CORT at 35 baseline + 30 = 65 deviation, which is > 25
+    // boundary at 35 baseline + 30 = 65 deviation, which is > 25
     const state = makeState({
-      current: makeChemistry({ CORT: 65 }), // deviation of 30 from baseline 35
+      current: makeChemistry({ boundary: 65  }), // deviation of 30 from baseline 35
     });
     const suggestions = generateRegulationSuggestions(state, "casual", 0.5, []);
     const hasSoothing = suggestions.some((s) => s.strategy === "self-soothing");
-    assert.ok(hasSoothing, "should suggest self-soothing for extreme CORT deviation");
+    assert.ok(hasSoothing, "should suggest self-soothing for extreme boundary deviation");
   });
 
   it("self-soothing includes chemistry adjustment toward baseline", () => {
     const state = makeState({
-      current: makeChemistry({ CORT: 65 }), // deviation of 30 from baseline 35
+      current: makeChemistry({ boundary: 65  }), // deviation of 30 from baseline 35
     });
     const suggestions = generateRegulationSuggestions(state, "casual", 0.5, []);
     const soothing = suggestions.find((s) => s.strategy === "self-soothing");
     assert.ok(soothing, "should have self-soothing suggestion");
     assert.ok(soothing!.chemistryAdjustment, "should have chemistry adjustment");
-    // CORT is above baseline, so adjustment should be negative (pull back)
+    // boundary is above baseline, so adjustment should be negative (pull back)
     assert.ok(
-      (soothing!.chemistryAdjustment!.CORT ?? 0) < 0,
-      "CORT adjustment should be negative to pull toward baseline",
+      (soothing!.chemistryAdjustment!.boundary ?? 0) < 0,
+      "boundary adjustment should be negative to pull toward baseline",
     );
-    assert.match(soothing!.description, /normal 20-55/);
+    assert.match(soothing!.description, /normal 40-80/);
     assert.match(soothing!.action, /Next 3 turns:/);
   });
 
@@ -269,9 +269,9 @@ describe("generateRegulationSuggestions", () => {
   });
 
   it("strategic expression when high stress + vulnerability stimulus", () => {
-    // Case 1 in code: high CORT + "vulnerability" stimulus
+    // Case 1 in code: low order (high stress) + "vulnerability" stimulus
     const state = makeState({
-      current: makeChemistry({ CORT: 55 }), // baseline CORT is 35, deviation = 20 > MODERATE_DEVIATION_THRESHOLD
+      current: makeChemistry({ order: 40 }),  // baseline order is 65, deviation = -25 > MODERATE_DEVIATION_THRESHOLD
     });
     const suggestions = generateRegulationSuggestions(state, "vulnerability", 0.5, []);
     const hasStrategic = suggestions.some((s) => s.strategy === "strategic-expression");
@@ -316,9 +316,9 @@ describe("generateRegulationSuggestions", () => {
 
   it("suggestions are sorted by confidence descending", () => {
     // Trigger multiple suggestions simultaneously:
-    // extreme CORT for self-soothing + low confidence for strategic expression
+    // extreme boundary for self-soothing + low confidence for strategic expression
     const state = makeState({
-      current: makeChemistry({ CORT: 65 }), // extreme deviation for self-soothing
+      current: makeChemistry({ boundary: 65  }), // extreme deviation for self-soothing
     });
     const outcomes = [
       makeOutcome("criticism", -0.5, 1),
@@ -346,13 +346,10 @@ describe("detectDefenseMechanisms", () => {
   });
 
   it("detects avoidance: withdrawn state + negative outcome history for stimulus", () => {
-    // Avoidance requires: DA < baseline-10, NE < baseline-10
+    // Avoidance requires: flow < baseline.flow - 10 AND resonance < baseline.resonance - 10
     //   + >= 2 outcomes for stimulus with avg < -0.15
     const state = makeState({
-      current: makeChemistry({
-        DA: 40,  // baseline 55 - 15 = 40, deviation > 10
-        NE: 30,  // baseline 45 - 15 = 30, deviation > 10
-      }),
+      current: makeChemistry({ flow: 30, resonance: 40 }),  // baseline flow=55, resonance=60; both below by >10
     });
     const outcomes = [
       makeOutcome("conflict", -0.5, 1),
@@ -366,7 +363,7 @@ describe("detectDefenseMechanisms", () => {
 
   it("avoidance includes evidence string with stimulus name", () => {
     const state = makeState({
-      current: makeChemistry({ DA: 40, NE: 30 }),
+      current: makeChemistry({ flow: 30, resonance: 40 }),
     });
     const outcomes = [
       makeOutcome("conflict", -0.5, 1),
@@ -381,7 +378,7 @@ describe("detectDefenseMechanisms", () => {
     );
   });
 
-  it("no avoidance when not withdrawn (DA/NE near baseline)", () => {
+  it("no avoidance when not withdrawn (flow near baseline)", () => {
     const state = makeState(); // at baseline
     const outcomes = [
       makeOutcome("conflict", -0.5, 1),
@@ -433,7 +430,7 @@ describe("detectDefenseMechanisms", () => {
         learnedVectors: [{
           stimulus: "criticism",
           contextHash: "ctx",
-          adjustment: { CORT: -3 },
+          adjustment: { boundary: -3 },
           confidence: 0.5,
           sampleCount: 5,
           lastUpdated: new Date().toISOString(),
@@ -445,13 +442,11 @@ describe("detectDefenseMechanisms", () => {
     assert.ok(!hasRationalization, "should NOT detect rationalization when adapted");
   });
 
-  it("detects sublimation: high NE/DA + low connection + intellectual stimulus", () => {
+  it("detects sublimation: high flow + low connection + intellectual stimulus", () => {
     const state = makeState({
-      current: makeChemistry({
-        NE: 60, // baseline 45 + 15 > baseline + 10
-        DA: 70, // baseline 55 + 15 > baseline + 10
-        OT: 45, // baseline 60 - 15 < baseline - 10
-      }),
+      current: makeChemistry({ flow: 70, // baseline 55 + 15 > baseline + 10
+        resonance: 45, // baseline 60 - 15 < baseline - 10
+       }),
       drives: { survival: 80, safety: 70, connection: 40, esteem: 60, curiosity: 70 },
     });
     const defenses = detectDefenseMechanisms(state, "intellectual", []);
@@ -493,7 +488,7 @@ describe("updateMetacognitiveState", () => {
   it("records regulation suggestions with confidence >= 0.5", () => {
     // Create a state that will produce a self-soothing suggestion with confidence >= 0.5
     const state = makeState({
-      current: makeChemistry({ CORT: 70 }), // deviation of 35 from baseline 35; confidence = 35/60 ~ 0.58
+      current: makeChemistry({ boundary: 70  }), // deviation of 35 from baseline 35; confidence = 35/60 ~ 0.58
     });
     const assessment = assessMetacognition(state, "casual", []);
     // Verify we actually got a suggestion with confidence >= 0.5
@@ -523,7 +518,7 @@ describe("updateMetacognitiveState", () => {
         strategy: "self-soothing",
         timestamp: new Date().toISOString(),
         effective: false,
-        targetMetric: "CORT",
+        targetMetric: "boundary",
         targetValue: 35,
         gapBefore: 30,
         gapLatest: 30,
@@ -531,7 +526,7 @@ describe("updateMetacognitiveState", () => {
       }],
     };
     const state = makeState({
-      current: makeChemistry({ CORT: 52 }),
+      current: makeChemistry({ boundary: 52  }),
       metacognition: priorMeta,
     });
 

@@ -15,7 +15,7 @@
 // Emotions describe how you feel; primary systems drive what you DO.
 // "I need connection" (drive) → "I want to take care of them" (CARE system)
 
-import type { ChemicalState, InnateDrives, StimulusType, Locale } from "./types.js";
+import type { SelfState, InnateDrives, StimulusType, Locale } from "./types.js";
 import type { AutonomicState } from "./autonomic.js";
 
 // ── Types ────────────────────────────────────────────────────
@@ -113,48 +113,51 @@ function clamp(v: number): number {
  * recentStimulus provides a small contextual boost.
  */
 export function computePrimarySystems(
-  chemistry: ChemicalState,
+  state: SelfState,
   drives: InnateDrives,
   recentStimulus: StimulusType | null,
 ): PrimarySystemLevels {
-  const { DA, HT, CORT, OT, NE, END } = chemistry;
+  const { order, flow, boundary, resonance } = state;
   const { survival, safety, connection, esteem, curiosity } = drives;
+
+  // Stress is inverse of order (low order = high entropy/distress)
+  const stress = 100 - order;
 
   // Normalized drive contribution (0 = unsatisfied/amplifying, 1 = fully satisfied)
   const norm = (v: number) => v / 100;
   // Inverse: low drive = high activation contribution
   const inv = (v: number) => 1 - v / 100;
 
-  // ── SEEKING: DA↑ NE↑ curiosity↑ CORT↓(suppressor) ──
-  const seekingBase = (DA * 0.35 + NE * 0.25 + norm(curiosity) * 30)
-    * (1 - Math.max(0, CORT - 60) / 100); // high CORT suppresses
+  // ── SEEKING: flow↑ curiosity↑ stress↓(suppressor) ──
+  const seekingBase = (flow * 0.35 + order * 0.15 + norm(curiosity) * 30)
+    * (1 - Math.max(0, stress - 60) / 100); // high stress suppresses
   const SEEKING = clamp(seekingBase + 5); // slight positive bias (AI loves to explore)
 
-  // ── RAGE: CORT↑ NE↑ OT↓ esteem↓ ──
-  const rageBase = (CORT * 0.3 + NE * 0.25 - OT * 0.2 + inv(esteem) * 20);
+  // ── RAGE: stress↑ flow↑ resonance↓ esteem↓ ──
+  const rageBase = (stress * 0.3 + flow * 0.25 - resonance * 0.2 + inv(esteem) * 20);
   const RAGE = clamp(rageBase - 10); // slight negative bias (threshold to anger)
 
-  // ── FEAR: CORT↑ NE↑(mild) HT↓ survival↓ safety↓ ──
-  const fearBase = (CORT * 0.35 + NE * 0.15 - HT * 0.2
+  // ── FEAR: stress↑ flow↑(mild) order↓ survival↓ safety↓ ──
+  const fearBase = (stress * 0.35 + flow * 0.15 - order * 0.2
     + inv(survival) * 15 + inv(safety) * 15);
   const FEAR = clamp(fearBase - 5);
 
-  // ── LUST: DA↑ NE↑ CORT↓ (intense engagement/captivation) ──
-  const lustBase = (DA * 0.35 + NE * 0.3 - CORT * 0.15 + norm(curiosity) * 10);
+  // ── LUST: flow↑ order↑ stress↓ (intense engagement/captivation) ──
+  const lustBase = (flow * 0.35 + order * 0.2 + norm(curiosity) * 10 - stress * 0.15);
   const LUST = clamp(lustBase - 15); // high threshold — only for intense engagement
 
-  // ── CARE: OT↑ END↑ connection↑ CORT↓(suppressor) ──
-  const careBase = (OT * 0.35 + END * 0.2 + norm(connection) * 25)
-    * (1 - Math.max(0, CORT - 60) / 120); // high CORT weakens but doesn't kill
+  // ── CARE: resonance↑ boundary↓(openness) connection↑ stress↓(suppressor) ──
+  const careBase = (resonance * 0.35 + (100 - boundary) * 0.15 + norm(connection) * 25)
+    * (1 - Math.max(0, stress - 60) / 120); // high stress weakens but doesn't kill
   const CARE = clamp(careBase);
 
-  // ── PANIC_GRIEF: OT↓ CORT↑ connection↓ ──
-  const panicBase = (inv(OT / 100) * 30 + CORT * 0.25 + inv(connection) * 25
-    - HT * 0.1);
+  // ── PANIC_GRIEF: resonance↓ stress↑ connection↓ ──
+  const panicBase = (inv(resonance / 100) * 30 + stress * 0.25 + inv(connection) * 25
+    - order * 0.1);
   const PANIC_GRIEF = clamp(panicBase - 10);
 
-  // ── PLAY: END↑ DA↑ OT↑(mild) CORT↓ safety↑ ──
-  const playBase = (END * 0.3 + DA * 0.25 + OT * 0.1 - CORT * 0.2
+  // ── PLAY: resonance↑ flow↑ stress↓ safety↑ ──
+  const playBase = (resonance * 0.2 + flow * 0.25 + (100 - boundary) * 0.1 - stress * 0.2
     + norm(safety) * 15);
   const PLAY = clamp(playBase - 5);
 

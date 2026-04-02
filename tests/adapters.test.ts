@@ -158,7 +158,7 @@ describe("psycheMiddleware (Vercel AI)", () => {
     const { texts } = await collectStream(stream);
     const combined = texts.join("");
     assert.ok(!combined.includes("psyche_update"), `Should strip tags, got: ${combined}`);
-    assert.ok(!combined.includes("DA: 85"), `Should strip tag content, got: ${combined}`);
+    assert.ok(!combined.includes("flow: 85"), `Should strip tag content, got: ${combined}`);
   });
 
   it("wrapStream processes engine output on finish", async () => {
@@ -922,9 +922,9 @@ describe("PsycheClaudeSDK (with thronglets)", () => {
     assert.ok(signal);
     assert.equal(signal!.kind, "psyche_state");
     assert.equal(signal!.agent_id, "ENFP-TestBot");
-    assert.ok(signal!.message.includes("DA:"));
-    assert.ok(signal!.message.includes("CORT:"));
-    assert.ok(signal!.message.includes("OT:"));
+    assert.ok(signal!.message.includes("flow:"));
+    assert.ok(signal!.message.includes("boundary:"));
+    assert.ok(signal!.message.includes("resonance:"));
   });
 
   it("UserPromptSubmit hook caches thronglets exports when enabled", async () => {
@@ -965,7 +965,7 @@ describe("PsycheClaudeSDK (with thronglets)", () => {
     const signal = psyche.getThrongletsSignal();
     assert.ok(signal);
     // After praise interactions, DA should have risen from baseline
-    const daMatch = signal!.message.match(/DA:(\d+)/);
+    const daMatch = signal!.message.match(/flow:(\d+)/);
     assert.ok(daMatch, "Should contain DA value");
   });
 

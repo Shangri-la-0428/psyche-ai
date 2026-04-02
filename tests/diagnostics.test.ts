@@ -11,7 +11,7 @@ import {
   computeLayerHealthSummary,
 } from "../src/diagnostics.js";
 import type { SessionMetrics, DiagnosticReport, DiagnosticLayer } from "../src/diagnostics.js";
-import type { PsycheState, ChemicalState, InnateDrives } from "../src/types.js";
+import type { PsycheState, SelfState, InnateDrives } from "../src/types.js";
 import {
   DEFAULT_DRIVES,
   DEFAULT_LEARNING_STATE,
@@ -25,7 +25,7 @@ const PACKAGE_VERSION = JSON.parse(
 
 // ── Helpers ──────────────────────────────────────────────────
 
-const BASELINE: ChemicalState = { DA: 50, HT: 65, CORT: 35, OT: 35, NE: 55, END: 45 };
+const BASELINE: SelfState = { order: 65, flow: 50, boundary: 35, resonance: 35 };
 
 function makeState(overrides: Partial<PsycheState> = {}): PsycheState {
   return {
@@ -44,7 +44,7 @@ function makeState(overrides: Partial<PsycheState> = {}): PsycheState {
       boundaries: ["不接受逻辑谬误"],
       currentInterests: [],
     },
-    emotionalHistory: [],
+    stateHistory: [],
     agreementStreak: 0,
     lastDisagreement: null,
     learning: { ...DEFAULT_LEARNING_STATE },
@@ -78,9 +78,9 @@ function makeMetrics(overrides: Partial<SessionMetrics> = {}): SessionMetrics {
   };
 }
 
-function makeSnapshot(stimulus: string | null): import("../src/types.js").ChemicalSnapshot {
+function makeSnapshot(stimulus: string | null): import("../src/types.js").StateSnapshot {
   return {
-    chemistry: { ...BASELINE },
+    state: { ...BASELINE },
     stimulus: stimulus as import("../src/types.js").StimulusType | null,
     dominantEmotion: null,
     timestamp: new Date().toISOString(),
@@ -97,7 +97,7 @@ describe("runHealthCheck", () => {
   });
 
   it("detects chemistry out of bounds", () => {
-    const state = makeState({ current: { ...BASELINE, DA: 105 } });
+    const state = makeState({ current: { ...BASELINE, flow: 105 } });
     const issues = runHealthCheck(state);
     const oob = issues.find(i => i.id === "CHEM_OOB");
     assert.ok(oob, "should detect CHEM_OOB");
@@ -141,7 +141,7 @@ describe("runHealthCheck", () => {
 
   it("detects classifier dead (all null)", () => {
     const snapshots = Array.from({ length: 6 }, () => makeSnapshot(null));
-    const state = makeState({ emotionalHistory: snapshots });
+    const state = makeState({ stateHistory: snapshots });
     const issues = runHealthCheck(state);
     const dead = issues.find(i => i.id === "CLASSIFIER_DEAD");
     assert.ok(dead, "should detect CLASSIFIER_DEAD");
@@ -150,7 +150,7 @@ describe("runHealthCheck", () => {
 
   it("detects classifier weak (>70% null)", () => {
     const snapshots = Array.from({ length: 10 }, (_, i) => makeSnapshot(i < 2 ? "praise" : null));
-    const state = makeState({ emotionalHistory: snapshots });
+    const state = makeState({ stateHistory: snapshots });
     const issues = runHealthCheck(state);
     const weak = issues.find(i => i.id === "CLASSIFIER_WEAK");
     assert.ok(weak, "should detect CLASSIFIER_WEAK");
@@ -197,7 +197,7 @@ describe("runHealthCheck", () => {
 describe("DiagnosticCollector", () => {
   it("tracks input counts", () => {
     const c = new DiagnosticCollector();
-    const chem: ChemicalState = { DA: 50, HT: 65, CORT: 35, OT: 35, NE: 55, END: 45 };
+    const chem: SelfState = { order: 65, flow: 50, boundary: 35, resonance: 35 };
     c.recordInput("praise", 0.9, chem);
     c.recordInput(null, 0, chem);
     c.recordInput("humor", 0.8, chem);
@@ -209,7 +209,7 @@ describe("DiagnosticCollector", () => {
 
   it("counts appraisal-only turns as semantic hits", () => {
     const c = new DiagnosticCollector();
-    const chem: ChemicalState = { DA: 50, HT: 65, CORT: 35, OT: 35, NE: 55, END: 45 };
+    const chem: SelfState = { order: 65, flow: 50, boundary: 35, resonance: 35 };
     c.recordInput(null, 0, chem, {
       identityThreat: 0.82,
       memoryDoubt: 0,
@@ -229,7 +229,7 @@ describe("DiagnosticCollector", () => {
 
   it("tracks stimulus distribution", () => {
     const c = new DiagnosticCollector();
-    const chem: ChemicalState = { DA: 50, HT: 65, CORT: 35, OT: 35, NE: 55, END: 45 };
+    const chem: SelfState = { order: 65, flow: 50, boundary: 35, resonance: 35 };
     c.recordInput("praise", 1, chem);
     c.recordInput("praise", 1, chem);
     c.recordInput("humor", 1, chem);
@@ -241,7 +241,7 @@ describe("DiagnosticCollector", () => {
 
   it("computes average confidence", () => {
     const c = new DiagnosticCollector();
-    const chem: ChemicalState = { DA: 50, HT: 65, CORT: 35, OT: 35, NE: 55, END: 45 };
+    const chem: SelfState = { order: 65, flow: 50, boundary: 35, resonance: 35 };
     c.recordInput("praise", 0.8, chem);
     c.recordInput(null, 0.2, chem);
 
@@ -251,11 +251,11 @@ describe("DiagnosticCollector", () => {
 
   it("tracks chemistry delta", () => {
     const c = new DiagnosticCollector();
-    c.recordInput("praise", 1, { DA: 50, HT: 65, CORT: 35, OT: 35, NE: 55, END: 45 });
-    c.recordInput("praise", 1, { DA: 60, HT: 65, CORT: 35, OT: 35, NE: 55, END: 45 });
+    c.recordInput("praise", 1, { order: 65, flow: 50, boundary: 35, resonance: 35 });
+    c.recordInput("praise", 1, { order: 65, flow: 60, boundary: 35, resonance: 35 });
 
     const m = c.getMetrics();
-    assert.equal(m.totalChemistryDelta, 10); // DA changed by 10
+    assert.equal(m.totalChemistryDelta, 10); // flow changed by 10
     assert.equal(m.maxChemistryDelta, 10);
   });
 
@@ -273,7 +273,7 @@ describe("DiagnosticCollector", () => {
 
   it("computes classifier rate", () => {
     const c = new DiagnosticCollector();
-    const chem: ChemicalState = { DA: 50, HT: 65, CORT: 35, OT: 35, NE: 55, END: 45 };
+    const chem: SelfState = { order: 65, flow: 50, boundary: 35, resonance: 35 };
     c.recordInput("praise", 1, chem);
     c.recordInput(null, 0, chem);
     c.recordInput("humor", 1, chem);
@@ -332,7 +332,7 @@ describe("generateReport", () => {
   it("includes state snapshot", () => {
     const state = makeState();
     const report = generateReport(state, makeMetrics(), PACKAGE_VERSION);
-    assert.equal(report.stateSnapshot.chemistry.DA, 50);
+    assert.equal(report.stateSnapshot.current.flow, 50);
     assert.equal(report.stateSnapshot.agreementStreak, 0);
   });
 });
@@ -406,7 +406,7 @@ describe("formatLogEntry", () => {
 
   it("encodes issue severity as single char prefix", () => {
     const state = makeState({
-      current: { ...BASELINE, DA: 105 }, // will trigger CHEM_OOB critical
+      current: { ...BASELINE, flow: 105 }, // will trigger CHEM_OOB critical
     });
     const report = generateReport(state, makeMetrics(), PACKAGE_VERSION);
     const parsed = JSON.parse(formatLogEntry(report));
@@ -420,7 +420,7 @@ describe("formatLogEntry", () => {
 describe("layered diagnostics", () => {
   it("every issue has a layer field", () => {
     const state = makeState({
-      current: { ...BASELINE, DA: 105 },
+      current: { ...BASELINE, flow: 105 },
       meta: { agentName: "A", createdAt: "", totalInteractions: 20, locale: "zh" },
     });
     const issues = runHealthCheck(state);
@@ -435,7 +435,7 @@ describe("layered diagnostics", () => {
 
   it("existing checks are all L1 (subjective-continuity)", () => {
     const state = makeState({
-      current: { ...BASELINE, DA: 105 },
+      current: { ...BASELINE, flow: 105 },
       agreementStreak: 15,
       lastDisagreement: null,
       meta: { agentName: "A", createdAt: "", totalInteractions: 20, locale: "zh" },
@@ -453,7 +453,7 @@ describe("layered diagnostics", () => {
       traitDrift: {
         accumulators: { praiseExposure: 5, pressureExposure: 3, neglectExposure: 0, connectionExposure: 2, conflictExposure: 0 },
         sessionCount: 10,
-        baselineDelta: { DA: 0.1 },
+        baselineDelta: { flow: 0.1 },
         decayRateModifiers: {},
         sensitivityModifiers: {},
       },
@@ -534,7 +534,7 @@ describe("computeLayerHealthSummary", () => {
 
   it("returns failing for L1 critical issues", () => {
     const state = makeState({
-      current: { ...BASELINE, DA: 105 },
+      current: { ...BASELINE, flow: 105 },
     });
     const issues = runHealthCheck(state);
     const summary = computeLayerHealthSummary(state, issues);
@@ -545,11 +545,11 @@ describe("computeLayerHealthSummary", () => {
 
   it("measures chemistry deviation", () => {
     const state = makeState({
-      current: { DA: 80, HT: 65, CORT: 35, OT: 35, NE: 55, END: 45 },
+      current: { order: 65, flow: 80, boundary: 35, resonance: 35 },
     });
     const issues = runHealthCheck(state);
     const summary = computeLayerHealthSummary(state, issues);
-    assert.equal(summary["subjective-continuity"].chemistryDeviation, 30); // DA off by 30
+    assert.equal(summary["subjective-continuity"].chemistryDeviation, 30); // flow off by 30
   });
 
   it("detects trait drift establishment", () => {
@@ -557,7 +557,7 @@ describe("computeLayerHealthSummary", () => {
       traitDrift: {
         accumulators: { praiseExposure: 20, pressureExposure: 5, neglectExposure: 0, connectionExposure: 10, conflictExposure: 0 },
         sessionCount: 5,
-        baselineDelta: { DA: 3 },
+        baselineDelta: { flow: 3 },
         decayRateModifiers: {},
         sensitivityModifiers: {},
       },
@@ -588,7 +588,7 @@ describe("computeLayerHealthSummary", () => {
 describe("layered report structure", () => {
   it("report includes layeredIssues and layerHealth", () => {
     const state = makeState({
-      current: { ...BASELINE, DA: 105 },
+      current: { ...BASELINE, flow: 105 },
       meta: { agentName: "A", createdAt: "", totalInteractions: 20, locale: "zh" },
     });
     const report = generateReport(state, makeMetrics(), PACKAGE_VERSION);

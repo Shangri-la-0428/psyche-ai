@@ -16,13 +16,13 @@ function makeState(overrides: Partial<PsycheState> = {}): PsycheState {
   return {
     version: 10,
     sensitivity: 1.0,
-    baseline: { DA: 55, HT: 55, CORT: 30, OT: 50, NE: 50, END: 55 },
-    current:  { DA: 55, HT: 55, CORT: 30, OT: 50, NE: 50, END: 55 },
+    baseline: { order: 55, flow: 55, boundary: 30, resonance: 50 },
+    current:  { order: 55, flow: 55, boundary: 30, resonance: 50 },
     updatedAt: new Date().toISOString(),
     relationships: { _default: { ...DEFAULT_RELATIONSHIP } },
     empathyLog: null,
     selfModel: { values: ["真实", "好奇"], preferences: ["探索"], boundaries: ["不舔"], currentInterests: ["编程"] },
-    emotionalHistory: [],
+    stateHistory: [],
     agreementStreak: 0,
     lastDisagreement: null,
     drives: { ...DEFAULT_DRIVES },
@@ -39,7 +39,7 @@ function withMode(state: PsycheState, mode: PsycheMode): PsycheState {
 }
 
 function withOTDelta(state: PsycheState, delta: number): PsycheState {
-  return { ...state, current: { ...state.current, OT: state.baseline.OT + delta } };
+  return { ...state, current: { ...state.current, resonance: state.baseline.resonance + delta } };
 }
 
 const warmBridge = {

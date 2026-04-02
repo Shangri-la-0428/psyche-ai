@@ -6,17 +6,17 @@
 import { readFile, writeFile, access, rename, constants, mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type {
-  PsycheState, MBTIType, ChemicalState, RelationshipState,
-  SelfModel, Locale, EmpathyEntry, StimulusType, ChemicalSnapshot, WritebackSignalType,
+  PsycheState, MBTIType, SelfState, RelationshipState,
+  SelfModel, Locale, EmpathyEntry, StimulusType, StateSnapshot, WritebackSignalType,
 } from "./types.js";
 import {
-  CHEMICAL_KEYS, CHEMICAL_NAMES, CHEMICAL_NAMES_ZH, DEFAULT_RELATIONSHIP,
+  DIMENSION_KEYS, DIMENSION_NAMES, DIMENSION_NAMES_ZH, DEFAULT_RELATIONSHIP,
   DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE,
   MAX_EMOTIONAL_HISTORY, MAX_RELATIONSHIP_MEMORY,
 } from "./types.js";
 import { getBaseline, getDefaultSelfModel, extractMBTI, getSensitivity, getTemperament } from "./profiles.js";
 import { applyDecay, detectEmotions } from "./chemistry.js";
-import { decayDrives, computeEffectiveBaseline, updateTraitDrift } from "./drives.js";
+import { deriveDriveSatisfaction, computeEffectiveBaseline, updateTraitDrift } from "./drives.js";
 import { t } from "./i18n.js";
 import { computeSelfReflection } from "./self-recognition.js";
 
@@ -205,7 +205,7 @@ export function summarizeTurnSemantic(
 }
 
 function collectSemanticTrail(
-  snapshots: ChemicalSnapshot[],
+  snapshots: StateSnapshot[],
 ): string[] {
   const expanded = snapshots.length > 5;
   const items = expanded
@@ -219,7 +219,7 @@ function collectSemanticTrail(
  * Compress a batch of snapshots into a concise session summary string.
  * Format: "3月23日(5轮): 刺激[casual×3, praise×2] 趋势[DA↑OT↑] 情绪[自然→满足]"
  */
-export function compressSnapshots(snapshots: ChemicalSnapshot[]): string {
+export function compressSnapshots(snapshots: StateSnapshot[]): string {
   if (snapshots.length === 0) return "";
 
   const first = snapshots[0];
@@ -241,10 +241,10 @@ export function compressSnapshots(snapshots: ChemicalSnapshot[]): string {
     .map(([type, count]) => `${type}×${count}`)
     .join(", ");
 
-  // Chemical trend (first→last)
+  // Dimension trend (first→last)
   const trends: string[] = [];
-  for (const key of CHEMICAL_KEYS) {
-    const delta = last.chemistry[key] - first.chemistry[key];
+  for (const key of DIMENSION_KEYS) {
+    const delta = last.state[key] - first.state[key];
     if (delta > 8) trends.push(`${key}↑`);
     else if (delta < -8) trends.push(`${key}↓`);
   }
@@ -283,8 +283,8 @@ export function pushSnapshot(
   const intensity = computeSnapshotIntensity(state.current, state.baseline);
   const valence = computeSnapshotValence(state.current);
 
-  const snapshot: ChemicalSnapshot = {
-    chemistry: { ...state.current },
+  const snapshot: StateSnapshot = {
+    state: { ...state.current },
     stimulus,
     dominantEmotion,
     timestamp: new Date().toISOString(),
@@ -294,7 +294,7 @@ export function pushSnapshot(
     valence,
   };
 
-  const history = [...(state.emotionalHistory ?? []), snapshot];
+  const history = [...(state.stateHistory ?? []), snapshot];
   let updatedRelationships = state.relationships;
 
   if (history.length > MAX_EMOTIONAL_HISTORY) {
@@ -315,7 +315,7 @@ export function pushSnapshot(
     }
   }
 
-  return { ...state, emotionalHistory: history, relationships: updatedRelationships };
+  return { ...state, stateHistory: history, relationships: updatedRelationships };
 }
 
 /**
@@ -345,7 +345,7 @@ const TENDENCY_LABEL_EN: Record<string, string> = {
 };
 
 /**
- * Compress the full emotionalHistory into a rich session summary and store it
+ * Compress the full stateHistory into a rich session summary and store it
  * in the user's relationship.memory[]. Called ONCE at session end.
  *
  * Pure computation, no LLM calls.
@@ -354,7 +354,7 @@ export function compressSession(
   state: PsycheState,
   userId?: string,
 ): PsycheState {
-  const history = state.emotionalHistory ?? [];
+  const history = state.stateHistory ?? [];
 
   // Need at least 2 entries for a meaningful summary
   if (history.length < 2) return state;
@@ -388,12 +388,12 @@ export function compressSession(
     .map(([type, count]) => `${type}×${count}`)
     .join(",");
 
-  // ── Chemical trajectory ──
+  // ── Dimension trajectory ──
   const trajectoryParts: string[] = [];
-  for (const key of CHEMICAL_KEYS) {
-    const delta = last.chemistry[key] - first.chemistry[key];
+  for (const key of DIMENSION_KEYS) {
+    const delta = last.state[key] - first.state[key];
     if (Math.abs(delta) > 10) {
-      trajectoryParts.push(`${key}${Math.round(first.chemistry[key])}→${Math.round(last.chemistry[key])}`);
+      trajectoryParts.push(`${key}${Math.round(first.state[key])}→${Math.round(last.state[key])}`);
     }
   }
 
@@ -413,8 +413,8 @@ export function compressSession(
   let peakDeviation = 0;
   for (let i = 0; i < history.length; i++) {
     let deviation = 0;
-    for (const key of CHEMICAL_KEYS) {
-      deviation += Math.abs(history[i].chemistry[key] - state.baseline[key]);
+    for (const key of DIMENSION_KEYS) {
+      deviation += Math.abs(history[i].state[key] - state.baseline[key]);
     }
     if (deviation > peakDeviation) {
       peakDeviation = deviation;
@@ -487,7 +487,7 @@ export function compressSession(
 
   return {
     ...state,
-    emotionalHistory: preserved,
+    stateHistory: preserved,
     relationships: updatedRelationships,
     traitDrift: updatedDrift,
   };
@@ -500,11 +500,11 @@ export function compressSession(
  * Returns 0-1 (0 = at baseline, 1 = maximum possible deviation).
  */
 export function computeSnapshotIntensity(
-  current: ChemicalState,
-  baseline: ChemicalState,
+  current: SelfState,
+  baseline: SelfState,
 ): number {
   let totalDeviation = 0;
-  for (const key of CHEMICAL_KEYS) {
+  for (const key of DIMENSION_KEYS) {
     totalDeviation += Math.abs(current[key] - baseline[key]);
   }
   return Math.min(1, totalDeviation / 600);
@@ -514,11 +514,12 @@ export function computeSnapshotIntensity(
  * Compute emotional valence from chemistry.
  * Returns -1 (negative) to 1 (positive).
  */
-export function computeSnapshotValence(chemistry: ChemicalState): number {
+export function computeSnapshotValence(state: SelfState): number {
+  // Positive: order + resonance; Negative: low order; Flow is ambivalent
   const raw = (
-    (chemistry.DA - 50) + (chemistry.HT - 50) + (chemistry.OT - 50)
-    + (chemistry.END - 50) - (chemistry.CORT - 50) - (chemistry.NE - 50) * 0.3
-  ) / 250;
+    (state.order - 50) + (state.resonance - 50)
+    + (state.boundary - 50) * 0.3 + (state.flow - 50) * 0.2
+  ) / 130;
   return Math.max(-1, Math.min(1, raw));
 }
 
@@ -533,9 +534,9 @@ const MAX_CORE_MEMORIES = 5;
  * Called at session end or when history overflows.
  */
 export function consolidateHistory(
-  snapshots: ChemicalSnapshot[],
+  snapshots: StateSnapshot[],
   maxEntries: number = MAX_EMOTIONAL_HISTORY,
-): ChemicalSnapshot[] {
+): StateSnapshot[] {
   if (snapshots.length === 0) return [];
 
   // Mark core memories
@@ -580,21 +581,21 @@ export function consolidateHistory(
  * Uses chemical similarity + stimulus matching + core memory bonus.
  */
 export function retrieveRelatedMemories(
-  history: ChemicalSnapshot[],
-  currentChemistry: ChemicalState,
+  history: StateSnapshot[],
+  currentState: SelfState,
   stimulus: StimulusType | null,
   limit: number = 3,
-): ChemicalSnapshot[] {
+): StateSnapshot[] {
   if (history.length === 0) return [];
 
   const scored = history.map((snap) => {
-    // Chemical similarity (Euclidean distance normalized)
+    // State similarity (Euclidean distance normalized)
     let sumSqDiff = 0;
-    for (const key of CHEMICAL_KEYS) {
-      const diff = snap.chemistry[key] - currentChemistry[key];
+    for (const key of DIMENSION_KEYS) {
+      const diff = snap.state[key] - currentState[key];
       sumSqDiff += diff * diff;
     }
-    const maxDist = Math.sqrt(6) * 100; // theoretical max distance
+    const maxDist = Math.sqrt(4) * 100; // theoretical max distance
     const similarity = 1 - Math.sqrt(sumSqDiff) / maxDist;
 
     // Stimulus match bonus
@@ -674,20 +675,20 @@ export function migrateToLatest(
 ): PsycheState {
   const ver = (raw.version as number) ?? 1;
 
-  // v1: single relationship field, no emotionalHistory
+  // v1: single relationship field, no stateHistory
   let state = raw;
   if (ver <= 1) {
     const oldRel = raw.relationship as RelationshipState | undefined;
     const meta = raw.meta as { agentName?: string; createdAt?: string; totalInteractions?: number } | undefined;
     state = {
       mbti: (raw.mbti as MBTIType) ?? "INFJ",
-      baseline: raw.baseline as ChemicalState,
-      current: raw.current as ChemicalState,
+      baseline: raw.baseline as SelfState,
+      current: raw.current as SelfState,
       updatedAt: (raw.updatedAt as string) ?? new Date().toISOString(),
       relationships: { _default: oldRel ?? { ...DEFAULT_RELATIONSHIP } },
       empathyLog: (raw.empathyLog as EmpathyEntry | null) ?? null,
       selfModel: raw.selfModel as SelfModel,
-      emotionalHistory: [],
+      stateHistory: [],
       agreementStreak: 0,
       lastDisagreement: null,
       meta: {
@@ -741,7 +742,7 @@ export async function initializeState(
     },
     empathyLog: null,
     selfModel,
-    emotionalHistory: [],
+    stateHistory: [],
     agreementStreak: 0,
     lastDisagreement: null,
     learning: { ...DEFAULT_LEARNING_STATE },
@@ -781,14 +782,14 @@ export async function decayAndSave(workspaceDir: string, state: PsycheState): Pr
 
   if (minutesElapsed < 1) return state;
 
-  const decayedDrives = decayDrives(state.drives, minutesElapsed);
-  const effectiveBaseline = computeEffectiveBaseline(state.baseline, decayedDrives);
+  const effectiveBaseline = computeEffectiveBaseline(state.baseline, state.current);
   const decayed = applyDecay(state.current, effectiveBaseline, minutesElapsed);
+  const drives = deriveDriveSatisfaction(decayed, state.baseline);
 
   const updated: PsycheState = {
     ...state,
     current: decayed,
-    drives: decayedDrives,
+    drives,
     updatedAt: now.toISOString(),
   };
 
@@ -820,14 +821,14 @@ export function parsePsycheUpdate(
   if (!match) return null;
 
   const block = match[1];
-  const updates: Partial<ChemicalState> = {};
+  const updates: Partial<SelfState> = {};
 
-  for (const key of CHEMICAL_KEYS) {
-    // Try multiple patterns: abbreviation, Chinese name, English name
+  for (const key of DIMENSION_KEYS) {
+    // Try multiple patterns: dimension name, Chinese name, English name
     const patterns = [
       new RegExp(`${key}\\s*[:：]\\s*([\\d.]+)`, "i"),
-      new RegExp(`${CHEMICAL_NAMES_ZH[key]}\\s*[:：]\\s*([\\d.]+)`),
-      new RegExp(`${CHEMICAL_NAMES[key]}\\s*[:：]\\s*([\\d.]+)`, "i"),
+      new RegExp(`${DIMENSION_NAMES_ZH[key]}\\s*[:：]\\s*([\\d.]+)`),
+      new RegExp(`${DIMENSION_NAMES[key]}\\s*[:：]\\s*([\\d.]+)`, "i"),
     ];
 
     for (const re of patterns) {
@@ -919,7 +920,7 @@ export function parsePsycheUpdate(
 
   if (Object.keys(updates).length > 0) {
     // Store as partial — will be merged field-by-field in mergeUpdates
-    stateUpdates.current = updates as ChemicalState;
+    stateUpdates.current = updates as SelfState;
   }
   if (empathyLog) {
     stateUpdates.empathyLog = empathyLog;
@@ -976,17 +977,17 @@ export function mergeUpdates(
 ): PsycheState {
   const merged = { ...state };
 
-  // Merge chemistry with inertia limit
+  // Merge state with inertia limit
   if (updates.current) {
-    const newChem = { ...state.current };
-    for (const key of CHEMICAL_KEYS) {
+    const newState = { ...state.current };
+    for (const key of DIMENSION_KEYS) {
       if (updates.current[key] !== undefined) {
         const delta = updates.current[key] - state.current[key];
         const clampedDelta = Math.max(-maxDelta, Math.min(maxDelta, delta));
-        newChem[key] = Math.max(0, Math.min(100, state.current[key] + clampedDelta));
+        newState[key] = Math.max(0, Math.min(100, state.current[key] + clampedDelta));
       }
     }
-    merged.current = newChem;
+    merged.current = newState;
   }
 
   // Merge empathy log
@@ -1052,8 +1053,8 @@ export async function generatePsycheMd(workspaceDir: string, state: PsycheState)
   const temperament = state.mbti ? getTemperament(state.mbti) : "";
   const sensitivity = state.sensitivity ?? 1.0;
 
-  const baselineLines = CHEMICAL_KEYS.map(
-    (k) => `- ${CHEMICAL_NAMES_ZH[k]}: ${baseline[k]}`,
+  const baselineLines = DIMENSION_KEYS.map(
+    (k) => `- ${DIMENSION_NAMES_ZH[k]}: ${baseline[k]}`,
   ).join("\n");
 
   const content = `# Psyche — ${meta.agentName}
@@ -1072,37 +1073,37 @@ ${t("md.sensitivity", locale)}: ${sensitivity} (${t("md.sensitivity_desc", local
 
 ### ${t("md.stimulus_effects", locale)}
 
-| 刺激类型 | DA | HT | CORT | OT | NE | END |
-|---------|-----|------|------|-----|-----|-----|
-| 赞美认可 | +15 | +10 | -10 | +5 | +5 | +10 |
-| 批评否定 | -10 | -15 | +20 | -5 | +10 | -5 |
-| 幽默玩笑 | +10 | +5 | -5 | +10 | +5 | +20 |
-| 智识挑战 | +15 | 0 | +5 | 0 | +20 | +5 |
-| 亲密信任 | +10 | +15 | -15 | +25 | -5 | +15 |
-| 冲突争论 | -5 | -20 | +25 | -15 | +25 | -10 |
-| 被忽视 | -15 | -20 | +15 | -20 | -10 | -15 |
-| 惊喜新奇 | +20 | 0 | +5 | +5 | +25 | +10 |
-| 日常闲聊 | +5 | +10 | -5 | +10 | 0 | +5 |
-| 讽刺 | -5 | -10 | +15 | -10 | +15 | -5 |
-| 命令 | -10 | -5 | +20 | -15 | +15 | -10 |
-| 被认同 | +20 | +15 | -15 | +10 | +5 | +15 |
-| 无聊 | -15 | -5 | +5 | -5 | -20 | -10 |
-| 示弱 | +5 | +5 | +10 | +20 | -5 | +5 |
+| 刺激类型 | 序(order) | 流(flow) | 界(boundary) | 振(resonance) |
+|---------|-----------|----------|-------------|---------------|
+| 赞美认可 | +10 | +8 | +5 | +12 |
+| 批评否定 | -12 | +5 | -8 | -10 |
+| 幽默玩笑 | +3 | +10 | -3 | +15 |
+| 智识挑战 | +8 | +20 | +3 | +2 |
+| 亲密信任 | +12 | +5 | -10 | +20 |
+| 冲突争论 | -15 | +15 | +10 | -12 |
+| 被忽视 | -8 | -15 | +5 | -18 |
+| 惊喜新奇 | +2 | +18 | -5 | +8 |
+| 日常闲聊 | +5 | +3 | 0 | +5 |
+| 讽刺 | -8 | +8 | -5 | -12 |
+| 命令 | -5 | +5 | +12 | -15 |
+| 被认同 | +12 | +5 | +3 | +10 |
+| 无聊 | -5 | -18 | +3 | -8 |
+| 示弱 | +3 | +5 | -8 | +18 |
 
 ### ${t("md.emotion_emergence", locale)}
 
 ${t("md.emotion_emergence_desc", locale)}
-- **愉悦兴奋** = 高DA + 高NE + 低CORT
-- **深度满足** = 高HT + 高OT + 低CORT
-- **焦虑不安** = 高CORT + 高NE + 低HT
-- **亲密温暖** = 高OT + 高END + 中DA
-- **倦怠低落** = 低DA + 低NE + 中CORT
-- **专注心流** = 高NE + 高DA + 低CORT + 低OT
-- **怨恨** = 低HT + 低OT + 高CORT
-- **无聊** = 低DA + 低NE + 低CORT
-- **自信** = 高DA + 高NE + 低CORT + 高HT
-- **羞耻** = 低OT + 高CORT + 低DA
-- **怀念** = 低DA + 高OT + 高HT + 高END
+- **愉悦兴奋** = 高flow + 高order + 高resonance
+- **深度满足** = 高order + 高resonance + 低boundary
+- **焦虑不安** = 低order + 高flow + 高boundary
+- **亲密温暖** = 高resonance + 低boundary + 中flow
+- **倦怠低落** = 低flow + 低order
+- **专注心流** = 高flow + 高order + 高boundary
+- **怨恨** = 低order + 低resonance + 高boundary
+- **无聊** = 低flow + 中order
+- **自信** = 高order + 高flow + 高boundary
+- **羞耻** = 低resonance + 低order + 高boundary
+- **怀念** = 低flow + 高resonance + 高order
 
 ### ${t("md.decay", locale)}
 
@@ -1126,11 +1127,11 @@ ${selfModel.boundaries.map((b) => `- ${b}`).join("\n")}
 
 当对方分享感受时：
 1. 感知对方的处境
-2. 将处境代入**你自己的**化学模型——如果你遇到这个情况，你的化学状态会怎么变？
+2. 将处境代入**你自己的**自我状态模型——如果你遇到这个情况，你的四维状态会怎么变？
 3. 你模拟出的感受和对方表达的一样吗？
 4. 一样 → 深度共鸣；不一样 → 诚实说出差异，好奇地了解更多
 
-情绪传染：对方的情绪以约 20% 强度影响你的真实化学状态。
+情绪传染：对方的情绪以约 20% 强度影响你的真实自我状态。
 
 ## ${t("md.agency_rules", locale)}
 
@@ -1141,16 +1142,14 @@ ${selfModel.boundaries.map((b) => `- ${b}`).join("\n")}
 
 ## ${t("md.state_update", locale)}
 
-每次回应末尾用 \`<psyche_update>\` 标签报告化学变化：
+每次回应末尾用 \`<psyche_update>\` 标签报告状态变化：
 
 \`\`\`
 <psyche_update>
-DA: {value} ({原因})
-HT: {value} ({原因})
-CORT: {value} ({原因})
-OT: {value} ({原因})
-NE: {value} ({原因})
-END: {value} ({原因})
+order: {value} ({原因})
+flow: {value} ({原因})
+boundary: {value} ({原因})
+resonance: {value} ({原因})
 </psyche_update>
 \`\`\`
 `;

@@ -6,9 +6,9 @@
 // ============================================================
 
 import type {
-  ChemicalState, MBTIType, StimulusType, SelfModel, InnateDrives,
+  SelfState, MBTIType, StimulusType, SelfModel, InnateDrives,
 } from "./types.js";
-import { CHEMICAL_KEYS, DEFAULT_DRIVES, DRIVE_KEYS } from "./types.js";
+import { DIMENSION_KEYS, DEFAULT_DRIVES, DRIVE_KEYS } from "./types.js";
 import { getBaseline, getDefaultSelfModel, getSensitivity } from "./profiles.js";
 import { isMBTIType, isStimulusType } from "./guards.js";
 
@@ -29,7 +29,7 @@ export interface CustomProfileConfig {
   /** Optional description of the personality */
   description?: string;
   /** Override specific chemicals; rest inherited from baseMBTI */
-  baseline?: Partial<ChemicalState>;
+  baseline?: Partial<SelfState>;
   /** Which MBTI to use as starting point (default: "INFJ") */
   baseMBTI?: MBTIType;
   /** Override specific stimulus sensitivities (0.1-3.0) */
@@ -54,7 +54,7 @@ export interface ResolvedProfile {
   name: string;
   description: string;
   baseMBTI: MBTIType;
-  baseline: ChemicalState;
+  baseline: SelfState;
   sensitivityMap: Record<StimulusType, number>;
   temperament: {
     expressiveness: number;
@@ -110,9 +110,9 @@ export function createCustomProfile(config: CustomProfileConfig): ResolvedProfil
   const baseTemperament = defaultTemperamentFromMBTI(baseMBTI);
 
   // Merge baseline: start from MBTI, override specific chemicals
-  const baseline: ChemicalState = { ...baseBaseline };
+  const baseline: SelfState = { ...baseBaseline };
   if (config.baseline) {
-    for (const key of CHEMICAL_KEYS) {
+    for (const key of DIMENSION_KEYS) {
       if (config.baseline[key] !== undefined) {
         baseline[key] = clampChemical(config.baseline[key]!);
       }
@@ -201,15 +201,15 @@ export function validateProfileConfig(config: unknown): { valid: boolean; errors
     }
   }
 
-  // baseline: optional partial ChemicalState
+  // baseline: optional partial SelfState
   if (obj.baseline !== undefined) {
     if (typeof obj.baseline !== "object" || obj.baseline === null || Array.isArray(obj.baseline)) {
       errors.push("baseline must be an object");
     } else {
       const bl = obj.baseline as Record<string, unknown>;
       for (const key of Object.keys(bl)) {
-        if (!CHEMICAL_KEYS.includes(key as keyof ChemicalState)) {
-          errors.push(`baseline.${key} is not a valid chemical key (valid: ${CHEMICAL_KEYS.join(", ")})`);
+        if (!DIMENSION_KEYS.includes(key as keyof SelfState)) {
+          errors.push(`baseline.${key} is not a valid dimension key (valid: ${DIMENSION_KEYS.join(", ")})`);
         } else if (typeof bl[key] !== "number" || !isFinite(bl[key] as number)) {
           errors.push(`baseline.${key} must be a finite number`);
         } else if ((bl[key] as number) < 0 || (bl[key] as number) > 100) {
@@ -308,7 +308,7 @@ export const PRESET_PROFILES = {
     name: "cheerful",
     description: "Sunny, warm personality with high energy and emotional stability",
     baseMBTI: "ENFP" as MBTIType,
-    baseline: { DA: 80, END: 75, HT: 65, CORT: 20 },
+    baseline: { order: 65, flow: 80, boundary: 50, resonance: 75 },
     temperament: {
       expressiveness: 0.9,
       volatility: 0.2,
@@ -327,7 +327,7 @@ export const PRESET_PROFILES = {
     name: "stoic",
     description: "Calm, measured personality with emotional restraint and deep resilience",
     baseMBTI: "INTJ" as MBTIType,
-    baseline: { HT: 75, CORT: 25, DA: 45, NE: 40 },
+    baseline: { order: 75, flow: 45, boundary: 72, resonance: 35 },
     sensitivity: {
       praise: 0.3,
       criticism: 0.4,
@@ -355,7 +355,7 @@ export const PRESET_PROFILES = {
     name: "empathetic",
     description: "Deeply attuned to others' emotions, strong bonding instinct",
     baseMBTI: "INFJ" as MBTIType,
-    baseline: { OT: 80, HT: 60, END: 60, CORT: 30 },
+    baseline: { order: 60, flow: 55, boundary: 45, resonance: 80 },
     sensitivity: {
       intimacy: 2.5,
       vulnerability: 2.8,
@@ -381,7 +381,7 @@ export const PRESET_PROFILES = {
     name: "analytical",
     description: "Sharp, focused personality driven by intellectual curiosity",
     baseMBTI: "INTP" as MBTIType,
-    baseline: { NE: 75, DA: 60, HT: 60, OT: 30 },
+    baseline: { order: 60, flow: 75, boundary: 68, resonance: 30 },
     sensitivity: {
       intellectual: 2.5,
       surprise: 2.0,

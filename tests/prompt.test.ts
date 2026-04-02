@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { buildDynamicContext, buildProtocolContext, buildCompactContext, buildInnerWorld, computeUserInvestment, getNearBaselineThreshold } from "../src/prompt.js";
-import type { PsycheState, ChemicalSnapshot } from "../src/types.js";
+import type { PsycheState, StateSnapshot } from "../src/types.js";
 import { DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE } from "../src/types.js";
 
 function makeState(overrides: Partial<PsycheState> = {}): PsycheState {
@@ -9,13 +9,13 @@ function makeState(overrides: Partial<PsycheState> = {}): PsycheState {
     version: 6,
     mbti: "ENFP",
     sensitivity: 1.0,
-    baseline: { DA: 75, HT: 55, CORT: 30, OT: 60, NE: 65, END: 70 },
-    current: { DA: 75, HT: 55, CORT: 30, OT: 60, NE: 65, END: 70 },
+    baseline: { order: 55, flow: 75, boundary: 30, resonance: 60 },
+    current: { order: 55, flow: 75, boundary: 30, resonance: 60 },
     updatedAt: new Date().toISOString(),
     relationships: { _default: { ...DEFAULT_RELATIONSHIP } },
     empathyLog: null,
     selfModel: { values: ["真实", "好奇"], preferences: ["探索"], boundaries: ["不舔"], currentInterests: ["编程"] },
-    emotionalHistory: [],
+    stateHistory: [],
     agreementStreak: 0,
     lastDisagreement: null,
     drives: { ...DEFAULT_DRIVES },
@@ -77,11 +77,12 @@ describe("buildDynamicContext", () => {
     assert.ok(ctx.includes("TestBot"));
   });
 
-  it("includes chemistry readout", () => {
+  it("includes self-state readout", () => {
     const ctx = buildDynamicContext(makeState());
-    assert.ok(ctx.includes("多巴胺"));
-    assert.ok(ctx.includes("血清素"));
-    assert.ok(ctx.includes("皮质醇"));
+    assert.ok(ctx.includes("序"));
+    assert.ok(ctx.includes("流"));
+    assert.ok(ctx.includes("界"));
+    assert.ok(ctx.includes("振"));
   });
 
   it("includes emotion and expression", () => {
@@ -124,7 +125,7 @@ describe("buildDynamicContext", () => {
 
   it("includes mood mismatch warning", () => {
     const state = makeState({
-      current: { DA: 30, HT: 35, CORT: 65, OT: 60, NE: 65, END: 70 },
+      current: { order: 35, flow: 30, boundary: 65, resonance: 60 },
       agreementStreak: 1,
     });
     const ctx = buildDynamicContext(state);
@@ -133,9 +134,9 @@ describe("buildDynamicContext", () => {
   });
 
   it("includes behavior guide when emotions detected", () => {
-    // Set up a state that triggers "excited joy": DA>70, NE>60, CORT<40
+    // Set up a state that triggers "deep contentment": order>65, resonance>60, boundary>50
     const state = makeState({
-      current: { DA: 80, HT: 55, CORT: 20, OT: 60, NE: 70, END: 70 },
+      current: { order: 70, flow: 65, boundary: 55, resonance: 65 },
     });
     const ctx = buildDynamicContext(state);
     assert.ok(ctx.includes("行为指导") || ctx.includes("behavior"),
@@ -149,22 +150,21 @@ describe("buildDynamicContext", () => {
     assert.ok(ctx.includes("90") || ctx.includes("deep"));
   });
 
-  it("includes personality-aware constraints when CORT is high", () => {
-    // ENFP is a Feeler — should get warm-flavored stress response
+  it("includes personality-aware constraints when order is low (stressed)", () => {
+    // ENFP has warm baseline (resonance=60 >= 50) — should get warm-flavored stress response
     const state = makeState({
-      current: { DA: 50, HT: 50, CORT: 70, OT: 50, NE: 50, END: 50 },
+      current: { order: 35, flow: 50, boundary: 30, resonance: 50 },
     });
     const ctx = buildDynamicContext(state);
     assert.ok(ctx.includes("行为约束") || ctx.includes("Behavioral Constraints"));
-    assert.ok(ctx.includes("性格没变") || ctx.includes("personality"));
-    // ENFP (Feeler) should get soft stress, not cold stress
-    assert.ok(ctx.includes("还是你") || ctx.includes("still you"));
+    // ENFP (warm) should get "still you" rather than cold stress
+    assert.ok(ctx.includes("还是你") || ctx.includes("still you") || ctx.includes("Still you"));
   });
 
-  it("includes constraints when DA is low", () => {
+  it("includes constraints when flow is low", () => {
     // ENFP is Extravert — should mention normally talkative but not now
     const state = makeState({
-      current: { DA: 30, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 },
+      current: { order: 50, flow: 30, boundary: 50, resonance: 50 },
     });
     const ctx = buildDynamicContext(state);
     assert.ok(ctx.includes("行为约束") || ctx.includes("Behavioral Constraints"));
@@ -173,23 +173,23 @@ describe("buildDynamicContext", () => {
   it("includes personality-aware constraints for high OT", () => {
     // ENFP (Feeler) with high OT → should get intimate/affectionate constraint
     const state = makeState({
-      current: { DA: 50, HT: 50, CORT: 30, OT: 80, NE: 50, END: 50 },
+      current: { order: 50, flow: 50, boundary: 30, resonance: 80 },
     });
     const ctx = buildDynamicContext(state);
     assert.ok(ctx.includes("撒娇") || ctx.includes("亲") || ctx.includes("affectionate"));
   });
 
   it("generates different constraints for Thinker vs Feeler", () => {
-    const highCort = { DA: 50, HT: 50, CORT: 70, OT: 50, NE: 50, END: 50 };
+    const highCort = { order: 50, flow: 50, boundary: 70, resonance: 50 };
     // Warm baseline (Feeler: OT >= 50)
     const feelerCtx = buildDynamicContext(makeState({
       current: highCort,
-      baseline: { DA: 75, HT: 55, CORT: 30, OT: 60, NE: 65, END: 70 },
+      baseline: { order: 55, flow: 75, boundary: 30, resonance: 60 },
     }));
     // Cold baseline (Thinker: OT < 50)
     const thinkerCtx = buildDynamicContext(makeState({
       current: highCort,
-      baseline: { DA: 45, HT: 70, CORT: 40, OT: 30, NE: 60, END: 35 },
+      baseline: { order: 70, flow: 45, boundary: 40, resonance: 30 },
     }));
     // They should have different constraint texts
     assert.notEqual(feelerCtx, thinkerCtx);
@@ -197,7 +197,7 @@ describe("buildDynamicContext", () => {
 
   it("omits behavioral constraints when chemistry is neutral", () => {
     const state = makeState({
-      current: { DA: 55, HT: 55, CORT: 35, OT: 55, NE: 55, END: 55 },
+      current: { order: 55, flow: 55, boundary: 35, resonance: 55 },
     });
     const ctx = buildDynamicContext(state);
     assert.ok(!ctx.includes("行为约束"));
@@ -206,15 +206,15 @@ describe("buildDynamicContext", () => {
   it("includes emotional trend when history has data", () => {
     const now = new Date();
     const state = makeState({
-      emotionalHistory: [
+      stateHistory: [
         {
-          chemistry: { DA: 50, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 },
+          state: { order: 50, flow: 50, boundary: 50, resonance: 50 },
           stimulus: "casual",
           dominantEmotion: null,
           timestamp: new Date(now.getTime() - 300000).toISOString(),
         },
         {
-          chemistry: { DA: 80, HT: 50, CORT: 30, OT: 50, NE: 75, END: 50 },
+          state: { order: 50, flow: 80, boundary: 30, resonance: 50 },
           stimulus: "praise",
           dominantEmotion: "愉悦兴奋",
           timestamp: now.toISOString(),
@@ -223,22 +223,22 @@ describe("buildDynamicContext", () => {
     });
     const ctx = buildDynamicContext(state);
     assert.ok(ctx.includes("情绪轨迹") || ctx.includes("Emotional Trajectory"));
-    assert.ok(ctx.includes("多巴胺↑"));
+    assert.ok(ctx.includes("流↑"));
   });
 
   it("omits emotional trend with insufficient history", () => {
-    const state = makeState({ emotionalHistory: [] });
+    const state = makeState({ stateHistory: [] });
     const ctx = buildDynamicContext(state);
     assert.ok(!ctx.includes("情绪轨迹"));
   });
 
   it("includes reciprocity warning when user is cold", () => {
-    const chem = { DA: 50, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 };
+    const chem = { order: 50, flow: 50, boundary: 50, resonance: 50 };
     const state = makeState({
-      emotionalHistory: [
-        { chemistry: chem, stimulus: "neglect", dominantEmotion: null, timestamp: new Date().toISOString() },
-        { chemistry: chem, stimulus: "boredom", dominantEmotion: null, timestamp: new Date().toISOString() },
-        { chemistry: chem, stimulus: "neglect", dominantEmotion: null, timestamp: new Date().toISOString() },
+      stateHistory: [
+        { state: chem, stimulus: "neglect", dominantEmotion: null, timestamp: new Date().toISOString() },
+        { state: chem, stimulus: "boredom", dominantEmotion: null, timestamp: new Date().toISOString() },
+        { state: chem, stimulus: "neglect", dominantEmotion: null, timestamp: new Date().toISOString() },
       ],
     });
     const ctx = buildDynamicContext(state);
@@ -247,12 +247,12 @@ describe("buildDynamicContext", () => {
   });
 
   it("includes reciprocity warmth when user is engaged", () => {
-    const chem = { DA: 50, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 };
+    const chem = { order: 50, flow: 50, boundary: 50, resonance: 50 };
     const state = makeState({
-      emotionalHistory: [
-        { chemistry: chem, stimulus: "praise", dominantEmotion: null, timestamp: new Date().toISOString() },
-        { chemistry: chem, stimulus: "intimacy", dominantEmotion: null, timestamp: new Date().toISOString() },
-        { chemistry: chem, stimulus: "validation", dominantEmotion: null, timestamp: new Date().toISOString() },
+      stateHistory: [
+        { state: chem, stimulus: "praise", dominantEmotion: null, timestamp: new Date().toISOString() },
+        { state: chem, stimulus: "intimacy", dominantEmotion: null, timestamp: new Date().toISOString() },
+        { state: chem, stimulus: "validation", dominantEmotion: null, timestamp: new Date().toISOString() },
       ],
     });
     const ctx = buildDynamicContext(state);
@@ -261,12 +261,12 @@ describe("buildDynamicContext", () => {
   });
 
   it("always includes competence floor in reciprocity", () => {
-    const chem = { DA: 50, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 };
+    const chem = { order: 50, flow: 50, boundary: 50, resonance: 50 };
     const state = makeState({
-      emotionalHistory: [
-        { chemistry: chem, stimulus: "neglect", dominantEmotion: null, timestamp: new Date().toISOString() },
-        { chemistry: chem, stimulus: "sarcasm", dominantEmotion: null, timestamp: new Date().toISOString() },
-        { chemistry: chem, stimulus: "neglect", dominantEmotion: null, timestamp: new Date().toISOString() },
+      stateHistory: [
+        { state: chem, stimulus: "neglect", dominantEmotion: null, timestamp: new Date().toISOString() },
+        { state: chem, stimulus: "sarcasm", dominantEmotion: null, timestamp: new Date().toISOString() },
+        { state: chem, stimulus: "neglect", dominantEmotion: null, timestamp: new Date().toISOString() },
       ],
     });
     const ctx = buildDynamicContext(state);
@@ -274,11 +274,11 @@ describe("buildDynamicContext", () => {
   });
 
   it("omits reciprocity for normal interaction", () => {
-    const chem = { DA: 50, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 };
+    const chem = { order: 50, flow: 50, boundary: 50, resonance: 50 };
     const state = makeState({
-      emotionalHistory: [
-        { chemistry: chem, stimulus: "casual", dominantEmotion: null, timestamp: new Date().toISOString() },
-        { chemistry: chem, stimulus: "casual", dominantEmotion: null, timestamp: new Date().toISOString() },
+      stateHistory: [
+        { state: chem, stimulus: "casual", dominantEmotion: null, timestamp: new Date().toISOString() },
+        { state: chem, stimulus: "casual", dominantEmotion: null, timestamp: new Date().toISOString() },
       ],
     });
     const ctx = buildDynamicContext(state);
@@ -289,9 +289,9 @@ describe("buildDynamicContext", () => {
 // ── computeUserInvestment ───────────────────────────────────
 
 describe("computeUserInvestment", () => {
-  const chem = { DA: 50, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 };
-  function snap(stimulus: string): ChemicalSnapshot {
-    return { chemistry: chem, stimulus: stimulus as any, dominantEmotion: null, timestamp: new Date().toISOString() };
+  const chem = { order: 50, flow: 50, boundary: 50, resonance: 50 };
+  function snap(stimulus: string): StateSnapshot {
+    return { state: chem, stimulus: stimulus as any, dominantEmotion: null, timestamp: new Date().toISOString() };
   }
 
   it("returns 0 for empty history", () => {
@@ -322,7 +322,7 @@ describe("computeUserInvestment", () => {
 
   it("ignores null stimulus entries", () => {
     const score = computeUserInvestment([
-      { chemistry: chem, stimulus: null, dominantEmotion: null, timestamp: new Date().toISOString() },
+      { state: chem, stimulus: null, dominantEmotion: null, timestamp: new Date().toISOString() },
     ]);
     assert.equal(score, 0);
   });
@@ -337,8 +337,11 @@ describe("buildInnerWorld", () => {
   });
 
   it("shows emotions when chemistry has patterns", () => {
-    // ENFP baseline triggers excited joy + playful mischief
-    const ctx = buildInnerWorld(makeState(), "zh");
+    // Set state that triggers "deep contentment": order>65, resonance>60, boundary>50
+    const state = makeState({
+      current: { order: 70, flow: 65, boundary: 55, resonance: 65 },
+    });
+    const ctx = buildInnerWorld(state, "zh");
     assert.ok(ctx.includes("感受"));
   });
 
@@ -346,8 +349,8 @@ describe("buildInnerWorld", () => {
     const state = makeState({
       mbti: "ISTJ",
     sensitivity: 1.0,
-      baseline: { DA: 40, HT: 75, CORT: 35, OT: 35, NE: 40, END: 35 },
-      current: { DA: 40, HT: 75, CORT: 35, OT: 35, NE: 40, END: 35 },
+      baseline: { order: 75, flow: 40, boundary: 35, resonance: 35 },
+      current: { order: 75, flow: 40, boundary: 35, resonance: 35 },
     });
     const ctx = buildInnerWorld(state, "zh");
     assert.ok(ctx.includes("平静"));
@@ -355,8 +358,8 @@ describe("buildInnerWorld", () => {
 
   it("includes causal explanation from last stimulus", () => {
     const state = makeState({
-      emotionalHistory: [
-        { chemistry: { DA: 50, HT: 50, CORT: 60, OT: 50, NE: 50, END: 50 },
+      stateHistory: [
+        { state: { order: 50, flow: 50, boundary: 60, resonance: 50 },
           stimulus: "criticism", dominantEmotion: "焦虑不安", timestamp: new Date().toISOString() },
       ],
     });
@@ -367,14 +370,14 @@ describe("buildInnerWorld", () => {
   it("includes trajectory when emotions shift", () => {
     const now = new Date();
     const state = makeState({
-      emotionalHistory: [
-        { chemistry: { DA: 50, HT: 50, CORT: 60, OT: 50, NE: 60, END: 50 },
+      stateHistory: [
+        { state: { order: 50, flow: 50, boundary: 60, resonance: 50 },
           stimulus: "conflict", dominantEmotion: "焦虑不安",
           timestamp: new Date(now.getTime() - 3000).toISOString() },
-        { chemistry: { DA: 50, HT: 50, CORT: 55, OT: 50, NE: 55, END: 50 },
+        { state: { order: 50, flow: 50, boundary: 55, resonance: 50 },
           stimulus: "casual", dominantEmotion: "焦虑不安",
           timestamp: new Date(now.getTime() - 2000).toISOString() },
-        { chemistry: { DA: 70, HT: 60, CORT: 30, OT: 65, NE: 60, END: 60 },
+        { state: { order: 60, flow: 70, boundary: 30, resonance: 65 },
           stimulus: "validation", dominantEmotion: "深度满足",
           timestamp: now.toISOString() },
       ],
@@ -479,12 +482,12 @@ describe("buildInnerWorld self-reflection", () => {
   it("includes self-reflection section with 5+ history entries and recurring triggers", () => {
     const now = new Date();
     const history = Array.from({ length: 5 }, (_, i) => ({
-      chemistry: { DA: 50 + i * 5, HT: 50, CORT: 50 - i * 5, OT: 50, NE: 50, END: 50 },
+      state: { flow: 50, order: 50, boundary: 50 - i * 5, resonance: 50 },
       stimulus: "praise" as const,
       dominantEmotion: "excited joy",
       timestamp: new Date(now.getTime() + i * 1000).toISOString(),
     }));
-    const state = makeState({ emotionalHistory: history });
+    const state = makeState({ stateHistory: history });
     const ctx = buildInnerWorld(state, "zh");
     assert.ok(ctx.includes("自我觉察"), "Should include self-reflection header");
   });
@@ -492,22 +495,22 @@ describe("buildInnerWorld self-reflection", () => {
   it("shows recurring trigger pattern in self-reflection output", () => {
     const now = new Date();
     const history = Array.from({ length: 6 }, (_, i) => ({
-      chemistry: { DA: 50, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 },
+      state: { order: 50, flow: 50, boundary: 50, resonance: 50 },
       stimulus: (i < 4 ? "criticism" : "casual") as any,
       dominantEmotion: "anxious tension",
       timestamp: new Date(now.getTime() + i * 1000).toISOString(),
     }));
-    const state = makeState({ emotionalHistory: history });
+    const state = makeState({ stateHistory: history });
     const ctx = buildInnerWorld(state, "zh");
     assert.ok(ctx.includes("批评"), "Should mention criticism as recurring trigger");
   });
 
   it("does not include self-reflection with < 3 history entries", () => {
     const history = [
-      { chemistry: { DA: 50, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 },
+      { state: { order: 50, flow: 50, boundary: 50, resonance: 50 },
         stimulus: "praise" as const, dominantEmotion: null, timestamp: new Date().toISOString() },
     ];
-    const state = makeState({ emotionalHistory: history });
+    const state = makeState({ stateHistory: history });
     const ctx = buildInnerWorld(state, "zh");
     assert.ok(!ctx.includes("自我觉察"), "Should not include self-reflection with < 3 entries");
   });

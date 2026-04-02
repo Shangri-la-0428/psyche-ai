@@ -5,25 +5,25 @@ import {
   getLearnedVector,
   updateLearnedVector,
   computeContextHash,
-  predictChemistry,
+  predictState,
   computePredictionError,
   recordPrediction,
   getAveragePredictionError,
 } from "../src/learning.js";
 import { STIMULUS_VECTORS } from "../src/chemistry.js";
 import type {
-  PsycheState, ChemicalState, LearningState, StimulusType,
+  PsycheState, SelfState, LearningState, StimulusType,
   LearnedVectorAdjustment,
 } from "../src/types.js";
 import {
-  CHEMICAL_KEYS, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE,
+  DIMENSION_KEYS, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE,
   DEFAULT_RELATIONSHIP, MAX_LEARNED_VECTORS, MAX_PREDICTION_HISTORY,
 } from "../src/types.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
-function makeChemistry(overrides: Partial<ChemicalState> = {}): ChemicalState {
-  return { DA: 50, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50, ...overrides };
+function makeChemistry(overrides: Partial<SelfState> = {}): SelfState {
+  return { order: 50, flow: 50, boundary: 50, resonance: 50, ...overrides };
 }
 
 function makeLearning(overrides: Partial<LearningState> = {}): LearningState {
@@ -33,8 +33,7 @@ function makeLearning(overrides: Partial<LearningState> = {}): LearningState {
 function makeState(overrides: Partial<PsycheState> = {}): PsycheState {
   const now = new Date().toISOString();
   return {
-    version: 6,
-    mbti: "INFJ",
+    version: 11,
     sensitivity: 1.0,
     baseline: makeChemistry(),
     current: makeChemistry(),
@@ -43,7 +42,7 @@ function makeState(overrides: Partial<PsycheState> = {}): PsycheState {
     relationships: { _default: { ...DEFAULT_RELATIONSHIP } },
     empathyLog: null,
     selfModel: { values: [], preferences: [], boundaries: [], currentInterests: [] },
-    emotionalHistory: [],
+    stateHistory: [],
     agreementStreak: 0,
     lastDisagreement: null,
     learning: makeLearning(),
@@ -145,7 +144,7 @@ describe("getLearnedVector", () => {
     const learning = makeLearning();
     const result = getLearnedVector(learning, "praise", "ctx1");
     const base = STIMULUS_VECTORS.praise;
-    for (const key of CHEMICAL_KEYS) {
+    for (const key of DIMENSION_KEYS) {
       assert.equal(result[key], base[key], `${key} should match base`);
     }
   });
@@ -154,7 +153,7 @@ describe("getLearnedVector", () => {
     const adj: LearnedVectorAdjustment = {
       stimulus: "praise",
       contextHash: "ctx1",
-      adjustment: { DA: 5, HT: -3 },
+      adjustment: { flow: 5, order: -3 },
       confidence: 0.5,
       sampleCount: 10,
       lastUpdated: new Date().toISOString(),
@@ -162,16 +161,16 @@ describe("getLearnedVector", () => {
     const learning = makeLearning({ learnedVectors: [adj] });
     const result = getLearnedVector(learning, "praise", "ctx1");
     const base = STIMULUS_VECTORS.praise;
-    assert.equal(result.DA, base.DA + 5);
-    assert.equal(result.HT, base.HT - 3);
-    assert.equal(result.CORT, base.CORT); // no adjustment
+    assert.equal(result.flow, base.flow + 5);
+    assert.equal(result.order, base.order - 3);
+    assert.equal(result.boundary, base.boundary); // no adjustment
   });
 
   it("does not apply adjustment for different context", () => {
     const adj: LearnedVectorAdjustment = {
       stimulus: "praise",
       contextHash: "ctx1",
-      adjustment: { DA: 5 },
+      adjustment: { flow: 5 },
       confidence: 0.5,
       sampleCount: 10,
       lastUpdated: new Date().toISOString(),
@@ -179,7 +178,7 @@ describe("getLearnedVector", () => {
     const learning = makeLearning({ learnedVectors: [adj] });
     const result = getLearnedVector(learning, "praise", "ctx2");
     const base = STIMULUS_VECTORS.praise;
-    assert.equal(result.DA, base.DA); // should not have adjustment
+    assert.equal(result.flow, base.flow); // should not have adjustment
   });
 });
 
@@ -188,8 +187,8 @@ describe("getLearnedVector", () => {
 describe("updateLearnedVector", () => {
   it("creates new entry for unseen context", () => {
     const learning = makeLearning();
-    const actual = makeChemistry({ DA: 70 });
-    const baseline = makeChemistry({ DA: 50 });
+    const actual = makeChemistry({ flow: 70 });
+    const baseline = makeChemistry({ flow: 50 });
     const result = updateLearnedVector(learning, "praise", "new_ctx", 0.5, actual, baseline);
     assert.equal(result.learnedVectors.length, 1);
     assert.equal(result.learnedVectors[0].stimulus, "praise");
@@ -199,27 +198,27 @@ describe("updateLearnedVector", () => {
 
   it("reinforces on positive outcome", () => {
     const learning = makeLearning();
-    const actual = makeChemistry({ DA: 70 }); // DA went up by 20
-    const baseline = makeChemistry({ DA: 50 });
+    const actual = makeChemistry({ flow: 70 }); // DA went up by 20
+    const baseline = makeChemistry({ flow: 50 });
     const result = updateLearnedVector(learning, "praise", "ctx", 0.8, actual, baseline);
     const entry = result.learnedVectors[0];
     // Positive outcome + positive delta → positive adjustment
     assert.ok(
-      (entry.adjustment.DA ?? 0) > 0,
-      `DA adjustment should be positive, got ${entry.adjustment.DA}`,
+      (entry.adjustment.flow ?? 0) > 0,
+      `DA adjustment should be positive, got ${entry.adjustment.flow}`,
     );
   });
 
   it("suppresses on negative outcome", () => {
     const learning = makeLearning();
-    const actual = makeChemistry({ DA: 70 }); // DA went up
-    const baseline = makeChemistry({ DA: 50 });
+    const actual = makeChemistry({ flow: 70 }); // DA went up
+    const baseline = makeChemistry({ flow: 50 });
     const result = updateLearnedVector(learning, "praise", "ctx", -0.8, actual, baseline);
     const entry = result.learnedVectors[0];
     // Negative outcome → adjust away from actual delta → negative adjustment for DA
     assert.ok(
-      (entry.adjustment.DA ?? 0) < 0,
-      `DA adjustment should be negative for suppression, got ${entry.adjustment.DA}`,
+      (entry.adjustment.flow ?? 0) < 0,
+      `DA adjustment should be negative for suppression, got ${entry.adjustment.flow}`,
     );
   });
 
@@ -228,22 +227,22 @@ describe("updateLearnedVector", () => {
     const existingAdj: LearnedVectorAdjustment = {
       stimulus: "praise",
       contextHash: "ctx",
-      adjustment: { DA: 100 }, // way over the clamp limit
+      adjustment: { flow: 100 }, // way over the clamp limit
       confidence: 0.5,
       sampleCount: 5,
       lastUpdated: new Date().toISOString(),
     };
     const learning = makeLearning({ learnedVectors: [existingAdj] });
-    const actual = makeChemistry({ DA: 100 });
-    const baseline = makeChemistry({ DA: 0 });
+    const actual = makeChemistry({ flow: 100 });
+    const baseline = makeChemistry({ flow: 0 });
     const result = updateLearnedVector(learning, "praise", "ctx", 1.0, actual, baseline);
     const entry = result.learnedVectors[0];
 
-    const baseDA = STIMULUS_VECTORS.praise.DA; // +15
+    const baseDA = STIMULUS_VECTORS.praise.flow; // +15
     const maxAdj = Math.max(Math.abs(baseDA) * 0.5, 1); // 7.5
     assert.ok(
-      Math.abs(entry.adjustment.DA ?? 0) <= maxAdj + 0.001,
-      `DA adjustment ${entry.adjustment.DA} should be within +/-${maxAdj}`,
+      Math.abs(entry.adjustment.flow ?? 0) <= maxAdj + 0.001,
+      `DA adjustment ${entry.adjustment.flow} should be within +/-${maxAdj}`,
     );
   });
 
@@ -251,14 +250,14 @@ describe("updateLearnedVector", () => {
     const existingAdj: LearnedVectorAdjustment = {
       stimulus: "praise",
       contextHash: "ctx",
-      adjustment: { DA: 1 },
+      adjustment: { flow: 1 },
       confidence: 0.3,
       sampleCount: 5,
       lastUpdated: new Date().toISOString(),
     };
     const learning = makeLearning({ learnedVectors: [existingAdj] });
-    const actual = makeChemistry({ DA: 60 });
-    const baseline = makeChemistry({ DA: 50 });
+    const actual = makeChemistry({ flow: 60 });
+    const baseline = makeChemistry({ flow: 50 });
     const result = updateLearnedVector(learning, "praise", "ctx", 0.5, actual, baseline);
     assert.equal(result.learnedVectors.length, 1); // still just one entry
     assert.equal(result.learnedVectors[0].sampleCount, 6); // incremented
@@ -337,10 +336,10 @@ describe("computeContextHash", () => {
 
   it("includes stimulus history", () => {
     const state = makeState({
-      emotionalHistory: [
-        { chemistry: makeChemistry(), stimulus: "praise", dominantEmotion: null, timestamp: "" },
-        { chemistry: makeChemistry(), stimulus: "humor", dominantEmotion: null, timestamp: "" },
-        { chemistry: makeChemistry(), stimulus: "casual", dominantEmotion: null, timestamp: "" },
+      stateHistory: [
+        { state: makeChemistry(), stimulus: "praise", dominantEmotion: null, timestamp: "" },
+        { state: makeChemistry(), stimulus: "humor", dominantEmotion: null, timestamp: "" },
+        { state: makeChemistry(), stimulus: "casual", dominantEmotion: null, timestamp: "" },
       ],
     });
     const hash = computeContextHash(state);
@@ -359,20 +358,20 @@ describe("computeContextHash", () => {
   });
 
   it("uses 'none' when no history", () => {
-    const state = makeState({ emotionalHistory: [] });
+    const state = makeState({ stateHistory: [] });
     const hash = computeContextHash(state);
     assert.ok(hash.includes(":none:"), `hash should contain ':none:', got ${hash}`);
   });
 });
 
-// ── predictChemistry ────────────────────────────────────────
+// ── predictState ────────────────────────────────────────
 
-describe("predictChemistry", () => {
+describe("predictState", () => {
   it("uses learned vectors for prediction", () => {
     const adj: LearnedVectorAdjustment = {
       stimulus: "praise",
       contextHash: "ctx",
-      adjustment: { DA: 5 }, // extra +5 DA on top of base
+      adjustment: { flow: 5 }, // extra +5 DA on top of base
       confidence: 0.8,
       sampleCount: 20,
       lastUpdated: new Date().toISOString(),
@@ -380,23 +379,23 @@ describe("predictChemistry", () => {
     const learning = makeLearning({ learnedVectors: [adj] });
     const current = makeChemistry();
 
-    const withLearning = predictChemistry(current, "praise", learning, "ctx", 1.0, 25);
-    const withoutLearning = predictChemistry(current, "praise", makeLearning(), "ctx", 1.0, 25);
+    const withLearning = predictState(current, "praise", learning, "ctx", 1.0, 25);
+    const withoutLearning = predictState(current, "praise", makeLearning(), "ctx", 1.0, 25);
 
     // With learning should have higher DA than without (since adjustment is +5)
     assert.ok(
-      withLearning.DA > withoutLearning.DA,
-      `learned DA ${withLearning.DA} should exceed base DA ${withoutLearning.DA}`,
+      withLearning.flow > withoutLearning.flow,
+      `learned DA ${withLearning.flow} should exceed base DA ${withoutLearning.flow}`,
     );
   });
 
   it("applies sensitivity and maxDelta", () => {
     const learning = makeLearning();
     const current = makeChemistry();
-    const result = predictChemistry(current, "praise", learning, "ctx", 0.5, 10);
+    const result = predictState(current, "praise", learning, "ctx", 0.5, 10);
     // With sensitivity 0.5 and maxDelta 10, changes should be moderate
     const base = STIMULUS_VECTORS.praise;
-    for (const key of CHEMICAL_KEYS) {
+    for (const key of DIMENSION_KEYS) {
       const rawDelta = base[key] * 0.5;
       const expectedDelta = Math.max(-10, Math.min(10, rawDelta));
       const expected = Math.max(0, Math.min(100, current[key] + expectedDelta));
@@ -408,11 +407,11 @@ describe("predictChemistry", () => {
   });
 
   it("result is clamped to [0, 100]", () => {
-    const current = makeChemistry({ DA: 95 });
+    const current = makeChemistry({ flow: 95 });
     const learning = makeLearning();
-    const result = predictChemistry(current, "praise", learning, "ctx", 2.0, 50);
-    assert.ok(result.DA <= 100, "DA should not exceed 100");
-    assert.ok(result.DA >= 0, "DA should not go below 0");
+    const result = predictState(current, "praise", learning, "ctx", 2.0, 50);
+    assert.ok(result.flow <= 100, "DA should not exceed 100");
+    assert.ok(result.flow >= 0, "DA should not go below 0");
   });
 });
 
@@ -420,28 +419,28 @@ describe("predictChemistry", () => {
 
 describe("computePredictionError", () => {
   it("returns 0 for identical states", () => {
-    const a = makeChemistry({ DA: 60, HT: 40 });
+    const a = makeChemistry({ flow: 60, order: 40 });
     const error = computePredictionError(a, a);
     assert.equal(error, 0);
   });
 
   it("returns >0 for different states", () => {
-    const a = makeChemistry({ DA: 60 });
-    const b = makeChemistry({ DA: 80 });
+    const a = makeChemistry({ flow: 60 });
+    const b = makeChemistry({ flow: 80 });
     const error = computePredictionError(a, b);
     assert.ok(error > 0, `error should be >0, got ${error}`);
   });
 
   it("returns 1 for maximally different states", () => {
-    const a: ChemicalState = { DA: 0, HT: 0, CORT: 0, OT: 0, NE: 0, END: 0 };
-    const b: ChemicalState = { DA: 100, HT: 100, CORT: 100, OT: 100, NE: 100, END: 100 };
+    const a: SelfState = { flow: 0, order: 0, boundary: 0, resonance: 0 };
+    const b: SelfState = { flow: 100, order: 100, boundary: 100, resonance: 100 };
     const error = computePredictionError(a, b);
     assert.ok(Math.abs(error - 1.0) < 0.001, `expected ~1.0, got ${error}`);
   });
 
   it("is symmetric", () => {
-    const a = makeChemistry({ DA: 30, HT: 70 });
-    const b = makeChemistry({ DA: 70, HT: 30 });
+    const a = makeChemistry({ flow: 30, order: 70 });
+    const b = makeChemistry({ flow: 70, order: 30 });
     const err1 = computePredictionError(a, b);
     const err2 = computePredictionError(b, a);
     assert.ok(Math.abs(err1 - err2) < 0.001, "error should be symmetric");
@@ -453,8 +452,8 @@ describe("computePredictionError", () => {
 describe("recordPrediction", () => {
   it("adds a record to predictionHistory", () => {
     const learning = makeLearning();
-    const pred = makeChemistry({ DA: 60 });
-    const actual = makeChemistry({ DA: 65 });
+    const pred = makeChemistry({ flow: 60 });
+    const actual = makeChemistry({ flow: 65 });
     const result = recordPrediction(learning, pred, actual, "praise");
     assert.equal(result.predictionHistory.length, 1);
     assert.equal(result.predictionHistory[0].stimulus, "praise");
@@ -463,14 +462,14 @@ describe("recordPrediction", () => {
 
   it("trims to MAX_PREDICTION_HISTORY", () => {
     const records = Array.from({ length: MAX_PREDICTION_HISTORY }, (_, i) => ({
-      predictedChemistry: makeChemistry(),
-      actualChemistry: makeChemistry(),
+      predictedState: makeChemistry(),
+      actualState: makeChemistry(),
       stimulus: "casual" as StimulusType,
       predictionError: 0.1,
       timestamp: new Date(Date.now() + i).toISOString(),
     }));
     const learning = makeLearning({ predictionHistory: records });
-    const result = recordPrediction(learning, makeChemistry(), makeChemistry({ DA: 99 }), "praise");
+    const result = recordPrediction(learning, makeChemistry(), makeChemistry({ flow: 99 }), "praise");
     assert.equal(result.predictionHistory.length, MAX_PREDICTION_HISTORY);
     // The newest entry should be last
     assert.equal(
@@ -498,9 +497,9 @@ describe("getAveragePredictionError", () => {
 
   it("returns average of recorded errors", () => {
     const records = [
-      { predictedChemistry: makeChemistry(), actualChemistry: makeChemistry(), stimulus: null, predictionError: 0.2, timestamp: "" },
-      { predictedChemistry: makeChemistry(), actualChemistry: makeChemistry(), stimulus: null, predictionError: 0.4, timestamp: "" },
-      { predictedChemistry: makeChemistry(), actualChemistry: makeChemistry(), stimulus: null, predictionError: 0.6, timestamp: "" },
+      { predictedState: makeChemistry(), actualState: makeChemistry(), stimulus: null, predictionError: 0.2, timestamp: "" },
+      { predictedState: makeChemistry(), actualState: makeChemistry(), stimulus: null, predictionError: 0.4, timestamp: "" },
+      { predictedState: makeChemistry(), actualState: makeChemistry(), stimulus: null, predictionError: 0.6, timestamp: "" },
     ];
     const learning = makeLearning({ predictionHistory: records });
     const avg = getAveragePredictionError(learning);
@@ -520,11 +519,11 @@ describe("Integration: outcome → update vector → prediction improves", () =>
     // Base praise prediction: DA=65, HT=60, CORT=40, OT=55, NE=55, END=60
     // Actual: DA is higher, OT is higher, CORT is lower — praise worked extra well
     const actualAfterPraise = makeChemistry({
-      DA: 75, HT: 65, CORT: 30, OT: 65, NE: 55, END: 65,
+      flow: 75, order: 65, boundary: 30, resonance: 65,
     });
 
     // Step 1: Make initial prediction (using base vectors)
-    const initialPrediction = predictChemistry(
+    const initialPrediction = predictState(
       baseChemistry, "praise", learning, contextHash, 1.0, 25,
     );
     const initialError = computePredictionError(initialPrediction, actualAfterPraise);
@@ -548,7 +547,7 @@ describe("Integration: outcome → update vector → prediction improves", () =>
     }
 
     // Step 4: Make prediction with updated learning
-    const learnedPrediction = predictChemistry(
+    const learnedPrediction = predictState(
       baseChemistry, "praise", updatedLearning, contextHash, 1.0, 25,
     );
     const learnedError = computePredictionError(learnedPrediction, actualAfterPraise);

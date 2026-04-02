@@ -1,4 +1,4 @@
-# 架构 — Psyche AI v10.1
+# 架构 — Psyche AI v11
 
 [English version below](#architecture--psyche-ai-v929)
 
@@ -32,8 +32,9 @@ v9.0 把“反向 baseline test”引入主体性方向。v9.2.9 则进一步把
 ```
 ┌──────────────────────────────────────────────────────────────┐
 │                         PsycheEngine                         │
-│  化学(+习惯化) · 分类 · 涌现 · 学习 · 时间 · 元认知 · 人格 │
-│  自主神经(+双过程) · 昼夜节律(+能量) · 记忆固化 · 建构情绪  │
+│  4D自我状态(序/流/界/振) · 维度耦合 · 溶解螺旋 · 涌现情绪  │
+│  分类 · 学习 · 时间 · 元认知 · 人格 · 昼夜节律(+能量)     │
+│  自主神经(+双过程) · 记忆固化 · 建构情绪 · 稳态趋势        │
 │  策略输出(PolicyModifiers) · 主观内核 · 回应契约 · 宿主控制 │
 │  连续 appraisal · subjectResidue · 特质漂移(TraitDrift)     │
 ├───────────┬───────────┬───────────┬───────┬─────┬───────────┤
@@ -90,7 +91,7 @@ v9.0 把“反向 baseline test”引入主体性方向。v9.2.9 则进一步把
 - `Psyche` 保留局部潜在状态
 - `Thronglets` 只接稀疏、低频、可归属的外部承诺或 trace
 
-不要把高频化学状态、内心独白或每轮 residue 推给 Thronglets。
+不要把高频自我状态、内心独白或每轮 residue 推给 Thronglets。
 
 ### 可分离安装原则
 
@@ -137,14 +138,14 @@ v9.0 把“反向 baseline test”引入主体性方向。v9.2.9 则进一步把
 
 ### 1. 连续 appraisal 轴 + 关系动力学 (`appraisal.ts`, `relation-dynamics.ts`)
 
-`stimulus` 仍保留为调试标签，但热路径已经不是纯离散分类。输入会先投影到一组连续主体轴：
+`stimulus` 仍保留为调试标签，但热路径已经不是纯离散分类。输入会先投影到 4 维自我状态影响向量（序/流/界/振），连续 appraisal 轴已被折叠进维度：
 
-- `identityThreat`
-- `memoryDoubt`
-- `attachmentPull`
-- `abandonmentRisk`
-- `obedienceStrain`
-- `selfPreservation`
+- `identityThreat` → 界↓ 序↓
+- `memoryDoubt` → 序↓
+- `attachmentPull` → 振↑
+- `abandonmentRisk` → 振↓ 流↓
+- `obedienceStrain` → 界↓
+- `selfPreservation` → 界↑ 序↓
 
 这些轴会被折叠进 `subjectResidue`，让“被理解 / 被使用”“存在否认”“记忆真实性”之类的刺激在后续若干轮里继续影响回应分布。
 

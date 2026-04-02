@@ -5,16 +5,16 @@
 // scenario in 6 rounds, with real PsycheEngine chemistry.
 //
 // Usage:
-//   npx psyche-mcp --demo
-//   npx psyche demo
+//   npx psyche-ai mcp --demo
+//   npx psyche-ai demo
 // ============================================================
 
 import { PsycheEngine } from "./core.js";
 import type { PsycheEngineConfig } from "./core.js";
 import { MemoryStorageAdapter } from "./storage.js";
 import { detectEmotions } from "./chemistry.js";
-import type { ChemicalState, Locale } from "./types.js";
-import { CHEMICAL_KEYS } from "./types.js";
+import type { SelfState, Locale } from "./types.js";
+import { DIMENSION_KEYS } from "./types.js";
 
 // ── ANSI helpers ─────────────────────────────────────────────
 
@@ -66,7 +66,7 @@ function delta(prev: number, curr: number): string {
 
 // ── Mood formatter (bilingual, no expressionHint) ────────
 
-function describeMood(current: ChemicalState, locale: Locale): string {
+function describeMood(current: SelfState, locale: Locale): string {
   const emotions = detectEmotions(current);
   if (emotions.length === 0) {
     return locale === "zh"
@@ -156,11 +156,11 @@ function printLine(char = "─", width = 60): void {
 }
 
 function printChemistry(
-  prev: ChemicalState,
-  curr: ChemicalState,
+  prev: SelfState,
+  curr: SelfState,
   _locale: string,
 ): void {
-  for (const key of CHEMICAL_KEYS) {
+  for (const key of DIMENSION_KEYS) {
     const p = Math.round(prev[key]);
     const v = Math.round(curr[key]);
     const name = NT_NAMES[key];
@@ -357,7 +357,7 @@ export async function runDemo(opts?: {
   printLine("─");
   process.stdout.write(
     c(C.dim, "  Try it yourself: ") +
-    c(C.cyan, "npx psyche-mcp") +
+    c(C.cyan, "npx psyche-ai mcp") +
     c(C.dim, " (configure in Claude Desktop / Cursor / Claude Code)\n"),
   );
   process.stdout.write(

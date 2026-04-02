@@ -8,8 +8,8 @@
 // ============================================================
 
 import type { PsycheEngine, ProcessInputResult, ProcessOutputResult } from "./core.js";
-import type { ChemicalState, StimulusType } from "./types.js";
-import { CHEMICAL_KEYS } from "./types.js";
+import type { SelfState, StimulusType } from "./types.js";
+import { DIMENSION_KEYS } from "./types.js";
 import { applyContagion, detectEmotions } from "./chemistry.js";
 import { classifyStimulus } from "./classify.js";
 
@@ -28,9 +28,9 @@ export interface ExchangeResult {
 /** Snapshot of cross-contagion effect */
 export interface ContagionResult {
   /** Chemistry deltas applied to engine A */
-  deltaA: Partial<Record<keyof ChemicalState, number>>;
+  deltaA: Partial<Record<keyof SelfState, number>>;
   /** Chemistry deltas applied to engine B */
-  deltaB: Partial<Record<keyof ChemicalState, number>>;
+  deltaB: Partial<Record<keyof SelfState, number>>;
   /** Whether any meaningful change occurred */
   changed: boolean;
 }
@@ -93,12 +93,12 @@ function stimulusValence(stimulus: StimulusType | null): number {
   return VALENCE_MAP[stimulus] ?? 0;
 }
 
-/** Cosine similarity between two ChemicalState vectors, normalized to 0-1 */
-function chemicalSimilarity(a: ChemicalState, b: ChemicalState): number {
+/** Cosine similarity between two SelfState vectors, normalized to 0-1 */
+function chemicalSimilarity(a: SelfState, b: SelfState): number {
   let dotProduct = 0;
   let normA = 0;
   let normB = 0;
-  for (const key of CHEMICAL_KEYS) {
+  for (const key of DIMENSION_KEYS) {
     dotProduct += a[key] * b[key];
     normA += a[key] * a[key];
     normB += b[key] * b[key];
@@ -203,14 +203,14 @@ export class PsycheInteraction {
     const stimB = this.dominantEmotionAsStimulus(stateB.current);
 
     let changed = false;
-    const deltaA: Partial<Record<keyof ChemicalState, number>> = {};
-    const deltaB: Partial<Record<keyof ChemicalState, number>> = {};
+    const deltaA: Partial<Record<keyof SelfState, number>> = {};
+    const deltaB: Partial<Record<keyof SelfState, number>> = {};
 
     // B's emotion influences A
     if (stimB) {
       const beforeA = { ...stateA.current };
       const afterA = applyContagion(stateA.current, stimB, rate, 1.0);
-      for (const key of CHEMICAL_KEYS) {
+      for (const key of DIMENSION_KEYS) {
         const d = afterA[key] - beforeA[key];
         if (Math.abs(d) > 0.01) {
           deltaA[key] = d;
@@ -229,7 +229,7 @@ export class PsycheInteraction {
     if (stimA) {
       const beforeB = { ...stateB.current };
       const afterB = applyContagion(stateB.current, stimA, rate, 1.0);
-      for (const key of CHEMICAL_KEYS) {
+      for (const key of DIMENSION_KEYS) {
         const d = afterB[key] - beforeB[key];
         if (Math.abs(d) > 0.01) {
           deltaB[key] = d;
@@ -345,7 +345,7 @@ export class PsycheInteraction {
    * Map the dominant emotion pattern to the closest StimulusType
    * for cross-contagion purposes.
    */
-  private dominantEmotionAsStimulus(chemistry: ChemicalState): StimulusType | null {
+  private dominantEmotionAsStimulus(chemistry: SelfState): StimulusType | null {
     const emotions = detectEmotions(chemistry);
     if (emotions.length === 0) return null;
 
@@ -379,12 +379,12 @@ export class PsycheInteraction {
    */
   private async applyContagionDelta(
     engine: PsycheEngine,
-    targetChemistry: ChemicalState,
+    targetChemistry: SelfState,
   ): Promise<void> {
     // Build a synthetic psyche_update that nudges toward the target
     const state = engine.getState();
     const parts: string[] = [];
-    for (const key of CHEMICAL_KEYS) {
+    for (const key of DIMENSION_KEYS) {
       const target = Math.round(targetChemistry[key]);
       if (target !== Math.round(state.current[key])) {
         parts.push(`${key}: ${target}`);

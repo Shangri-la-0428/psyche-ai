@@ -97,12 +97,10 @@ export function runReflectiveTurnPhases(input: {
           ...state,
           current: {
             ...state.current,
-            DA: clamp(state.current.DA + (adj.DA ?? 0)),
-            HT: clamp(state.current.HT + (adj.HT ?? 0)),
-            CORT: clamp(state.current.CORT + (adj.CORT ?? 0)),
-            OT: clamp(state.current.OT + (adj.OT ?? 0)),
-            NE: clamp(state.current.NE + (adj.NE ?? 0)),
-            END: clamp(state.current.END + (adj.END ?? 0)),
+            order: clamp(state.current.order + (adj.order ?? 0)),
+            flow: clamp(state.current.flow + (adj.flow ?? 0)),
+            boundary: clamp(state.current.boundary + (adj.boundary ?? 0)),
+            resonance: clamp(state.current.resonance + (adj.resonance ?? 0)),
           },
         };
       }

@@ -16,8 +16,8 @@ function makeState(overrides: Partial<PsycheState> = {}): PsycheState {
     version: 6,
     mbti: "INFJ",
     sensitivity: 1.0,
-    baseline: { DA: 50, HT: 60, CORT: 40, OT: 55, NE: 45, END: 50 },
-    current: { DA: 50, HT: 60, CORT: 40, OT: 55, NE: 45, END: 50 },
+    baseline: { order: 60, flow: 50, boundary: 40, resonance: 55 },
+    current: { order: 60, flow: 50, boundary: 40, resonance: 55 },
     drives: { ...DEFAULT_DRIVES },
     updatedAt: new Date().toISOString(),
     relationships: {
@@ -25,7 +25,7 @@ function makeState(overrides: Partial<PsycheState> = {}): PsycheState {
     },
     empathyLog: null,
     selfModel: { values: [], preferences: [], boundaries: [], currentInterests: [] },
-    emotionalHistory: [],
+    stateHistory: [],
     agreementStreak: 0,
     lastDisagreement: null,
     learning: { ...DEFAULT_LEARNING_STATE },
@@ -67,10 +67,10 @@ describe("extractContextFeatures", () => {
       relationships: {
         _default: { trust: 80, intimacy: 60, phase: "close" },
       },
-      emotionalHistory: [
-        { chemistry: { DA: 50, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 }, stimulus: "praise", dominantEmotion: null, timestamp: "" },
-        { chemistry: { DA: 50, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 }, stimulus: "humor", dominantEmotion: null, timestamp: "" },
-        { chemistry: { DA: 50, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50 }, stimulus: "casual", dominantEmotion: null, timestamp: "" },
+      stateHistory: [
+        { state: { order: 50, flow: 50, boundary: 50, resonance: 50 }, stimulus: "praise", dominantEmotion: null, timestamp: "" },
+        { state: { order: 50, flow: 50, boundary: 50, resonance: 50 }, stimulus: "humor", dominantEmotion: null, timestamp: "" },
+        { state: { order: 50, flow: 50, boundary: 50, resonance: 50 }, stimulus: "casual", dominantEmotion: null, timestamp: "" },
       ],
       drives: { survival: 80, safety: 70, connection: 30, esteem: 50, curiosity: 90 },
       agreementStreak: 3,

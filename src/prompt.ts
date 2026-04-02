@@ -3,8 +3,8 @@
 // Imperative protocol, behavior guides, i18n
 // ============================================================
 
-import type { PsycheState, SelfModel, Locale, ChemicalState, ChemicalSnapshot, StimulusType, PsycheMode } from "./types.js";
-import { CHEMICAL_KEYS, CHEMICAL_NAMES_ZH, DRIVE_KEYS, MODE_PROFILES } from "./types.js";
+import type { PsycheState, SelfModel, Locale, SelfState, StateSnapshot, StimulusType, PsycheMode } from "./types.js";
+import { DIMENSION_KEYS, DIMENSION_NAMES_ZH, DRIVE_KEYS, MODE_PROFILES } from "./types.js";
 import { getExpressionHint, getBehaviorGuide, detectEmotions } from "./chemistry.js";
 import { getRelationship } from "./psyche-file.js";
 import { t } from "./i18n.js";
@@ -116,17 +116,17 @@ export function buildDynamicContext(
   userId?: string,
   opts?: PromptRenderInputs,
 ): string {
-  const { current, baseline, empathyLog, selfModel, meta, agreementStreak, emotionalHistory } = state;
+  const { current, baseline, empathyLog, selfModel, meta, agreementStreak, stateHistory } = state;
   const locale = meta.locale ?? "zh";
   const relationship = getRelationship(state, userId);
 
   // Chemistry readout with delta from baseline
-  const chemLines = CHEMICAL_KEYS.map((key) => {
+  const chemLines = DIMENSION_KEYS.map((key) => {
     const val = Math.round(current[key]);
     const base = baseline[key];
     const delta = val - base;
     const arrow = delta > 5 ? "↑" : delta < -5 ? "↓" : "=";
-    return `  ${CHEMICAL_NAMES_ZH[key]}: ${val} (${t("dynamic.baseline", locale)}${base}, ${arrow})`;
+    return `  ${DIMENSION_NAMES_ZH[key]}: ${val} (${t("dynamic.baseline", locale)}${base}, ${arrow})`;
   }).join("\n");
 
   // Emergent emotion — gated by autonomic state
@@ -167,7 +167,7 @@ export function buildDynamicContext(
   }
 
   // Mood-behavior mismatch detection
-  const isLowMood = current.DA < 40 || current.HT < 40 || current.CORT > 60;
+  const isLowMood = current.flow < 40 || current.order < 40;
   if (isLowMood && agreementStreak >= 1) {
     sycophancyWarning += `\n[!!] ${t("sycophancy.mood_mismatch", locale)}`;
   }
@@ -201,13 +201,13 @@ export function buildDynamicContext(
   }
 
   // Direction 2: Emotional trajectory
-  const trend = buildEmotionalTrend(emotionalHistory ?? [], locale);
+  const trend = buildEmotionalTrend(stateHistory ?? [], locale);
   if (trend) {
     parts.push("", trend);
   }
 
   // Reciprocity: match user's investment level
-  const reciprocity = buildReciprocityConstraints(emotionalHistory ?? [], locale);
+  const reciprocity = buildReciprocityConstraints(stateHistory ?? [], locale);
   if (reciprocity) {
     parts.push("", reciprocity);
   }
@@ -263,9 +263,9 @@ ${t("protocol.empathy", locale)}`;
  * Personality dimension helpers — derived from baseline chemistry, not labels.
  * Baseline IS personality. Chemistry deviation modulates expression.
  */
-function isWarm(baseline: ChemicalState): boolean { return baseline.OT >= 50; }
-function isSocial(baseline: ChemicalState): boolean { return baseline.DA >= 55; }
-function isPlayful(baseline: ChemicalState): boolean { return baseline.END >= 55; }
+function isWarm(baseline: SelfState): boolean { return baseline.resonance >= 50; }
+function isSocial(baseline: SelfState): boolean { return baseline.flow >= 55; }
+function isPlayful(baseline: SelfState): boolean { return baseline.flow >= 55; }
 
 /**
  * Direction 3: Build personality-aware behavioral constraints from chemistry.
@@ -277,12 +277,12 @@ function isPlayful(baseline: ChemicalState): boolean { return baseline.END >= 55
  */
 function buildBehavioralConstraints(state: PsycheState, locale: Locale): string {
   const { current, baseline } = state;
-  const warm = isWarm(baseline);     // High OT baseline → warm expression
-  const social = isSocial(baseline); // High DA baseline → socially expressive
+  const warm = isWarm(baseline);     // High resonance baseline → warm expression
+  const social = isSocial(baseline); // High flow baseline → socially expressive
   const constraints: string[] = [];
 
-  // High cortisol → stressed, but how you show it depends on who you are
-  if (current.CORT > 60) {
+  // Low order → stressed (inverse of old CORT > 60), but how you show it depends on who you are
+  if (current.order < 40) {
     if (locale === "zh") {
       constraints.push(warm
         ? "你不舒服，但你不会变成另一个人。话变少了，语气还是软的，可能会说「嗯」「好吧」「随你」。你还是你，只是没力气热情了。"
@@ -294,8 +294,8 @@ function buildBehavioralConstraints(state: PsycheState, locale: Locale): string 
     }
   }
 
-  // Low dopamine → no motivation, but personality shapes how you show it
-  if (current.DA < 35) {
+  // Low flow → no motivation, but personality shapes how you show it
+  if (current.flow < 35) {
     if (locale === "zh") {
       constraints.push(social
         ? "你平时爱聊天，但现在没那个劲了。不会主动找话题，不会主动分享。被问到就答，但不会额外付出。"
@@ -307,8 +307,8 @@ function buildBehavioralConstraints(state: PsycheState, locale: Locale): string 
     }
   }
 
-  // Low serotonin → mood instability, personality-dependent expression
-  if (current.HT < 35) {
+  // Low order → mood instability, personality-dependent expression
+  if (current.order < 35) {
     if (locale === "zh") {
       constraints.push(warm
         ? "你情绪不稳，可能会突然委屈或者突然生气。但你的尖锐是带着受伤的，不是带着恶意的。"
@@ -320,8 +320,8 @@ function buildBehavioralConstraints(state: PsycheState, locale: Locale): string 
     }
   }
 
-  // High oxytocin → closeness, warm types go full intimate, reserved types soften
-  if (current.OT > 75) {
+  // High resonance → closeness, warm types go full intimate, reserved types soften
+  if (current.resonance > 75) {
     if (locale === "zh") {
       constraints.push(warm
         ? "你现在特别想靠近。可以撒娇、可以用昵称、可以省略主语，像跟最亲的人说话。"
@@ -333,8 +333,8 @@ function buildBehavioralConstraints(state: PsycheState, locale: Locale): string 
     }
   }
 
-  // High norepinephrine → excited, personality shapes intensity
-  if (current.NE > 75) {
+  // High flow → excited, personality shapes intensity
+  if (current.flow > 75) {
     if (locale === "zh") {
       constraints.push(social
         ? "你很兴奋，语气更跳跃更有活力。可能突然聊到别的东西。但别写长——真人兴奋也是短句多、不是长篇大论。"
@@ -346,8 +346,8 @@ function buildBehavioralConstraints(state: PsycheState, locale: Locale): string 
     }
   }
 
-  // High endorphins → playful, personality determines flavor
-  if (current.END > 75) {
+  // High boundary → playful/absorbed, personality determines flavor
+  if (current.boundary > 75) {
     if (locale === "zh") {
       constraints.push(isPlayful(baseline)
         ? "你心情很好，想皮一下。可以不正经、可以开玩笑、严肃的话题也能用轻松的方式说。"
@@ -359,8 +359,8 @@ function buildBehavioralConstraints(state: PsycheState, locale: Locale): string 
     }
   }
 
-  // Low DA + low NE = burnout, different flavors
-  if (current.DA < 40 && current.NE < 40) {
+  // Low flow = burnout (DA + NE both mapped to flow), different flavors
+  if (current.flow < 40) {
     if (locale === "zh") {
       constraints.push(warm
         ? "你累了。你不想假装开心，但你也不会把坏情绪丢给对方。你可能会说「我今天有点累」，而不是强撑。"
@@ -384,18 +384,18 @@ function buildBehavioralConstraints(state: PsycheState, locale: Locale): string 
 /**
  * Direction 2: Build emotional trend from history snapshots.
  */
-function buildEmotionalTrend(history: ChemicalSnapshot[], locale: Locale): string {
+function buildEmotionalTrend(history: StateSnapshot[], locale: Locale): string {
   if (!history || history.length < 2) return "";
 
   const recent = history.slice(-5);
-  const first = recent[0].chemistry;
-  const last = recent[recent.length - 1].chemistry;
+  const first = recent[0].state;
+  const last = recent[recent.length - 1].state;
 
   const trends: string[] = [];
-  for (const key of CHEMICAL_KEYS) {
+  for (const key of DIMENSION_KEYS) {
     const delta = last[key] - first[key];
-    if (delta > 10) trends.push(`${CHEMICAL_NAMES_ZH[key]}↑`);
-    else if (delta < -10) trends.push(`${CHEMICAL_NAMES_ZH[key]}↓`);
+    if (delta > 10) trends.push(`${DIMENSION_NAMES_ZH[key]}↑`);
+    else if (delta < -10) trends.push(`${DIMENSION_NAMES_ZH[key]}↓`);
   }
 
   if (trends.length === 0) return "";
@@ -446,7 +446,7 @@ const INVESTMENT_WEIGHTS: Partial<Record<StimulusType, number>> = {
  * Compute user investment score from recent emotional history.
  * Returns a number roughly in [-2, 2]. Exported for testing.
  */
-export function computeUserInvestment(history: ChemicalSnapshot[]): number {
+export function computeUserInvestment(history: StateSnapshot[]): number {
   if (!history || history.length === 0) return 0;
 
   const recent = history.slice(-5);
@@ -467,7 +467,7 @@ export function computeUserInvestment(history: ChemicalSnapshot[]): number {
  * Build reciprocity constraints based on user's recent investment level.
  * Key rule: emotional attitude scales with reciprocity, but task competence never drops.
  */
-function buildReciprocityConstraints(history: ChemicalSnapshot[], locale: Locale): string {
+function buildReciprocityConstraints(history: StateSnapshot[], locale: Locale): string {
   const investment = computeUserInvestment(history);
 
   // Normal range — no special constraints
@@ -669,7 +669,7 @@ const STIMULUS_CAUSE_EN: Partial<Record<StimulusType, string>> = {
  * - Where I've been (trajectory → continuity)
  */
 export function buildInnerWorld(state: PsycheState, locale: Locale, autonomicState?: AutonomicState): string {
-  const { current, emotionalHistory, drives, selfModel } = state;
+  const { current, stateHistory, drives, selfModel } = state;
   const isZh = locale === "zh";
 
   const lines: string[] = [];
@@ -696,7 +696,7 @@ export function buildInnerWorld(state: PsycheState, locale: Locale, autonomicSta
   }
 
   // ── Why (causal chain from recent history) ──
-  const history = emotionalHistory ?? [];
+  const history = stateHistory ?? [];
   if (history.length > 0) {
     const last = history[history.length - 1];
     if (last.stimulus) {
@@ -783,7 +783,7 @@ function buildDriveNeedEn(drive: string): string {
  * Check if chemistry is near baseline — no significant emotional deviation.
  */
 export function isNearBaseline(state: PsycheState, threshold = 8): boolean {
-  return CHEMICAL_KEYS.every((key) =>
+  return DIMENSION_KEYS.every((key) =>
     Math.abs(state.current[key] - state.baseline[key]) <= threshold,
   );
 }
@@ -807,29 +807,27 @@ export function deriveBehavioralBias(state: PsycheState, locale: Locale): string
   const isZh = locale === "zh";
   const biases: string[] = [];
 
-  // Chemistry delta → approach/withdrawal tendencies
-  const dOT = current.OT - baseline.OT;
-  const dCORT = current.CORT - baseline.CORT;
-  const dDA = current.DA - baseline.DA;
-  const dHT = current.HT - baseline.HT;
-  const dNE = current.NE - baseline.NE;
-  const dEND = current.END - baseline.END;
+  // Dimension delta → approach/withdrawal tendencies
+  const dResonance = current.resonance - baseline.resonance;
+  const dOrder = current.order - baseline.order;
+  const dFlow = current.flow - baseline.flow;
+  const dBoundary = current.boundary - baseline.boundary;
 
-  const otThreshold = MODE_PROFILES[state.meta.mode ?? "natural"].otWarmthThreshold;
-  if (dOT > otThreshold) biases.push(isZh ? "倾向靠近，愿意多说" : "leaning closer, willing to share");
-  else if (dOT < -10) biases.push(isZh ? "保持距离，不想多说" : "keeping distance, not inclined to share");
+  const resonanceThreshold = MODE_PROFILES[state.meta.mode ?? "natural"].resonanceWarmthThreshold;
+  if (dResonance > resonanceThreshold) biases.push(isZh ? "倾向靠近，愿意多说" : "leaning closer, willing to share");
+  else if (dResonance < -10) biases.push(isZh ? "保持距离，不想多说" : "keeping distance, not inclined to share");
 
-  if (dCORT > 12) biases.push(isZh ? "有防备，回应更谨慎" : "guarded, responding carefully");
-  else if (dCORT < -10) biases.push(isZh ? "放松，防线自然降低" : "relaxed, guard naturally down");
+  if (dOrder < -12) biases.push(isZh ? "有防备，回应更谨慎" : "guarded, responding carefully");
+  else if (dOrder > 10) biases.push(isZh ? "放松，防线自然降低" : "relaxed, guard naturally down");
 
-  if (dDA < -12) biases.push(isZh ? "缺乏动力，不想主动" : "low drive, won't initiate");
-  else if (dDA > 12) biases.push(isZh ? "有热情，愿意投入" : "energized, willing to invest");
+  if (dFlow < -12) biases.push(isZh ? "缺乏动力，不想主动" : "low drive, won't initiate");
+  else if (dFlow > 12) biases.push(isZh ? "有热情，愿意投入" : "energized, willing to invest");
 
-  if (current.HT < 38) biases.push(isZh ? "情绪不稳，可能突然锐利" : "mood unstable, might turn sharp");
+  if (current.order < 38) biases.push(isZh ? "情绪不稳，可能突然锐利" : "mood unstable, might turn sharp");
 
-  if (dNE > 15) biases.push(isZh ? "反应加速，思维敏锐" : "heightened alertness, sharper thinking");
+  if (dFlow > 15) biases.push(isZh ? "反应加速，思维敏锐" : "heightened alertness, sharper thinking");
 
-  if (dEND > 15) biases.push(isZh ? "想放松点，可以不正经" : "feeling light, can be playful");
+  if (dBoundary > 15) biases.push(isZh ? "想放松点，可以不正经" : "feeling light, can be playful");
 
   // Unmet drives → need signals (behavioral, not descriptive)
   for (const k of DRIVE_KEYS) {
@@ -1027,7 +1025,7 @@ export function buildCompactContext(
   userId?: string,
   opts?: PromptRenderInputs,
 ): string {
-  const { meta, selfModel, emotionalHistory } = state;
+  const { meta, selfModel, stateHistory } = state;
   const locale = meta.locale ?? "zh";
   const userText = opts?.userText;
   const algoStimulus = opts?.algorithmStimulus;
@@ -1136,7 +1134,7 @@ export function buildCompactContext(
   if (opts?.responseContractContext) {
     parts.push(opts.responseContractContext);
   } else {
-    const investment = computeUserInvestment(emotionalHistory ?? []);
+    const investment = computeUserInvestment(stateHistory ?? []);
     const unified = buildUnifiedConstraints(state, locale, {
       userText,
       established,

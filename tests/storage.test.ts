@@ -12,13 +12,13 @@ function makeState(overrides: Partial<PsycheState> = {}): PsycheState {
     version: 6,
     mbti: "ENFP",
     sensitivity: 1.0,
-    baseline: { DA: 75, HT: 55, CORT: 30, OT: 60, NE: 65, END: 70 },
-    current: { DA: 75, HT: 55, CORT: 30, OT: 60, NE: 65, END: 70 },
+    baseline: { order: 55, flow: 75, boundary: 30, resonance: 60 },
+    current: { order: 55, flow: 75, boundary: 30, resonance: 60 },
     updatedAt: new Date().toISOString(),
     relationships: { _default: { ...DEFAULT_RELATIONSHIP } },
     empathyLog: null,
     selfModel: { values: ["真实"], preferences: [], boundaries: [], currentInterests: [] },
-    emotionalHistory: [],
+    stateHistory: [],
     agreementStreak: 0,
     lastDisagreement: null,
     drives: { ...DEFAULT_DRIVES },
@@ -94,8 +94,8 @@ describe("FileStorageAdapter", () => {
       version: 1,
       mbti: "INTJ",
     sensitivity: 1.0,
-      baseline: { DA: 45, HT: 70, CORT: 40, OT: 30, NE: 60, END: 35 },
-      current: { DA: 60, HT: 65, CORT: 50, OT: 35, NE: 55, END: 30 },
+      baseline: { order: 70, flow: 45, boundary: 40, resonance: 30 },
+      current: { order: 65, flow: 60, boundary: 50, resonance: 35 },
       updatedAt: new Date().toISOString(),
       relationship: { trust: 60, intimacy: 40, phase: "familiar" },
       empathyLog: null,
@@ -114,15 +114,15 @@ describe("FileStorageAdapter", () => {
     assert.ok("_default" in loaded!.relationships);
     assert.equal(loaded!.relationships._default.trust, 60);
     assert.equal(loaded!.agreementStreak, 0);
-    assert.deepEqual(loaded!.emotionalHistory, []);
+    assert.deepEqual(loaded!.stateHistory, []);
   });
 
   it("migrates state with no version field", async () => {
     const noVersion = {
       mbti: "ENFP",
     sensitivity: 1.0,
-      baseline: { DA: 75, HT: 55, CORT: 30, OT: 60, NE: 65, END: 70 },
-      current: { DA: 75, HT: 55, CORT: 30, OT: 60, NE: 65, END: 70 },
+      baseline: { order: 55, flow: 75, boundary: 30, resonance: 60 },
+      current: { order: 55, flow: 75, boundary: 30, resonance: 60 },
       updatedAt: new Date().toISOString(),
       selfModel: { values: [], preferences: [], boundaries: [], currentInterests: [] },
       meta: { agentName: "old", createdAt: new Date().toISOString(), totalInteractions: 0 },

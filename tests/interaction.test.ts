@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { PsycheEngine } from "../src/core.js";
 import { PsycheInteraction } from "../src/interaction.js";
 import { MemoryStorageAdapter } from "../src/storage.js";
-import type { PsycheState, ChemicalState } from "../src/types.js";
-import { CHEMICAL_KEYS, DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE } from "../src/types.js";
+import type { PsycheState, SelfState } from "../src/types.js";
+import { DIMENSION_KEYS, DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE } from "../src/types.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -14,13 +14,13 @@ function makeState(overrides: Partial<PsycheState> = {}): PsycheState {
     version: 6,
     mbti: "ENFP",
     sensitivity: 1.0,
-    baseline: { DA: 75, HT: 55, CORT: 30, OT: 60, NE: 65, END: 70 },
-    current: { DA: 75, HT: 55, CORT: 30, OT: 60, NE: 65, END: 70 },
+    baseline: { order: 55, flow: 75, boundary: 30, resonance: 60 },
+    current: { order: 55, flow: 75, boundary: 30, resonance: 60 },
     updatedAt: now,
     relationships: { _default: { ...DEFAULT_RELATIONSHIP } },
     empathyLog: null,
     selfModel: { values: ["growth"], preferences: [], boundaries: [], currentInterests: [] },
-    emotionalHistory: [],
+    stateHistory: [],
     agreementStreak: 0,
     lastDisagreement: null,
     drives: { ...DEFAULT_DRIVES },
@@ -34,12 +34,12 @@ function makeState(overrides: Partial<PsycheState> = {}): PsycheState {
 
 async function createEngine(
   name: string,
-  currentOverrides?: Partial<ChemicalState>,
+  currentOverrides?: Partial<SelfState>,
 ): Promise<{ engine: PsycheEngine; storage: MemoryStorageAdapter }> {
   const storage = new MemoryStorageAdapter();
   const state = makeState({
     meta: { agentName: name, createdAt: new Date().toISOString(), totalInteractions: 0, locale: "en" },
-    ...(currentOverrides ? { current: { DA: 75, HT: 55, CORT: 30, OT: 60, NE: 65, END: 70, ...currentOverrides } } : {}),
+    ...(currentOverrides ? { current: { flow: 65, order: 55, boundary: 30, resonance: 70 } } : {}),
   });
   await storage.save(state);
   const engine = new PsycheEngine({ name, locale: "en", compactMode: false }, storage);
@@ -95,20 +95,20 @@ describe("PsycheInteraction", () => {
   // ── Cross-contagion ──────────────────────────────────────
 
   it("crossContagion modifies chemistry when engines have divergent emotional states", async () => {
-    // Put Alice in an excited state (high DA, high NE, low CORT)
+    // Put Alice in an excited state (high flow, low boundary)
     const sA = new MemoryStorageAdapter();
     await sA.save(makeState({
       meta: { agentName: "Alice", createdAt: new Date().toISOString(), totalInteractions: 5, locale: "en" },
-      current: { DA: 85, HT: 60, CORT: 20, OT: 65, NE: 75, END: 80 },
+      current: { order: 60, flow: 85, boundary: 20, resonance: 65 },
     }));
     const excitedAlice = new PsycheEngine({ name: "Alice", locale: "en" }, sA);
     await excitedAlice.initialize();
 
-    // Put Bob in a stressed state (high CORT, high NE, low HT)
+    // Put Bob in a stressed state (high boundary, low order)
     const sB = new MemoryStorageAdapter();
     await sB.save(makeState({
       meta: { agentName: "Bob", createdAt: new Date().toISOString(), totalInteractions: 5, locale: "en" },
-      current: { DA: 30, HT: 35, CORT: 70, OT: 30, NE: 70, END: 25 },
+      current: { order: 35, flow: 30, boundary: 70, resonance: 30 },
     }));
     const stressedBob = new PsycheEngine({ name: "Bob", locale: "en" }, sB);
     await stressedBob.initialize();
@@ -197,7 +197,7 @@ describe("PsycheInteraction", () => {
     const sA = new MemoryStorageAdapter();
     await sA.save(makeState({
       meta: { agentName: "Alice", createdAt: new Date().toISOString(), totalInteractions: 5, locale: "en" },
-      current: { DA: 25, HT: 30, CORT: 80, OT: 25, NE: 75, END: 20 },
+      current: { order: 30, flow: 25, boundary: 80, resonance: 25 },
     }));
     const stressedAlice = new PsycheEngine({ name: "Alice", locale: "en" }, sA);
     await stressedAlice.initialize();
@@ -206,7 +206,7 @@ describe("PsycheInteraction", () => {
     const sB = new MemoryStorageAdapter();
     await sB.save(makeState({
       meta: { agentName: "Bob", createdAt: new Date().toISOString(), totalInteractions: 5, locale: "en" },
-      current: { DA: 75, HT: 70, CORT: 20, OT: 70, NE: 50, END: 75 },
+      current: { order: 70, flow: 75, boundary: 20, resonance: 70 },
     }));
     const calmBob = new PsycheEngine({ name: "Bob", locale: "en" }, sB);
     await calmBob.initialize();

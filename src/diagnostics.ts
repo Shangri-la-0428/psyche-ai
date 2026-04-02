@@ -15,8 +15,8 @@
 // Zero dependencies. Privacy-first — no message content logged.
 // ============================================================
 
-import type { AppraisalAxes, PsycheState, ChemicalState, StimulusType, InnateDrives, DyadicFieldState, TraitDriftState, SessionBridgeState } from "./types.js";
-import { CHEMICAL_KEYS, DRIVE_KEYS } from "./types.js";
+import type { AppraisalAxes, PsycheState, SelfState, StimulusType, InnateDrives, DyadicFieldState, TraitDriftState, SessionBridgeState } from "./types.js";
+import { DIMENSION_KEYS, DRIVE_KEYS } from "./types.js";
 import { detectEmotions } from "./chemistry.js";
 
 // ── Diagnostic Layers ───────────────────────────────────────
@@ -83,12 +83,12 @@ export interface DiagnosticReport {
   layerHealth: LayerHealthSummary;
   metrics: SessionMetrics;
   stateSnapshot: {
-    chemistry: ChemicalState;
-    baseline: ChemicalState;
+    current: SelfState;
+    baseline: SelfState;
     drives: InnateDrives;
     agreementStreak: number;
     totalInteractions: number;
-    emotionalHistoryLength: number;
+    stateHistoryLength: number;
     relationshipCount: number;
     stateVersion: number;
   };
@@ -142,7 +142,7 @@ export function runHealthCheck(state: PsycheState): DiagnosticIssue[] {
   // ── L1: Subjective Continuity ─────────────────────────────
 
   // 1. Chemistry out of bounds — clamp() missed somewhere
-  for (const key of CHEMICAL_KEYS) {
+  for (const key of DIMENSION_KEYS) {
     const val = state.current[key];
     if (val < 0 || val > 100) {
       issues.push({
@@ -151,7 +151,7 @@ export function runHealthCheck(state: PsycheState): DiagnosticIssue[] {
         severity: "critical",
         message: `${key} out of bounds: ${val.toFixed(1)}`,
         detail: `Expected 0-100, got ${val}`,
-        suggestion: `clamp() 没覆盖到某条路径。检查 chemistry.ts 里 apply${key === "CORT" ? "Stimulus" : "Contagion"} 和 drives.ts computeEffectiveBaseline 的计算链`,
+        suggestion: `clamp() 没覆盖到某条路径。检查 chemistry.ts 里 applyStimulus 和 drives.ts computeEffectiveBaseline 的计算链`,
       });
     }
   }
@@ -194,7 +194,7 @@ export function runHealthCheck(state: PsycheState): DiagnosticIssue[] {
   }
 
   // 5. Classifier dead/weak — the core experience problem
-  const history = state.emotionalHistory ?? [];
+  const history = state.stateHistory ?? [];
   if (history.length >= 5) {
     const nullCount = history.filter(h => h.stimulus === null).length;
     if (nullCount === history.length) {
@@ -217,7 +217,7 @@ export function runHealthCheck(state: PsycheState): DiagnosticIssue[] {
   }
 
   // 6. Chemistry frozen — Psyche is running but没有任何效果
-  const chemDelta = CHEMICAL_KEYS.reduce(
+  const chemDelta = DIMENSION_KEYS.reduce(
     (sum, k) => sum + Math.abs(state.current[k] - state.baseline[k]), 0,
   );
   if (state.meta.totalInteractions > 10 && chemDelta < 3) {
@@ -226,7 +226,7 @@ export function runHealthCheck(state: PsycheState): DiagnosticIssue[] {
       layer: "subjective-continuity",
       severity: "warning",
       message: `Chemistry delta only ${chemDelta.toFixed(1)} after ${state.meta.totalInteractions} interactions`,
-      suggestion: `两种可能：1) classifier 全 null 导致 applyStimulus 从不触发 2) decay 太快把变化抹平。检查 emotionalHistory 里是否有 non-null stimulus`,
+      suggestion: `两种可能：1) classifier 全 null 导致 applyStimulus 从不触发 2) decay 太快把变化抹平。检查 stateHistory 里是否有 non-null stimulus`,
     });
   }
 
@@ -238,7 +238,7 @@ export function runHealthCheck(state: PsycheState): DiagnosticIssue[] {
       layer: "subjective-continuity",
       severity: "info",
       message: "No emergent emotions after 5+ interactions",
-      suggestion: `chemistry.ts detectEmotions 的阈值可能太严。或者 maxChemicalDelta 太小（当前上限导致化学值永远在窄区间波动）`,
+      suggestion: `chemistry.ts detectEmotions 的阈值可能太严。或者 maxDimensionDelta 太小（当前上限导致状态值永远在窄区间波动）`,
     });
   }
 
@@ -252,7 +252,7 @@ export function runHealthCheck(state: PsycheState): DiagnosticIssue[] {
           layer: "subjective-continuity",
           severity: "warning",
           message: `Relationship '${userId}' has ${rel.memory.length} identical memory entries`,
-          suggestion: `compressSession 的摘要逻辑在 emotionalHistory 过短时会生成相同文本。加去重或在压缩前检查 unique`,
+          suggestion: `compressSession 的摘要逻辑在 stateHistory 过短时会生成相同文本。加去重或在压缩前检查 unique`,
         });
       }
     }
@@ -447,7 +447,7 @@ export function computeLayerHealthSummary(
   issues: DiagnosticIssue[],
 ): LayerHealthSummary {
   // L1: Subjective continuity measurements
-  const chemDeviation = CHEMICAL_KEYS.reduce(
+  const chemDeviation = DIMENSION_KEYS.reduce(
     (sum, k) => sum + Math.abs(state.current[k] - state.baseline[k]), 0,
   );
 
@@ -502,7 +502,7 @@ export function computeLayerHealthSummary(
 
 export class DiagnosticCollector {
   private metrics: SessionMetrics;
-  private prevChemistry: ChemicalState | null = null;
+  private prevState: SelfState | null = null;
   private confidences: number[] = [];
 
   constructor() {
@@ -526,7 +526,7 @@ export class DiagnosticCollector {
   recordInput(
     stimulus: StimulusType | null,
     confidence: number,
-    chemistry: ChemicalState,
+    chemistry: SelfState,
     appraisal?: AppraisalAxes,
   ): void {
     this.metrics.inputCount++;
@@ -550,16 +550,16 @@ export class DiagnosticCollector {
     this.metrics.avgConfidence =
       this.confidences.reduce((a, b) => a + b, 0) / this.confidences.length;
 
-    if (this.prevChemistry) {
-      const delta = CHEMICAL_KEYS.reduce(
-        (sum, k) => sum + Math.abs(chemistry[k] - this.prevChemistry![k]), 0,
+    if (this.prevState) {
+      const delta = DIMENSION_KEYS.reduce(
+        (sum, k) => sum + Math.abs(chemistry[k] - this.prevState![k]), 0,
       );
       this.metrics.totalChemistryDelta += delta;
       if (delta > this.metrics.maxChemistryDelta) {
         this.metrics.maxChemistryDelta = delta;
       }
     }
-    this.prevChemistry = { ...chemistry };
+    this.prevState = { ...chemistry };
   }
 
   /** Record an error */
@@ -637,7 +637,7 @@ export function generateReport(
       layer: "subjective-continuity",
       severity: "warning",
       message: `${metrics.inputCount} inputs but chemistry barely moved (delta: ${metrics.totalChemistryDelta.toFixed(1)})`,
-      suggestion: `用户感受不到情感变化。可能原因：1) maxChemicalDelta 配置太低 2) work mode 把变化压到了 0.3x 3) personalityIntensity 太低`,
+      suggestion: `用户感受不到状态变化。可能原因：1) maxDimensionDelta 配置太低 2) work mode 把变化压到了 0.3x 3) personalityIntensity 太低`,
     });
   }
 
@@ -683,12 +683,12 @@ export function generateReport(
     layerHealth,
     metrics,
     stateSnapshot: {
-      chemistry: { ...state.current },
+      current: { ...state.current },
       baseline: { ...state.baseline },
       drives: { ...state.drives },
       agreementStreak: state.agreementStreak,
       totalInteractions: state.meta.totalInteractions,
-      emotionalHistoryLength: (state.emotionalHistory ?? []).length,
+      stateHistoryLength: (state.stateHistory ?? []).length,
       relationshipCount: Object.keys(state.relationships ?? {}).length,
       stateVersion: state.version,
     },
@@ -786,15 +786,15 @@ export function formatReport(report: DiagnosticReport): string {
   lines.push("\n" + "─".repeat(60));
   lines.push("  state snapshot:");
   const s = report.stateSnapshot;
-  const chem = CHEMICAL_KEYS.map(k =>
-    `${k}:${Math.round(s.chemistry[k])}(${Math.round(s.baseline[k])})`
+  const dims = DIMENSION_KEYS.map(k =>
+    `${k}:${Math.round(s.current[k])}(${Math.round(s.baseline[k])})`
   ).join(" ");
-  lines.push(`    chemistry: ${chem}`);
+  lines.push(`    state: ${dims}`);
   const drives = DRIVE_KEYS.map(k =>
     `${k}:${Math.round(s.drives[k])}`
   ).join(" ");
   lines.push(`    drives: ${drives}`);
-  lines.push(`    interactions: ${s.totalInteractions} | history: ${s.emotionalHistoryLength} | streak: ${s.agreementStreak}`);
+  lines.push(`    interactions: ${s.totalInteractions} | history: ${s.stateHistoryLength} | streak: ${s.agreementStreak}`);
 
   return lines.join("\n");
 }
@@ -956,7 +956,7 @@ export async function submitFeedback(
       version: report.stateSnapshot.stateVersion,
       interactions: report.stateSnapshot.totalInteractions,
       agreementStreak: report.stateSnapshot.agreementStreak,
-      historyLength: report.stateSnapshot.emotionalHistoryLength,
+      historyLength: report.stateSnapshot.stateHistoryLength,
     },
   };
 

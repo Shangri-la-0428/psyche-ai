@@ -7,16 +7,16 @@
 // intelligence capabilities.
 //
 // Usage:
-//   npx psyche-mcp                        # zero-config, ENFP default
-//   npx psyche-mcp --mbti INTJ --name Kai
-//   PSYCHE_MBTI=INFP PSYCHE_NAME=Luna npx psyche-mcp
+//   npx psyche-ai mcp                        # zero-config, ENFP default
+//   npx psyche-ai mcp --mbti INTJ --name Kai
+//   PSYCHE_MBTI=INFP PSYCHE_NAME=Luna npx psyche-ai mcp
 //
 // Configure in Claude Desktop / Cursor / Windsurf:
 //   {
 //     "mcpServers": {
 //       "psyche": {
 //         "command": "npx",
-//         "args": ["psyche-mcp"],
+//         "args": ["-y", "psyche-ai", "mcp"],
 //         "env": {
 //           "PSYCHE_MBTI": "ENFP",
 //           "PSYCHE_NAME": "Luna",

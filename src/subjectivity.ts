@@ -373,7 +373,7 @@ export function computeSubjectivityKernel(
 
   const baseTension = wavg(
     [
-      norm(c.CORT),
+      1 - norm(c.order),
       1 - norm(state.drives.safety),
       1 - norm(state.drives.survival),
       relationPlane.loopPressure * 0.9,
@@ -395,20 +395,20 @@ export function computeSubjectivityKernel(
 
   const vitality = wavg(
     [
-      norm(c.DA),
-      norm(c.NE),
-      norm(c.HT),
-      1 - norm(c.CORT),
+      norm(c.flow),
+      norm(c.order),
+      norm(c.resonance),
+      norm(c.boundary),
       energySignal,
       bias.persistenceBias,
       1 - appraisal.identityThreat * 0.35,
     ],
-    [0.18, 0.14, 0.14, 0.14, 0.18, 0.12, 0.1],
+    [0.2, 0.16, 0.12, 0.12, 0.18, 0.12, 0.1],
   );
 
   const baseWarmth = wavg(
     [
-      norm(c.OT),
+      norm(c.resonance),
       relationPlane.closeness,
       relationPlane.safety,
       rel ? norm(rel.trust) : 0.5,

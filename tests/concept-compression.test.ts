@@ -37,7 +37,7 @@ const PUBLIC_TYPE_CONTAINER: Record<string, PrimitiveContainer[]> = {
 
   // State — the root container
   PsycheState:            ["dyadic-field", "open-loop", "reply-bias", "writeback"],
-  ChemicalState:          ["reply-bias"],
+  SelfState:          ["reply-bias"],
   Locale:                 ["reply-bias"],
   PsycheMode:             ["reply-bias"],
   StimulusType:           ["relation-move"],
@@ -84,7 +84,7 @@ const PSYCHE_STATE_FIELD_CONTAINER: Record<string, PrimitiveContainer> = {
   relationships:          "dyadic-field",
   empathyLog:             "relation-move",
   selfModel:              "reply-bias",
-  emotionalHistory:       "open-loop",
+  stateHistory:       "open-loop",
   agreementStreak:        "open-loop",
   lastDisagreement:       "open-loop",
   learning:               "writeback",
@@ -208,7 +208,7 @@ describe("Concept Compression — Admission Test", () => {
     const CANONICAL_FIELDS = new Set([
       "version", "mbti", "baseline", "sensitivity", "current", "drives",
       "updatedAt", "relationships", "empathyLog", "selfModel",
-      "emotionalHistory", "agreementStreak", "lastDisagreement",
+      "stateHistory", "agreementStreak", "lastDisagreement",
       "learning", "metacognition", "personhood",
       "autonomicState", "sessionStartedAt", "traitDrift", "energyBudgets",
       "subjectResidue", "dyadicFields", "pendingRelationSignals",

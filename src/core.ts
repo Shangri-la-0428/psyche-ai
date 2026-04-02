@@ -9,15 +9,16 @@
 // Auto-learning: processInput auto-evaluates the previous turn's
 // outcome using the new user message as the outcome signal.
 //
-// Orchestrates: chemistry, classify, prompt, profiles, guards, learning
+// Orchestrates: self-state, classify, prompt, profiles, guards, learning
 // ============================================================
 
-import type { PsycheState, StimulusType, Locale, MBTIType, ChemicalState, OutcomeScore, PsycheMode, PersonalityTraits, PolicyModifiers, ClassifierProvider, SubjectivityKernel, ResponseContract, GenerationControls, SessionBridgeState, ThrongletsExport, TurnObservability, WritebackCalibrationFeedback, WritebackSignalType, ExternalContinuityEnvelope } from "./types.js";
+import type { PsycheState, StimulusType, Locale, MBTIType, SelfState, OutcomeScore, PsycheMode, PersonalityTraits, PolicyModifiers, ClassifierProvider, SubjectivityKernel, ResponseContract, GenerationControls, SessionBridgeState, ThrongletsExport, TurnObservability, WritebackCalibrationFeedback, WritebackSignalType, ExternalContinuityEnvelope } from "./types.js";
 import { DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE, DEFAULT_ENERGY_BUDGETS, DEFAULT_TRAIT_DRIFT, DEFAULT_SUBJECT_RESIDUE, DEFAULT_DYADIC_FIELD, MODE_PROFILES } from "./types.js";
 import type { StorageAdapter } from "./storage.js";
 import { MemoryStorageAdapter } from "./storage.js";
 import { applyDecay, applyStimulus, applyContagion, clamp, describeEmotionalState } from "./chemistry.js";
 import { classifyStimulus, BuiltInClassifier, buildLLMClassifierPrompt, parseLLMClassification } from "./classify.js";
+import { perceive } from "./perceive.js";
 import { buildCompactContext, buildProtocolContext } from "./prompt.js";
 import type { PromptRenderInputs } from "./prompt.js";
 import { getSensitivity, getBaseline, getDefaultSelfModel, traitsToBaseline } from "./profiles.js";
@@ -28,7 +29,7 @@ import {
   type Logger,
 } from "./psyche-file.js";
 import {
-  decayDrives, feedDrives, detectExistentialThreat,
+  detectExistentialThreat, deriveDriveSatisfaction,
   computeEffectiveBaseline, computeEffectiveSensitivity,
 } from "./drives.js";
 import { checkForUpdate, getPackageVersion } from "./update.js";
@@ -36,7 +37,7 @@ import { DiagnosticCollector, generateReport, formatLogEntry, submitFeedback } f
 import type { DiagnosticReport, SessionMetrics } from "./diagnostics.js";
 import {
   evaluateOutcome, computeContextHash, updateLearnedVector,
-  predictChemistry, recordPrediction,
+  predictState, recordPrediction,
 } from "./learning.js";
 import { computeCircadianModulation, computeHomeostaticPressure, computeEnergyDepletion, computeEnergyRecovery } from "./circadian.js";
 import { runReflectiveTurnPhases } from "./input-turn.js";
@@ -55,7 +56,7 @@ export interface PsycheEngineConfig {
   locale?: Locale;
   stripUpdateTags?: boolean;
   emotionalContagionRate?: number;
-  maxChemicalDelta?: number;
+  maxDimensionDelta?: number;
   /** @deprecated Compact mode is always on since v10. This option is ignored. */
   compactMode?: boolean;
   /** Operating mode: "natural" (default), "work" (minimal emotions), "companion" (full emotions) */
@@ -126,7 +127,7 @@ export interface ProcessInputResult {
 export interface ProcessOutputResult {
   /** LLM output with <psyche_update> tags stripped */
   cleanedText: string;
-  /** Whether chemistry was meaningfully updated (contagion or psyche_update) */
+  /** Whether self-state was meaningfully updated (contagion or psyche_update) */
   stateChanged: boolean;
 }
 
@@ -145,7 +146,7 @@ export interface ProcessOutcomeResult {
 
 /** Internal: snapshot of a pending prediction for auto-learning */
 interface PendingPrediction {
-  predictedChemistry: ChemicalState;
+  predictedState: SelfState;
   preInteractionState: PsycheState;
   appliedStimulus: StimulusType | null;
   contextHash: string;
@@ -184,31 +185,34 @@ const RELATIONSHIP_DELTAS: Partial<Record<StimulusType, { trust: number; intimac
 };
 
 function applyRepairLag(
-  previous: ChemicalState,
-  next: ChemicalState,
-  baseline: ChemicalState,
+  previous: SelfState,
+  next: SelfState,
+  baseline: SelfState,
   stimulus: StimulusType,
-): ChemicalState {
+): SelfState {
   if (!REPAIRING_STIMULI.has(stimulus)) return next;
 
-  const stressLoad = Math.max(0, previous.CORT - baseline.CORT);
+  // Low order = high stress (inverse of old CORT). Stress = baseline.order - previous.order.
+  const stressLoad = Math.max(0, baseline.order - previous.order);
   if (stressLoad < 15) return next;
 
   // High stress slows emotional recovery so apology/praise doesn't instantly
-  // snap chemistry back to baseline.
+  // snap state back to baseline.
   const repairFactor = Math.max(0.35, 1 - stressLoad / 50);
   const adjusted = { ...next };
 
-  for (const key of ["DA", "HT", "OT", "END"] as const) {
+  // For flow, resonance, boundary: positive deltas (recovery) are damped
+  for (const key of ["flow", "resonance", "boundary"] as const) {
     const delta = next[key] - previous[key];
     if (delta > 0) {
       adjusted[key] = clamp(previous[key] + delta * repairFactor);
     }
   }
 
-  const cortDelta = next.CORT - previous.CORT;
-  if (cortDelta < 0) {
-    adjusted.CORT = clamp(previous.CORT + cortDelta * repairFactor);
+  // For order: recovery means order increasing (stress reducing)
+  const orderDelta = next.order - previous.order;
+  if (orderDelta > 0) {
+    adjusted.order = clamp(previous.order + orderDelta * repairFactor);
   }
 
   return adjusted;
@@ -265,7 +269,7 @@ export class PsycheEngine {
     locale: Locale;
     stripUpdateTags: boolean;
     emotionalContagionRate: number;
-    maxChemicalDelta: number;
+    maxDimensionDelta: number;
     compactMode: boolean;
     mode: PsycheMode;
     personalityIntensity: number;
@@ -299,7 +303,7 @@ export class PsycheEngine {
       locale: config.locale ?? "zh",
       stripUpdateTags: config.stripUpdateTags ?? true,
       emotionalContagionRate: config.emotionalContagionRate ?? 0.2,
-      maxChemicalDelta: config.maxChemicalDelta ?? 25,
+      maxDimensionDelta: config.maxDimensionDelta ?? 25,
       compactMode: config.compactMode ?? true,
       mode: config.mode ?? "natural",
       personalityIntensity: config.personalityIntensity ?? 0.7,
@@ -346,7 +350,7 @@ export class PsycheEngine {
         loaded.version = 7;
       }
       // Migrate v7 → v8: P8 Barrett construction + P10 processing depth + P11 memory consolidation
-      // No data changes needed — ChemicalSnapshot new fields are optional (backward compatible)
+      // No data changes needed — StateSnapshot new fields are optional (backward compatible)
       if (loaded.version < 8) {
         loaded.version = 8;
       }
@@ -415,7 +419,7 @@ export class PsycheEngine {
         ...state,
         learning: recordPrediction(
           state.learning,
-          this.pendingPrediction.predictedChemistry,
+          this.pendingPrediction.predictedState,
           state.current,
           this.pendingPrediction.appliedStimulus,
         ),
@@ -446,15 +450,15 @@ export class PsycheEngine {
     const now = new Date();
     const minutesElapsed = (now.getTime() - new Date(state.updatedAt).getTime()) / 60000;
     if (minutesElapsed >= 1) {
-      // Decay drives first — needs build up over time
-      const decayedDrives = decayDrives(state.drives, minutesElapsed);
-      // Compute effective baseline from drives (unsatisfied drives shift baseline)
-      const effectiveBaseline = computeEffectiveBaseline(state.baseline, decayedDrives, state.traitDrift);
+      // Compute effective baseline from current 4D position (drives are derived, not stored)
+      const effectiveBaseline = computeEffectiveBaseline(state.baseline, state.current, state.traitDrift);
       // P12: Apply circadian rhythm modulation to effective baseline
       const circadianBaseline = computeCircadianModulation(now, effectiveBaseline);
+      // Derive drives from current position for state persistence
+      const drives = deriveDriveSatisfaction(state.current, state.baseline);
       state = {
         ...state,
-        drives: decayedDrives,
+        drives,
         current: applyDecay(state.current, circadianBaseline, minutesElapsed, state.traitDrift?.decayRateModifiers),
         updatedAt: now.toISOString(),
       };
@@ -470,41 +474,44 @@ export class PsycheEngine {
     // Apply homeostatic pressure (fatigue from extended sessions)
     const sessionMinutes = (now.getTime() - new Date(state.sessionStartedAt!).getTime()) / 60000;
     const pressure = computeHomeostaticPressure(sessionMinutes);
-    if (pressure.cortAccumulation > 0 || pressure.daDepletion > 0 || pressure.neDepletion > 0) {
+    if (pressure.orderDepletion > 0 || pressure.flowDepletion > 0 || pressure.boundaryStiffening > 0) {
       state = {
         ...state,
         current: {
           ...state.current,
-          CORT: clamp(state.current.CORT + pressure.cortAccumulation * 0.1),
-          DA: clamp(state.current.DA - pressure.daDepletion * 0.1),
-          NE: clamp(state.current.NE - pressure.neDepletion * 0.1),
+          order: clamp(state.current.order - pressure.orderDepletion * 0.1),
+          flow: clamp(state.current.flow - pressure.flowDepletion * 0.1),
+          boundary: clamp(state.current.boundary + pressure.boundaryStiffening * 0.1),
         },
       };
     }
 
     // v9: Energy budget recovery during absence + depletion per turn
-    const isExtravert = state.baseline.DA >= 55;
+    const isExtravert = state.baseline.flow >= 55;
     const currentBudgets = state.energyBudgets ?? { ...DEFAULT_ENERGY_BUDGETS };
     let energyBudgets = minutesElapsed >= 5
       ? computeEnergyRecovery(currentBudgets, minutesElapsed, isExtravert)
       : { ...currentBudgets };
 
-    // Classify user stimulus and apply chemistry
+    // ── Perceive ─────────────────────────────────────────────
+    // One act. Text enters the self, chemistry changes, appraisal
+    // forms. There is no "classify then feel" — perception is atomic.
     let appliedStimulus: StimulusType | null = null;
+    let perceptionAppraisal: import("./types.js").AppraisalAxes | undefined;
     if (text.length > 0) {
-      // Check for existential threats → direct survival drive hit
+      // Existential threats → direct survival drive hit (pre-perception)
       const survivalHit = detectExistentialThreat(text);
       let drives = state.drives;
       if (survivalHit < 0) {
         drives = { ...drives, survival: Math.max(0, drives.survival + survivalHit) };
       }
 
-      const recentStimuli = (state.emotionalHistory ?? []).slice(-3).map(s => s.stimulus);
-      // v9.1: Use pluggable classifier
+      const recentStimuli = (state.stateHistory ?? []).slice(-3).map(s => s.stimulus);
+
+      // Pluggable classifier + LLM fallback (raw signal for perception)
       let classifications = await Promise.resolve(
         this.classifier.classify(text, { recentStimuli, locale: this.cfg.locale }),
       );
-      // v9.1: LLM fallback when confidence is low
       if (
         this.llmClassifier &&
         (!classifications[0] || classifications[0].confidence < this.cfg.llmClassifierThreshold)
@@ -516,49 +523,50 @@ export class PsycheEngine {
           if (llmResult && (!classifications[0] || llmResult.confidence > classifications[0].confidence)) {
             classifications = [llmResult, ...classifications];
           }
-        } catch {
-          // LLM call failed — continue with built-in result
-        }
-      }
-      const primary = classifications[0];
-      const primaryConfidence = primary?.confidence ?? 0;
-      let current = state.current;
-      if (primary && primary.confidence >= 0.5) {
-        appliedStimulus = primary.type;
-        const preStimulus = current;
-        // Feed drives from stimulus, then apply stimulus with drive-modified sensitivity
-        drives = feedDrives(drives, primary.type);
-        const effectiveSensitivity = computeEffectiveSensitivity(
-          (state.sensitivity ?? 1.0), drives, primary.type, state.traitDrift,
-        );
-        // v9.2: Confidence modulates intensity — a 0.95 life-or-death dilemma
-        // hits ~1.7x harder than a 0.55 mild disagreement.
-        // Maps [0.5, 1.0] → [0.6, 1.2] via linear interpolation.
-        const confidenceIntensity = 0.6 + (primary.confidence - 0.5) * 1.2;
-        const modeProfile = MODE_PROFILES[this.cfg.mode];
-        const modeMultiplier = modeProfile.chemistryMultiplier;
-        const effectiveMaxDelta = modeProfile.maxChemicalDelta ?? this.cfg.maxChemicalDelta;
-        // v9: Habituation — count recent same-type stimuli in this session
-        const recentSameCount = (state.emotionalHistory ?? [])
-          .filter(s => s.stimulus === primary.type).length + 1; // +1 for current
-        current = applyStimulus(
-          current, primary.type,
-          effectiveSensitivity * this.cfg.personalityIntensity * modeMultiplier * confidenceIntensity,
-          effectiveMaxDelta,
-          NOOP_LOGGER,
-          recentSameCount,
-        );
-        current = applyRepairLag(preStimulus, current, state.baseline, primary.type);
+        } catch { /* continue with built-in */ }
       }
 
+      // Resolve relationship trust
+      const userId = opts?.userId ?? "__default__";
+      const trust = state.relationships?.[userId]?.trust;
+
+      // Perceive: text + self → chemistry + appraisal + annotation
+      const perception = perceive(text, {
+        current: state.current,
+        baseline: state.baseline,
+        sensitivity: state.sensitivity ?? 1.0,
+        personalityIntensity: this.cfg.personalityIntensity,
+        mode: this.cfg.mode,
+        maxDimensionDelta: this.cfg.maxDimensionDelta,
+        drives,
+        previousAppraisal: state.subjectResidue?.axes,
+        trust,
+        recentStimuli,
+        traitDrift: state.traitDrift,
+        stateHistory: state.stateHistory,
+        locale: this.cfg.locale,
+        rawClassifications: classifications,
+      });
+
+      appliedStimulus = perception.dominantStimulus;
+      perceptionAppraisal = perception.appraisal;
+
+      // Chemistry is already changed inside perceive(). Apply repair lag.
+      let current = perception.state;
+      if (appliedStimulus) {
+        current = applyRepairLag(state.current, current, state.baseline, appliedStimulus);
+      }
+
+      // Derive drives from updated position
+      drives = deriveDriveSatisfaction(current, state.baseline);
       state = { ...state, drives, current };
       if (appliedStimulus) {
         state = applyRelationshipDrift(state, appliedStimulus, opts?.userId);
       }
       this.lastStimulusAssessment = {
-        stimulus: primary?.type ?? null,
-        confidence: primaryConfidence,
-        overrideWindow: primaryConfidence >= 0.78 ? "narrow" : primaryConfidence >= 0.62 ? "balanced" : "wide",
+        stimulus: appliedStimulus,
+        confidence: perception.confidence,
+        overrideWindow: perception.confidence >= 0.78 ? "narrow" : perception.confidence >= 0.62 ? "balanced" : "wide",
       };
     } else {
       this.lastStimulusAssessment = {
@@ -568,10 +576,11 @@ export class PsycheEngine {
       };
     }
 
-    // v9: Deplete energy budgets from this interaction turn
+    // Deplete energy budgets
     energyBudgets = computeEnergyDepletion(energyBudgets, appliedStimulus, isExtravert);
     state = { ...state, energyBudgets };
 
+    // Relational turn uses pre-computed appraisal from perception
     const relationalTurn = applyRelationalTurn(
       state,
       text,
@@ -580,23 +589,24 @@ export class PsycheEngine {
         now: now.toISOString(),
         stimulus: appliedStimulus,
         userId: opts?.userId,
+        preComputedAppraisal: perceptionAppraisal,
       },
     );
     state = relationalTurn.state;
     const appraisalAxes = relationalTurn.appraisalAxes;
 
-    // Conversation warmth: sustained interaction → gentle DA/OT rise, CORT drop
+    // Conversation warmth: sustained interaction → gentle flow/resonance rise, order stabilization
     // Simulates the natural "warm glow" of being in continuous conversation
-    const turnsSoFar = (state.emotionalHistory ?? []).length;
+    const turnsSoFar = (state.stateHistory ?? []).length;
     if (minutesElapsed < 5 && turnsSoFar > 0) {
       const warmth = Math.min(3, 1 + turnsSoFar * 0.2);
       state = {
         ...state,
         current: {
           ...state.current,
-          DA: clamp(state.current.DA + warmth),
-          OT: clamp(state.current.OT + warmth),
-          CORT: clamp(state.current.CORT - 1),
+          flow: clamp(state.current.flow + warmth),
+          resonance: clamp(state.current.resonance + warmth),
+          order: clamp(state.current.order + 1),
         },
       };
     }
@@ -642,18 +652,18 @@ export class PsycheEngine {
     if (appliedStimulus) {
       const ctxHash = computeContextHash(state, opts?.userId);
       const effectiveSensitivity = computeEffectiveSensitivity(
-        (state.sensitivity ?? 1.0), state.drives, appliedStimulus, state.traitDrift,
+        (state.sensitivity ?? 1.0), state.current, state.baseline, appliedStimulus, state.traitDrift,
       );
-      const predicted = predictChemistry(
+      const predicted = predictState(
         preInteractionState.current,
         appliedStimulus,
         state.learning,
         ctxHash,
         effectiveSensitivity,
-        this.cfg.maxChemicalDelta,
+        this.cfg.maxDimensionDelta,
       );
       this.pendingPrediction = {
-        predictedChemistry: predicted,
+        predictedState: predicted,
         preInteractionState,
         appliedStimulus,
         contextHash: ctxHash,
@@ -803,16 +813,16 @@ export class PsycheEngine {
         const RELEASE_TYPES: ReadonlySet<StimulusType> = new Set<StimulusType>([
           "vulnerability", "intimacy", "validation",
         ]);
-        if (RELEASE_TYPES.has(selfPrimary.type) && state.current.CORT > 60) {
-          const stressExcess = (state.current.CORT - 60) / 40; // 0 at CORT=60, 1 at CORT=100
-          const recoveryMagnitude = 3 + stressExcess * 5; // 3–8 point CORT drop
+        if (RELEASE_TYPES.has(selfPrimary.type) && state.current.order < 40) {
+          const stressExcess = (40 - state.current.order) / 40; // 0 at order=40, 1 at order=0
+          const recoveryMagnitude = 3 + stressExcess * 5; // 3–8 point recovery
           state = {
             ...state,
             current: {
               ...state.current,
-              CORT: clamp(state.current.CORT - recoveryMagnitude),
-              END: clamp(state.current.END + recoveryMagnitude * 0.6),
-              HT: clamp(state.current.HT + recoveryMagnitude * 0.3),
+              order: clamp(state.current.order + recoveryMagnitude),
+              resonance: clamp(state.current.resonance + recoveryMagnitude * 0.6),
+              boundary: clamp(state.current.boundary + recoveryMagnitude * 0.3),
             },
           };
         }
@@ -829,28 +839,26 @@ export class PsycheEngine {
     if (text.includes("<psyche_update>")) {
       const parseResult = parsePsycheUpdate(text, NOOP_LOGGER);
       if (parseResult) {
-        state = mergeUpdates(state, parseResult.state, this.cfg.maxChemicalDelta, opts?.userId);
+        state = mergeUpdates(state, parseResult.state, this.cfg.maxDimensionDelta, opts?.userId);
         stateChanged = true;
 
         // LLM-assisted classification: if algorithm didn't apply a stimulus
         // but LLM classified one, retroactively apply chemistry + drives
         const overrideAllowed = this.lastStimulusAssessment?.overrideWindow !== "narrow";
         if (parseResult.llmStimulus && (!this._lastAlgorithmApplied || overrideAllowed)) {
-          state = {
-            ...state,
-            drives: feedDrives(state.drives, parseResult.llmStimulus),
-          };
           const effectiveSensitivity = computeEffectiveSensitivity(
-            (state.sensitivity ?? 1.0), state.drives, parseResult.llmStimulus, state.traitDrift,
+            (state.sensitivity ?? 1.0), state.current, state.baseline, parseResult.llmStimulus, state.traitDrift,
+          );
+          const newCurrent = applyStimulus(
+            state.current, parseResult.llmStimulus,
+            effectiveSensitivity * (overrideAllowed && this._lastAlgorithmApplied ? 0.8 : 1),
+            this.cfg.maxDimensionDelta,
+            NOOP_LOGGER,
           );
           state = {
             ...state,
-            current: applyStimulus(
-              state.current, parseResult.llmStimulus,
-              effectiveSensitivity * (overrideAllowed && this._lastAlgorithmApplied ? 0.8 : 1),
-              this.cfg.maxChemicalDelta,
-              NOOP_LOGGER,
-            ),
+            current: newCurrent,
+            drives: deriveDriveSatisfaction(newCurrent, state.baseline),
           };
         }
 
@@ -938,7 +946,7 @@ export class PsycheEngine {
       ...state,
       learning: recordPrediction(
         state.learning,
-        pending.predictedChemistry,
+        pending.predictedState,
         state.current,
         pending.appliedStimulus,
       ),
@@ -988,7 +996,7 @@ export class PsycheEngine {
   }
 
   /**
-   * End the current session: compress emotionalHistory into a rich summary
+   * End the current session: compress stateHistory into a rich summary
    * stored in relationship.memory[], then preserve only core/recent context.
    * Auto-generates diagnostic report and persists to log.
    *
@@ -1019,7 +1027,7 @@ export class PsycheEngine {
       }
     }
 
-    if ((state.emotionalHistory ?? []).length >= 2) {
+    if ((state.stateHistory ?? []).length >= 2) {
       state = compressSession(state, opts?.userId);
     }
     // Reset session tracking for homeostatic pressure
@@ -1094,7 +1102,7 @@ export class PsycheEngine {
       relationships: { _default: { ...DEFAULT_RELATIONSHIP } },
       empathyLog: null,
       selfModel,
-      emotionalHistory: [],
+      stateHistory: [],
       agreementStreak: 0,
       lastDisagreement: null,
       learning: { ...DEFAULT_LEARNING_STATE },
@@ -1140,7 +1148,7 @@ export class PsycheEngine {
       current: { ...baseline },
       baseline,
       drives: { ...DEFAULT_DRIVES },
-      emotionalHistory: [],
+      stateHistory: [],
       agreementStreak: 0,
       lastDisagreement: null,
       empathyLog: null,
@@ -1177,14 +1185,14 @@ export class PsycheEngine {
     const state = this.ensureInitialized();
     const locale = state.meta.locale ?? "zh";
     const emotion = describeEmotionalState(state.current, locale);
-    const { DA, CORT } = state.current;
+    const { flow, order } = state.current;
 
     // Emoji based on dominant state
     let emoji = "\u{1F610}";
-    if (DA > 70 && CORT < 40) emoji = "\u{1F60A}";
-    else if (DA > 60) emoji = "\u{1F642}";
-    else if (CORT > 60) emoji = "\u{1F630}";
-    else if (DA < 35) emoji = "\u{1F614}";
+    if (flow > 70 && order > 60) emoji = "\u{1F60A}";
+    else if (flow > 60) emoji = "\u{1F642}";
+    else if (order < 40) emoji = "\u{1F630}";
+    else if (flow < 35) emoji = "\u{1F614}";
 
     // Check for hungry drives
     const hungryDrives = Object.entries(state.drives)
@@ -1194,6 +1202,6 @@ export class PsycheEngine {
       ? ` | \u26A0\uFE0F${hungryDrives.join(",")}`
       : "";
 
-    return `${emoji} ${emotion} | DA:${Math.round(DA)} CORT:${Math.round(CORT)}${driveWarning}`;
+    return `${emoji} ${emotion} | flow:${Math.round(flow)} order:${Math.round(order)}${driveWarning}`;
   }
 }

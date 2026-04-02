@@ -24,12 +24,23 @@ export type { StorageAdapter } from "./storage.js";
 
 // ── Types (public contract) ─────────────────────────────────
 export type {
-  PsycheState, ChemicalState, Locale, PsycheMode, StimulusType, MBTIType,
+  PsycheState, SelfState, Locale, PsycheMode, StimulusType, MBTIType,
+  ImpactVector,
   WritebackSignalType,
   DelegateCapability, CapabilityGrant, RevocationCondition, DelegateAuthorization,
   ModeProfile,
+  WeightedStimulus,
+  StateSnapshot,
 } from "./types.js";
-export { MODE_PROFILES } from "./types.js";
+export { MODE_PROFILES, DIMENSION_KEYS, DIMENSION_NAMES, DIMENSION_NAMES_ZH, DIMENSION_SPECS } from "./types.js";
+
+// ── Core dynamics ──────────────────────────────────────────
+export { applyImpact, applyImpactContagion, isPositiveImpact, isEmotionalImpact, isThreateningImpact } from "./chemistry.js";
+export { deriveDriveSatisfaction } from "./drives.js";
+
+// ── Perception (v10.3) ─────────────────────────────────────
+export { perceive } from "./perceive.js";
+export type { Self, Perception } from "./perceive.js";
 
 // ── Prompt context builders ─────────────────────────────────
 export { buildProtocolContext, buildCompactContext } from "./prompt.js";
@@ -40,6 +51,10 @@ export { isNearBaseline, getNearBaselineThreshold, deriveBehavioralBias, compute
 // ── Profile helpers ─────────────────────────────────────────
 export { getBaseline, getSensitivity, getDefaultSelfModel, getTemperament, traitsToBaseline, mbtiToTraits } from "./profiles.js";
 export { createCustomProfile, PRESET_PROFILES } from "./custom-profile.js";
+
+// ── Expression ──────────────────────────────────────────────
+export { LLMExpressionAdapter } from "./reply-envelope.js";
+export type { ExpressionPort, ExpressionOutput, ReplyEnvelope } from "./reply-envelope.js";
 
 // ── Diagnostics ─────────────────────────────────────────────
 export { computeLayerHealthSummary } from "./diagnostics.js";

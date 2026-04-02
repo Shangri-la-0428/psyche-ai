@@ -155,12 +155,12 @@ describe("computeSeparationEffect", () => {
     const result = computeSeparationEffect(attachment, 1500); // 25 hours
     assert.ok(result !== null, "should return separation effect after 24h");
     assert.ok(
-      (result!.chemistryDelta.OT ?? 0) < 0,
-      `OT should decrease for longing, got ${result!.chemistryDelta.OT}`,
+      (result!.stateDelta.resonance ?? 0) < 0,
+      `resonance should decrease for longing, got ${result!.stateDelta.resonance}`,
     );
     assert.ok(
-      (result!.chemistryDelta.DA ?? 0) < 0,
-      `DA should decrease for longing, got ${result!.chemistryDelta.DA}`,
+      (result!.stateDelta.order ?? 0) < 0,
+      `order should decrease for longing, got ${result!.stateDelta.order}`,
     );
     assert.ok(result!.intensity < 0.5, "secure separation should be mild");
     assert.ok(result!.description.includes("gentle"), "should describe gentle longing");
@@ -176,13 +176,14 @@ describe("computeSeparationEffect", () => {
     const attachment = makeAttachment({ strength: 70, style: "anxious" });
     const result = computeSeparationEffect(attachment, 300); // 5 hours
     assert.ok(result !== null, "should return separation effect");
+    // anxious: { resonance: -8*i, order: -10*i, boundary: -5*i, flow: +5*i }
     assert.ok(
-      (result!.chemistryDelta.CORT ?? 0) > 0,
-      `CORT should rise for anxious distress, got ${result!.chemistryDelta.CORT}`,
+      (result!.stateDelta.order ?? 0) < 0,
+      `order should drop for anxious distress, got ${result!.stateDelta.order}`,
     );
     assert.ok(
-      (result!.chemistryDelta.NE ?? 0) > 0,
-      `NE should rise for anxious distress, got ${result!.chemistryDelta.NE}`,
+      (result!.stateDelta.flow ?? 0) > 0,
+      `flow should rise for anxious distress (agitation), got ${result!.stateDelta.flow}`,
     );
     assert.ok(
       result!.description.includes("anxious") || result!.description.includes("abandon"),
@@ -201,7 +202,7 @@ describe("computeSeparationEffect", () => {
     const result = computeSeparationEffect(attachment, 3000); // 50 hours
     assert.ok(result !== null, "should return separation effect after 48h");
     assert.ok(
-      (result!.chemistryDelta.OT ?? 0) < 0,
+      (result!.stateDelta.resonance ?? 0) < 0,
       "OT should slightly decrease for avoidant discomfort",
     );
     assert.ok(result!.intensity < 0.3, "avoidant separation should be subtle");
@@ -211,14 +212,15 @@ describe("computeSeparationEffect", () => {
     const attachment = makeAttachment({ strength: 60, style: "disorganized" });
     const result = computeSeparationEffect(attachment, 300); // 5 hours
     assert.ok(result !== null, "should return separation effect");
-    // Disorganized has both CORT and OT positive — conflicting
+    // disorganized: { resonance: +5*i, order: -5*i, flow: +3*i }
+    // resonance rises (wanting closeness) while order drops (confusion) — conflicting
     assert.ok(
-      (result!.chemistryDelta.CORT ?? 0) > 0,
-      "CORT should rise",
+      (result!.stateDelta.resonance ?? 0) > 0,
+      "resonance should rise — wanting closeness",
     );
     assert.ok(
-      (result!.chemistryDelta.OT ?? 0) > 0,
-      "OT should also rise — conflicting signals",
+      (result!.stateDelta.order ?? 0) < 0,
+      "order should drop — confusion",
     );
   });
 });
@@ -243,45 +245,46 @@ describe("computeReunionEffect", () => {
     const result = computeReunionEffect(attachment, 1500); // 25 hours
     assert.ok(result !== null, "should return reunion effect");
     assert.ok(
-      (result!.OT ?? 0) > 0,
-      `OT should rise for warm reunion, got ${result!.OT}`,
+      (result!.resonance ?? 0) > 0,
+      `OT should rise for warm reunion, got ${result!.resonance}`,
     );
     assert.ok(
-      (result!.DA ?? 0) > 0,
-      `DA should rise for warm reunion, got ${result!.DA}`,
+      (result!.flow ?? 0) > 0,
+      `DA should rise for warm reunion, got ${result!.flow}`,
     );
     assert.ok(
-      (result!.END ?? 0) > 0,
-      `END should rise for warm reunion, got ${result!.END}`,
+      (result!.resonance ?? 0) > 0,
+      `END should rise for warm reunion, got ${result!.resonance}`,
     );
   });
 
-  it("anxious: intense relief with residual stress", () => {
+  it("anxious: intense relief with residual instability", () => {
     const attachment = makeAttachment({ strength: 70, style: "anxious" });
     const result = computeReunionEffect(attachment, 1500);
     assert.ok(result !== null, "should return reunion effect");
+    // anxious reunion: { resonance: 15*scale, flow: 8*scale, order: -3*scale }
     assert.ok(
-      (result!.OT ?? 0) > 0,
-      `OT should rise for anxious relief, got ${result!.OT}`,
+      (result!.resonance ?? 0) > 0,
+      `resonance should rise for anxious relief, got ${result!.resonance}`,
     );
     assert.ok(
-      (result!.DA ?? 0) > 0,
-      `DA should rise for anxious relief, got ${result!.DA}`,
+      (result!.flow ?? 0) > 0,
+      `flow should rise for anxious relief, got ${result!.flow}`,
     );
-    // Anxious reunion has elevated CORT still
+    // Anxious reunion has order dropping (still shaky)
     assert.ok(
-      (result!.CORT ?? 0) > 0,
-      `CORT should still be elevated for anxious reunion, got ${result!.CORT}`,
+      (result!.order ?? 0) < 0,
+      `order should still be destabilized for anxious reunion, got ${result!.order}`,
     );
 
-    // OT should be higher for anxious than secure (more intense)
+    // resonance should be higher for anxious than secure (more intense)
     const secureResult = computeReunionEffect(
       makeAttachment({ strength: 70, style: "secure" }),
       1500,
     );
     assert.ok(
-      (result!.OT ?? 0) > (secureResult?.OT ?? 0),
-      "anxious OT reunion should be more intense than secure",
+      (result!.resonance ?? 0) > (secureResult?.resonance ?? 0),
+      "anxious resonance reunion should be more intense than secure",
     );
   });
 
@@ -289,23 +292,24 @@ describe("computeReunionEffect", () => {
     const attachment = makeAttachment({ strength: 70, style: "avoidant" });
     const result = computeReunionEffect(attachment, 1500);
     assert.ok(result !== null, "should return reunion effect");
+    // avoidant reunion: { boundary: 3*scale, flow: 5*scale }
     assert.ok(
-      (result!.OT ?? 0) > 0,
-      "OT should slightly rise for avoidant",
+      (result!.boundary ?? 0) > 0,
+      "boundary should rise for avoidant — maintaining guard",
     );
     assert.ok(
-      (result!.NE ?? 0) > 0,
-      "NE should rise — cautious alertness",
+      (result!.flow ?? 0) > 0,
+      "flow should rise — cautious alertness",
     );
 
-    // Avoidant OT should be lower than secure
+    // Avoidant resonance (0) should be lower than secure resonance (8*scale)
     const secureResult = computeReunionEffect(
       makeAttachment({ strength: 70, style: "secure" }),
       1500,
     );
     assert.ok(
-      (result!.OT ?? 0) < (secureResult?.OT ?? 0),
-      "avoidant OT reunion should be less intense than secure",
+      (result!.resonance ?? 0) < (secureResult?.resonance ?? 0),
+      "avoidant resonance reunion should be less intense than secure",
     );
   });
 
@@ -313,17 +317,18 @@ describe("computeReunionEffect", () => {
     const attachment = makeAttachment({ strength: 70, style: "disorganized" });
     const result = computeReunionEffect(attachment, 1500);
     assert.ok(result !== null, "should return reunion effect");
+    // disorganized reunion: { resonance: 5*scale, order: -3*scale, flow: 5*scale }
     assert.ok(
-      (result!.OT ?? 0) > 0,
-      "OT should rise",
+      (result!.resonance ?? 0) > 0,
+      "resonance should rise — wanting connection",
     );
     assert.ok(
-      (result!.CORT ?? 0) > 0,
-      "CORT should rise — conflicting signals",
+      (result!.order ?? 0) < 0,
+      "order should drop — conflicting signals",
     );
     assert.ok(
-      (result!.NE ?? 0) > 0,
-      "NE should rise — heightened arousal",
+      (result!.flow ?? 0) > 0,
+      "flow should rise — heightened arousal",
     );
   });
 
@@ -336,7 +341,7 @@ describe("computeReunionEffect", () => {
 
     assert.ok(weakResult !== null && strongResult !== null);
     assert.ok(
-      (strongResult!.OT ?? 0) > (weakResult!.OT ?? 0),
+      (strongResult!.resonance ?? 0) > (weakResult!.resonance ?? 0),
       "stronger attachment should produce stronger reunion OT",
     );
   });

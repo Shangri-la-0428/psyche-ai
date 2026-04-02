@@ -12,12 +12,12 @@
 // ============================================================
 
 import type {
-  PsycheState, StimulusType, ChemicalState, StimulusVector,
+  PsycheState, StimulusType, SelfState, ImpactVector,
   LearningState, OutcomeScore, OutcomeSignals, PredictionRecord,
   LearnedVectorAdjustment,
 } from "./types.js";
 import {
-  CHEMICAL_KEYS, DRIVE_KEYS,
+  DIMENSION_KEYS, DRIVE_KEYS,
   MAX_LEARNED_VECTORS, MAX_PREDICTION_HISTORY,
 } from "./types.js";
 import { STIMULUS_VECTORS, clamp } from "./chemistry.js";
@@ -107,11 +107,11 @@ export function getLearnedVector(
   learning: LearningState,
   stimulus: StimulusType,
   contextHash: string,
-): StimulusVector {
+): ImpactVector {
   const base = STIMULUS_VECTORS[stimulus];
   if (!base) {
     // Unknown stimulus — return zeros
-    return { DA: 0, HT: 0, CORT: 0, OT: 0, NE: 0, END: 0 };
+    return { order: 0, flow: 0, boundary: 0, resonance: 0 };
   }
 
   // Look for a learned adjustment matching this stimulus + context
@@ -123,7 +123,7 @@ export function getLearnedVector(
 
   // Apply adjustment
   const result = { ...base };
-  for (const key of CHEMICAL_KEYS) {
+  for (const key of DIMENSION_KEYS) {
     const adj = entry.adjustment[key] ?? 0;
     result[key] = base[key] + adj;
   }
@@ -144,16 +144,16 @@ export function updateLearnedVector(
   stimulus: StimulusType,
   contextHash: string,
   outcomeScore: number,
-  actualChemistry: ChemicalState,
-  baselineChemistry: ChemicalState,
+  actualState: SelfState,
+  baselineState: SelfState,
 ): LearningState {
   const base = STIMULUS_VECTORS[stimulus];
   if (!base) return learning;
 
-  // Chemistry delta: what actually happened
-  const chemDelta: Record<string, number> = {};
-  for (const key of CHEMICAL_KEYS) {
-    chemDelta[key] = actualChemistry[key] - baselineChemistry[key];
+  // State delta: what actually happened
+  const stateDelta: Record<string, number> = {};
+  for (const key of DIMENSION_KEYS) {
+    stateDelta[key] = actualState[key] - baselineState[key];
   }
 
   // Learning rate: conservative, proportional to outcome strength
@@ -180,10 +180,10 @@ export function updateLearnedVector(
     };
   }
 
-  // Update adjustment for each chemical
-  for (const key of CHEMICAL_KEYS) {
+  // Update adjustment for each dimension
+  for (const key of DIMENSION_KEYS) {
     const currentAdj = entry.adjustment[key] ?? 0;
-    const delta = chemDelta[key] * direction * learningRate;
+    const delta = stateDelta[key] * direction * learningRate;
     let newAdj = currentAdj + delta;
 
     // Clamp to +/- 50% of base vector absolute value
@@ -237,7 +237,7 @@ export function computeContextHash(
   const phase = rel.phase;
 
   // Last 3 stimuli from emotional history
-  const history = state.emotionalHistory ?? [];
+  const history = state.stateHistory ?? [];
   const recentStimuli = history
     .slice(-3)
     .map((s) => s.stimulus ?? "none")
@@ -267,18 +267,18 @@ export function computeContextHash(
  *
  * Same math as applyStimulus in chemistry.ts but with learned adjustments.
  */
-export function predictChemistry(
-  current: ChemicalState,
+export function predictState(
+  current: SelfState,
   stimulus: StimulusType,
   learning: LearningState,
   contextHash: string,
   sensitivity: number,
   maxDelta: number,
-): ChemicalState {
+): SelfState {
   const vector = getLearnedVector(learning, stimulus, contextHash);
 
   const result = { ...current };
-  for (const key of CHEMICAL_KEYS) {
+  for (const key of DIMENSION_KEYS) {
     const raw = vector[key] * sensitivity;
     const clamped = Math.max(-maxDelta, Math.min(maxDelta, raw));
     result[key] = clamp(current[key] + clamped);
@@ -293,15 +293,15 @@ export function predictChemistry(
  * Normalization factor: sqrt(6 * 100^2) = sqrt(60000) ~= 244.95
  */
 export function computePredictionError(
-  predicted: ChemicalState,
-  actual: ChemicalState,
+  predicted: SelfState,
+  actual: SelfState,
 ): number {
   let sumSq = 0;
-  for (const key of CHEMICAL_KEYS) {
+  for (const key of DIMENSION_KEYS) {
     const diff = predicted[key] - actual[key];
     sumSq += diff * diff;
   }
-  const maxDistance = Math.sqrt(6 * 100 * 100); // ~244.95
+  const maxDistance = Math.sqrt(4 * 100 * 100); // ~200
   return Math.sqrt(sumSq) / maxDistance;
 }
 
@@ -311,15 +311,15 @@ export function computePredictionError(
  */
 export function recordPrediction(
   learning: LearningState,
-  predicted: ChemicalState,
-  actual: ChemicalState,
+  predicted: SelfState,
+  actual: SelfState,
   stimulus: StimulusType | null,
 ): LearningState {
   const error = computePredictionError(predicted, actual);
 
   const record: PredictionRecord = {
-    predictedChemistry: { ...predicted },
-    actualChemistry: { ...actual },
+    predictedState: { ...predicted },
+    actualState: { ...actual },
     stimulus,
     predictionError: error,
     timestamp: new Date().toISOString(),

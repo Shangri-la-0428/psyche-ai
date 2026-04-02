@@ -16,6 +16,7 @@
 //   psyche probe [--json]
 //   psyche profiles [--json] [--mbti TYPE]
 //   psyche setup [--name NAME] [--mbti TYPE] [--locale LOCALE] [--proxy --target URL] [--dry-run]
+//   psyche mcp [--mbti TYPE] [--name NAME]   Start MCP server (stdio)
 // ============================================================
 
 import { resolve, join } from "node:path";
@@ -39,7 +40,7 @@ import { getBaseline, getTemperament, getSensitivity, getDefaultSelfModel, trait
 import { buildDynamicContext, buildProtocolContext } from "./prompt.js";
 import { t } from "./i18n.js";
 import type { MBTIType, PsycheState, Locale, PsycheMode, PersonalityTraits } from "./types.js";
-import { CHEMICAL_KEYS, CHEMICAL_NAMES_ZH, DRIVE_KEYS, DRIVE_NAMES_ZH } from "./types.js";
+import { DIMENSION_KEYS, DIMENSION_NAMES_ZH, DRIVE_KEYS, DRIVE_NAMES_ZH } from "./types.js";
 import { isMBTIType, isChemicalKey, isLocale } from "./guards.js";
 import { getPackageVersion, selfUpdate } from "./update.js";
 import { runRuntimeProbe } from "./runtime-probe.js";
@@ -66,14 +67,14 @@ function arrow(current: number, baseline: number): string {
   return "=";
 }
 
-function printChemistry(state: PsycheState): void {
+function printState(state: PsycheState): void {
   const { current, baseline } = state;
-  for (const key of CHEMICAL_KEYS) {
+  for (const key of DIMENSION_KEYS) {
     const val = Math.round(current[key]);
     const base = baseline[key];
     const a = arrow(val, base);
-    const label = `${key}`.padEnd(4);
-    const nameZh = CHEMICAL_NAMES_ZH[key].padEnd(6);
+    const label = `${key}`.padEnd(10);
+    const nameZh = DIMENSION_NAMES_ZH[key].padEnd(4);
     console.log(
       `  ${label} ${nameZh} ${bar(val)} ${String(val).padStart(3)} (base:${base} ${a})`,
     );
@@ -165,7 +166,7 @@ async function cmdInit(dir: string, mbti?: string, name?: string, lang?: string,
   }
 
   console.log(`\nPsyche initialized for ${state.meta.agentName}${state.mbti ? ` (preset: ${state.mbti})` : ""}\n`);
-  printChemistry(state);
+  printState(state);
   console.log(`\nFiles created:`);
   console.log(`  ${absDir}/psyche-state.json`);
   console.log(`  ${absDir}/PSYCHE.md`);
@@ -194,12 +195,12 @@ async function cmdStatus(dir: string, json: boolean, userId?: string): Promise<v
   const elapsed = ((Date.now() - new Date(state.updatedAt).getTime()) / 60000).toFixed(1);
 
   const baselineSummary = [
-    state.baseline.DA < 55 ? "introvert" : "extrovert",
-    state.baseline.DA > state.baseline.HT ? "intuitive" : "sensing",
-    state.baseline.OT >= 50 ? "feeling" : "thinking",
+    state.baseline.flow < 55 ? "introvert" : "extrovert",
+    state.baseline.flow > state.baseline.order ? "intuitive" : "sensing",
+    state.baseline.resonance >= 50 ? "feeling" : "thinking",
   ].join("/");
   console.log(`\n${state.meta.agentName} (${baselineSummary}) — ${emotion}\n`);
-  printChemistry(state);
+  printState(state);
 
   console.log();
   printDrives(state);
@@ -259,7 +260,7 @@ async function cmdDecay(dir: string): Promise<void> {
   const elapsed = ((Date.now() - new Date(before.updatedAt).getTime()) / 60000).toFixed(1);
   console.log(`\nDecay applied (${elapsed} min elapsed)\n`);
 
-  for (const key of CHEMICAL_KEYS) {
+  for (const key of DIMENSION_KEYS) {
     const bVal = Math.round(before.current[key]);
     const aVal = Math.round(after.current[key]);
     if (bVal !== aVal) {
@@ -283,7 +284,7 @@ async function cmdUpdate(dir: string, updateJson: string, userId?: string): Prom
   // Validate keys using type guard
   for (const key of Object.keys(parsed)) {
     if (!isChemicalKey(key)) {
-      die(`unknown chemical key: ${key}. Valid: ${CHEMICAL_KEYS.join(", ")}`);
+      die(`unknown dimension key: ${key}. Valid: ${DIMENSION_KEYS.join(", ")}`);
     }
   }
 
@@ -291,8 +292,8 @@ async function cmdUpdate(dir: string, updateJson: string, userId?: string): Prom
   const merged = mergeUpdates(state, updates, 25, userId);
   await saveState(absDir, merged);
 
-  console.log(`\nChemistry updated for ${merged.meta.agentName}\n`);
-  printChemistry(merged);
+  console.log(`\nState updated for ${merged.meta.agentName}\n`);
+  printState(merged);
   console.log();
 }
 
@@ -306,7 +307,7 @@ async function cmdReset(dir: string, full: boolean): Promise<void> {
   state.empathyLog = null;
   state.agreementStreak = 0;
   state.lastDisagreement = null;
-  state.emotionalHistory = [];
+  state.stateHistory = [];
 
   if (full) {
     state.relationships = { _default: { trust: 50, intimacy: 30, phase: "acquaintance" } };
@@ -316,7 +317,7 @@ async function cmdReset(dir: string, full: boolean): Promise<void> {
   await generatePsycheMd(absDir, state);
 
   console.log(`\n${state.meta.agentName} reset to baseline${full ? " [full reset including relationships]" : ""}\n`);
-  printChemistry(state);
+  printState(state);
   console.log();
 }
 
@@ -338,10 +339,10 @@ function cmdProfiles(json: boolean, mbti?: string): void {
 
     console.log(`\n${upper} — ${temperament}\n`);
     console.log(`  Sensitivity: ${sensitivity}`);
-    for (const key of CHEMICAL_KEYS) {
+    for (const key of DIMENSION_KEYS) {
       const val = baseline[key];
-      const label = `${key}`.padEnd(4);
-      const nameZh = CHEMICAL_NAMES_ZH[key].padEnd(6);
+      const label = `${key}`.padEnd(10);
+      const nameZh = DIMENSION_NAMES_ZH[key].padEnd(4);
       console.log(`  ${label} ${nameZh} ${bar(val)} ${val}`);
     }
     console.log(`\n  Values: ${selfModel.values.join(", ")}`);
@@ -385,9 +386,8 @@ function cmdProfiles(json: boolean, mbti?: string): void {
       const temperament = getTemperament(mbtiType);
       const sens = getSensitivity(mbtiType);
       console.log(
-        `    ${t}  DA:${String(bl.DA).padStart(2)} HT:${String(bl.HT).padStart(2)} ` +
-        `CORT:${String(bl.CORT).padStart(2)} OT:${String(bl.OT).padStart(2)} ` +
-        `NE:${String(bl.NE).padStart(2)} END:${String(bl.END).padStart(2)}  ` +
+        `    ${t}  order:${String(bl.order).padStart(2)} flow:${String(bl.flow).padStart(2)} ` +
+        `boundary:${String(bl.boundary).padStart(2)} resonance:${String(bl.resonance).padStart(2)}  ` +
         `sens:${sens}  ${temperament.slice(0, 30)}...`,
       );
     }
@@ -601,7 +601,7 @@ async function cmdSetup(opts: {
   let actions = 0;
 
   // ── 1. MCP clients ────────────────────────────────────
-  const mcpEntry = { command: "npx", args: ["-y", "psyche-mcp"], env };
+  const mcpEntry = { command: "npx", args: ["-y", "psyche-ai", "mcp"], env };
   const { execFileSync } = await import("node:child_process");
 
   // Claude Code — use `claude mcp add` for hot-reload (no restart needed)
@@ -615,10 +615,10 @@ async function cmdSetup(opts: {
       console.log("  → Claude Code — would configure via `claude mcp add`");
       claudeCodeDone = true; actions++;
     } else {
-      const addArgs = ["mcp", "add", "psyche", "-e", "PSYCHE_LOCALE=" + (locale || "zh")];
+      const addArgs = ["mcp", "add", "-s", "user", "psyche", "-e", "PSYCHE_LOCALE=" + (locale || "zh")];
       if (name) addArgs.push("-e", "PSYCHE_NAME=" + name);
       if (mbti) addArgs.push("-e", "PSYCHE_MBTI=" + mbti.toUpperCase());
-      addArgs.push("--", "npx", "-y", "psyche-mcp");
+      addArgs.push("--", "npx", "-y", "psyche-ai", "mcp");
       execFileSync("claude", addArgs, { encoding: "utf-8", timeout: 10000 });
       console.log("  ✓ Claude Code — configured (live, no restart needed)");
       claudeCodeDone = true; actions++;
@@ -720,6 +720,7 @@ Usage:
   psyche intensity              Show info about personality intensity config
   psyche reset <dir> [--full]
   psyche diagnose <dir> [--github]   Run health checks & show diagnostic report
+  psyche mcp [--mbti TYPE] [--name NAME]   Start MCP server (stdio)
   psyche setup [--proxy -t URL] [-n NAME] [--mbti TYPE]  Auto-configure MCP + proxy
   psyche upgrade [--check]           Check/apply package updates safely
   psyche probe [--json]              Verify the runtime is truly callable
@@ -923,6 +924,12 @@ async function main(): Promise<void> {
         });
         await cmdProbe(values.json ?? false);
         break;
+      }
+
+      case "mcp": {
+        // Delegate to the MCP adapter — same process, no npx indirection.
+        await import("./adapters/mcp.js");
+        return; // mcp.ts owns the process from here
       }
 
       case "setup": {

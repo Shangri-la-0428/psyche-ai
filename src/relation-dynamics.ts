@@ -894,6 +894,10 @@ export function applyRelationalTurn(
     now?: string;
     stimulus?: StimulusType | null;
     userId?: string;
+    /** v10.3: Pre-computed appraisal from unified experience. When provided,
+     *  skips internal appraisal computation — the experience module already
+     *  folded classification and appraisal into a single subjective act. */
+    preComputedAppraisal?: AppraisalAxes;
   },
 ): {
   state: PsycheState;
@@ -904,7 +908,7 @@ export function applyRelationalTurn(
 } {
   const now = opts.now ?? new Date().toISOString();
   const relationContext = resolveRelationContext(state, opts.userId);
-  const appraisalAxes = computeAppraisalAxes(text, {
+  const appraisalAxes = opts.preComputedAppraisal ?? computeAppraisalAxes(text, {
     mode: opts.mode,
     stimulus: opts.stimulus,
     previous: state.subjectResidue?.axes,

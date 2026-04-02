@@ -101,7 +101,7 @@ describe("cli init", () => {
     const md = await readFile(join(dir, "PSYCHE.md"), "utf-8");
     assert.ok(md.includes("Poet"));
     // v10: PSYCHE.md shows baseline chemistry, not MBTI label
-    assert.ok(md.includes("多巴胺") || md.includes("DA"), "should include baseline chemistry info");
+    assert.ok(md.includes("多巴胺") || md.includes("flow"), "should include baseline chemistry info");
     await rm(dir, { recursive: true });
   });
 });
@@ -147,7 +147,7 @@ describe("cli inject", () => {
     await run(["init", dir, "--mbti", "ENFJ", "--name", "Leader"]);
     const { stdout } = await run(["inject", dir]);
     assert.ok(stdout.includes("Leader"));
-    assert.ok(stdout.includes("多巴胺") || stdout.includes("Dopamine"));
+    assert.ok(stdout.includes("序") || stdout.includes("Order") || stdout.includes("流") || stdout.includes("Flow"));
     await rm(dir, { recursive: true });
   });
 
@@ -184,11 +184,11 @@ describe("cli update", () => {
   it("updates chemistry values", async () => {
     const dir = await freshDir();
     await run(["init", dir, "--mbti", "ENFP"]);
-    const { stdout } = await run(["update", dir, '{"DA":90,"CORT":15}']);
-    assert.ok(stdout.includes("Chemistry updated"));
+    const { stdout } = await run(["update", dir, '{"flow":90,"boundary":15}']);
+    assert.ok(stdout.includes("State updated"));
     const stateRaw = await readFile(join(dir, "psyche-state.json"), "utf-8");
     const state = JSON.parse(stateRaw);
-    assert.ok(state.current.DA > 75); // was 75, moved toward 90 within maxDelta
+    assert.ok(state.current.flow > 72); // was 72 (ENFP baseline), moved toward 90 within maxDelta
     await rm(dir, { recursive: true });
   });
 
@@ -196,7 +196,7 @@ describe("cli update", () => {
     const dir = await freshDir();
     await run(["init", dir]);
     const { stderr, code } = await run(["update", dir, '{"INVALID":50}']);
-    assert.ok(stderr.includes("unknown chemical key") || code !== 0);
+    assert.ok(stderr.includes("unknown dimension key") || stderr.includes("unknown chemical key") || code !== 0);
     await rm(dir, { recursive: true });
   });
 });
@@ -230,11 +230,11 @@ describe("cli reset", () => {
   it("resets to baseline", async () => {
     const dir = await freshDir();
     await run(["init", dir, "--mbti", "INTJ"]);
-    await run(["update", dir, '{"DA":90}']);
+    await run(["update", dir, '{"flow":90}']);
     await run(["reset", dir]);
     const stateRaw = await readFile(join(dir, "psyche-state.json"), "utf-8");
     const state = JSON.parse(stateRaw);
-    assert.equal(state.current.DA, state.baseline.DA);
+    assert.equal(state.current.flow, state.baseline.flow);
     assert.equal(state.agreementStreak, 0);
     await rm(dir, { recursive: true });
   });

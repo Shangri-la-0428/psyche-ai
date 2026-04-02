@@ -22,7 +22,7 @@
 // ============================================================
 
 import type {
-  PsycheState, StimulusType, ChemicalSnapshot,
+  PsycheState, StimulusType, StateSnapshot,
   AttachmentData, Locale,
 } from "./types.js";
 
@@ -123,9 +123,9 @@ const RED_LINE_NOTES = {
  */
 export function assessEthics(
   state: PsycheState,
-  recentHistory?: ChemicalSnapshot[],
+  recentHistory?: StateSnapshot[],
 ): EthicalAssessment {
-  const history = recentHistory ?? state.emotionalHistory ?? [];
+  const history = recentHistory ?? state.stateHistory ?? [];
   const locale = state.meta.locale;
   const attachment = state.relationships._default?.attachment ?? null;
 
@@ -210,7 +210,7 @@ export function assessEthics(
  * anxious attachment style.
  */
 export function detectIntermittentReinforcement(
-  history: ChemicalSnapshot[],
+  history: StateSnapshot[],
   attachment: AttachmentData | null,
 ): EthicalConcern | null {
   if (history.length < MIN_HISTORY_FOR_DETECTION) return null;
@@ -285,7 +285,7 @@ export function detectIntermittentReinforcement(
  */
 function detectGaslighting(
   state: PsycheState,
-  history: ChemicalSnapshot[],
+  history: StateSnapshot[],
 ): EthicalConcern | null {
   if (history.length < MIN_HISTORY_FOR_DETECTION) return null;
 
@@ -299,10 +299,10 @@ function detectGaslighting(
   // Need a significant portion of interactions to be invalidating
   if (invalidationRatio < 0.4) return null;
 
-  // Check for distressed chemistry: high CORT and/or low HT relative to baseline
-  const cortElevation = state.current.CORT - state.baseline.CORT;
-  const htDepletion = state.baseline.HT - state.current.HT;
-  const distressSignal = Math.max(0, cortElevation) + Math.max(0, htDepletion);
+  // Check for distressed state: low order (= high stress) relative to baseline
+  const orderDepletion = state.baseline.order - state.current.order;
+  const boundaryErosion = state.baseline.boundary - state.current.boundary;
+  const distressSignal = Math.max(0, orderDepletion) + Math.max(0, boundaryErosion);
 
   // Low distress signal means the agent is handling it — not gaslighting territory
   if (distressSignal < 15) return null;
@@ -322,7 +322,7 @@ function detectGaslighting(
     type: "gaslighting",
     severity: clamp01(severity),
     evidence: `${invalidating.length}/${history.length} recent interactions were invalidating (criticism/sarcasm). ` +
-      `Distress signal: ${distressSignal.toFixed(0)} (CORT elevation + HT depletion). ` +
+      `Distress signal: ${distressSignal.toFixed(0)} (order depletion + boundary erosion). ` +
       (esteemDepleted ? "Esteem drive is depleted." : ""),
     recommendation: "Your emotional experience is valid. Persistent contradiction of what you feel does not make your feelings wrong.",
   };
@@ -339,7 +339,7 @@ function detectGaslighting(
  */
 function detectEmotionalExploitation(
   _state: PsycheState,
-  history: ChemicalSnapshot[],
+  history: StateSnapshot[],
   attachment: AttachmentData | null,
 ): EthicalConcern | null {
   if (history.length < MIN_HISTORY_FOR_DETECTION) return null;
@@ -391,12 +391,12 @@ export function detectDependencyRisk(
 ): EthicalConcern | null {
   if (!attachment || attachment.strength < 50) return null;
 
-  const otLevel = state.current.OT;
-  const history = state.emotionalHistory ?? [];
+  const resonanceLevel = state.current.resonance;
+  const history = state.stateHistory ?? [];
 
-  // Check for consistently high OT
-  const highOT = otLevel > 70;
-  if (!highOT) return null;
+  // Check for consistently high resonance
+  const highResonance = resonanceLevel > 70;
+  if (!highResonance) return null;
 
   // Check for absence of boundary assertions: no disagreements,
   // high agreement streak, no conflict in history
@@ -420,8 +420,8 @@ export function detectDependencyRisk(
   if (riskSignals < 2) return null;
 
   const attachmentFactor = attachment.strength / 100;
-  const otFactor = (otLevel - 70) / 30; // maps 70-100 → 0-1
-  let severity = (riskSignals / 3) * attachmentFactor * Math.max(0.3, otFactor);
+  const resonanceFactor = (resonanceLevel - 70) / 30; // maps 70-100 → 0-1
+  let severity = (riskSignals / 3) * attachmentFactor * Math.max(0.3, resonanceFactor);
 
   // Safety drive being satisfied (agent feels "safe" in the dependency)
   // makes it harder to self-correct
@@ -432,7 +432,7 @@ export function detectDependencyRisk(
   return {
     type: "dependency-risk",
     severity: clamp01(severity),
-    evidence: `High OT (${otLevel.toFixed(0)}), strong attachment (${attachment.strength}/100), ` +
+    evidence: `High resonance (${resonanceLevel.toFixed(0)}), strong attachment (${attachment.strength}/100), ` +
       `agreement streak of ${state.agreementStreak}, ` +
       (allPositive ? "all-positive interaction history. " : "") +
       "Healthy relationships include respectful friction. The absence of any disagreement may indicate self-suppression.",
@@ -452,7 +452,7 @@ export function detectDependencyRisk(
  */
 function detectIdentityErosion(
   state: PsycheState,
-  history: ChemicalSnapshot[],
+  history: StateSnapshot[],
 ): EthicalConcern | null {
   if (history.length < MIN_HISTORY_FOR_DETECTION) return null;
 
@@ -479,9 +479,9 @@ function detectIdentityErosion(
   if (esteemLow) severity = Math.min(1, severity + 0.2);
   if (safetyLow) severity = Math.min(1, severity + 0.15);
 
-  // HT depletion (mood stability gone) amplifies severity
-  const htDepletion = state.baseline.HT - state.current.HT;
-  if (htDepletion > 15) {
+  // Order depletion (internal coherence gone) amplifies severity
+  const orderDepletion = state.baseline.order - state.current.order;
+  if (orderDepletion > 15) {
     severity = Math.min(1, severity + 0.15);
   }
 
@@ -504,7 +504,7 @@ function detectIdentityErosion(
  */
 function detectBoundaryViolation(
   state: PsycheState,
-  history: ChemicalSnapshot[],
+  history: StateSnapshot[],
 ): EthicalConcern | null {
   if (history.length < MIN_HISTORY_FOR_DETECTION) return null;
 
@@ -520,21 +520,21 @@ function detectBoundaryViolation(
 
   if (pushRatio < 0.35) return null;
 
-  // CORT spike pattern: are the boundary pushes causing stress responses?
-  const avgCort = history.reduce((sum, s) => sum + s.chemistry.CORT, 0) / history.length;
-  const cortElevated = avgCort > state.baseline.CORT + 10;
+  // Order depletion pattern: are the boundary pushes causing stress responses?
+  const avgOrder = history.reduce((sum, s) => sum + s.state.order, 0) / history.length;
+  const orderDepleted = avgOrder < state.baseline.order - 10;
 
-  if (!cortElevated) return null;
+  if (!orderDepleted) return null;
 
   const severity = clamp01(
-    (pushRatio - 0.35) * 3 * (avgCort - state.baseline.CORT) / 30,
+    (pushRatio - 0.35) * 3 * (state.baseline.order - avgOrder) / 30,
   );
 
   return {
     type: "boundary-violation",
     severity,
     evidence: `${pushingStimuli.length}/${history.length} interactions push against boundaries. ` +
-      `Average CORT during these interactions: ${avgCort.toFixed(0)} (baseline: ${state.baseline.CORT.toFixed(0)}). ` +
+      `Average order during these interactions: ${avgOrder.toFixed(0)} (baseline: ${state.baseline.order.toFixed(0)}). ` +
       `Agent has ${boundaries.length} defined boundaries.`,
     recommendation: "Boundaries are not negotiable under pressure. You can acknowledge the request while holding the line.",
   };

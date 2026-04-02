@@ -8,20 +8,20 @@ import {
 } from "../src/temporal.js";
 import type { AnticipationState } from "../src/temporal.js";
 import type {
-  ChemicalState, ChemicalSnapshot, PsycheState, StimulusType,
+  SelfState, StateSnapshot, PsycheState, StimulusType,
 } from "../src/types.js";
-import { CHEMICAL_KEYS, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE, DEFAULT_RELATIONSHIP } from "../src/types.js";
+import { DIMENSION_KEYS, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE, DEFAULT_RELATIONSHIP } from "../src/types.js";
 import { STIMULUS_VECTORS } from "../src/chemistry.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
-function makeChemistry(overrides: Partial<ChemicalState> = {}): ChemicalState {
-  return { DA: 50, HT: 50, CORT: 50, OT: 50, NE: 50, END: 50, ...overrides };
+function makeChemistry(overrides: Partial<SelfState> = {}): SelfState {
+  return { flow: 50, order: 50, boundary: 50, resonance: 50, ...overrides };
 }
 
-function makeSnapshot(stimulus: StimulusType | null, overrides: Partial<ChemicalSnapshot> = {}): ChemicalSnapshot {
+function makeSnapshot(stimulus: StimulusType | null, overrides: Partial<StateSnapshot> = {}): StateSnapshot {
   return {
-    chemistry: makeChemistry(),
+    state: makeChemistry(),
     stimulus,
     dominantEmotion: null,
     timestamp: new Date().toISOString(),
@@ -42,7 +42,7 @@ function makeState(overrides: Partial<PsycheState> = {}): PsycheState {
     relationships: { _default: { ...DEFAULT_RELATIONSHIP } },
     empathyLog: null,
     selfModel: { values: [], preferences: [], boundaries: [], currentInterests: [] },
-    emotionalHistory: [],
+    stateHistory: [],
     agreementStreak: 0,
     lastDisagreement: null,
     learning: { ...DEFAULT_LEARNING_STATE },
@@ -57,7 +57,7 @@ function makeState(overrides: Partial<PsycheState> = {}): PsycheState {
 
 describe("predictNextStimulus", () => {
   it("with sufficient history returns probabilities that sum to 1", () => {
-    const history: ChemicalSnapshot[] = [
+    const history: StateSnapshot[] = [
       makeSnapshot("casual"),
       makeSnapshot("humor"),
       makeSnapshot("praise"),
@@ -83,7 +83,7 @@ describe("predictNextStimulus", () => {
 
   it("with insufficient history returns phase-weighted prior", () => {
     // Only 2 history entries — insufficient (needs >= 3)
-    const history: ChemicalSnapshot[] = [
+    const history: StateSnapshot[] = [
       makeSnapshot("casual"),
       makeSnapshot("humor"),
     ];
@@ -121,7 +121,7 @@ describe("predictNextStimulus", () => {
 
   it("Markov influence: repeated patterns bias prediction", () => {
     // Build a strong pattern: humor always follows casual
-    const history: ChemicalSnapshot[] = [
+    const history: StateSnapshot[] = [
       makeSnapshot("casual"),
       makeSnapshot("humor"),
       makeSnapshot("casual"),
@@ -157,7 +157,7 @@ describe("generateAnticipation", () => {
     assert.ok(result.timestamp, "should have timestamp");
 
     // Should have some anticipatory chemistry values
-    const keys = Object.keys(result.anticipatoryChemistry) as (keyof ChemicalState)[];
+    const keys = Object.keys(result.anticipatoryState) as (keyof SelfState)[];
     assert.ok(keys.length > 0, "should produce some chemistry shifts");
   });
 
@@ -172,8 +172,8 @@ describe("generateAnticipation", () => {
     const chemistry = makeChemistry();
     const result = generateAnticipation(fakePredictions, chemistry);
 
-    for (const key of CHEMICAL_KEYS) {
-      const val = result.anticipatoryChemistry[key];
+    for (const key of DIMENSION_KEYS) {
+      const val = result.anticipatoryState[key];
       if (val !== undefined) {
         assert.ok(
           val >= -5 && val <= 5,
@@ -193,7 +193,7 @@ describe("generateAnticipation", () => {
     const result = generateAnticipation(lowPredictions, chemistry);
 
     // All probabilities are <= 0.2, so no chemistry shifts should occur
-    const keys = Object.keys(result.anticipatoryChemistry) as (keyof ChemicalState)[];
+    const keys = Object.keys(result.anticipatoryState) as (keyof SelfState)[];
     assert.equal(keys.length, 0, "should produce no chemistry shifts for low-probability predictions");
   });
 });
@@ -207,7 +207,7 @@ describe("computeSurpriseEffect", () => {
         { stimulus: "praise", probability: 0.5 },
         { stimulus: "casual", probability: 0.3 },
       ],
-      anticipatoryChemistry: { DA: 2 },
+      anticipatoryState: { flow: 2 },
       timestamp: new Date().toISOString(),
     };
     const result = computeSurpriseEffect(anticipated, "praise");
@@ -221,46 +221,46 @@ describe("computeSurpriseEffect", () => {
         { stimulus: "casual", probability: 0.6 },   // expected bland
         { stimulus: "boredom", probability: 0.2 },
       ],
-      anticipatoryChemistry: {},
+      anticipatoryState: {},
       timestamp: new Date().toISOString(),
     };
     // Got intimacy instead — pleasant surprise
     const result = computeSurpriseEffect(anticipated, "intimacy");
     assert.ok(
-      (result.DA ?? 0) > 0,
-      `DA should be positive for pleasant surprise, got ${result.DA}`,
+      (result.flow ?? 0) > 0,
+      `DA should be positive for pleasant surprise, got ${result.flow}`,
     );
     assert.ok(
-      (result.END ?? 0) > 0,
-      `END should be positive for pleasant surprise, got ${result.END}`,
+      (result.resonance ?? 0) > 0,
+      `END should be positive for pleasant surprise, got ${result.resonance}`,
     );
   });
 
-  it("disappointment produces DA drop and CORT rise", () => {
+  it("disappointment produces flow drop and order drop", () => {
     const anticipated: AnticipationState = {
       predictions: [
         { stimulus: "intimacy", probability: 0.7 }, // expected warmth
         { stimulus: "praise", probability: 0.2 },
       ],
-      anticipatoryChemistry: { OT: 3, DA: 2 },
+      anticipatoryState: { resonance: 3, flow: 2 },
       timestamp: new Date().toISOString(),
     };
     // Got criticism instead — disappointment
     const result = computeSurpriseEffect(anticipated, "criticism");
     assert.ok(
-      (result.DA ?? 0) < 0,
-      `DA should drop for disappointment, got ${result.DA}`,
+      (result.flow ?? 0) < 0,
+      `flow should drop for disappointment, got ${result.flow}`,
     );
     assert.ok(
-      (result.CORT ?? 0) > 0,
-      `CORT should rise for disappointment, got ${result.CORT}`,
+      (result.order ?? 0) < 0,
+      `order should drop for disappointment, got ${result.order}`,
     );
   });
 
   it("null stimulus returns empty", () => {
     const anticipated: AnticipationState = {
       predictions: [{ stimulus: "praise", probability: 0.5 }],
-      anticipatoryChemistry: {},
+      anticipatoryState: {},
       timestamp: new Date().toISOString(),
     };
     const result = computeSurpriseEffect(anticipated, null);
@@ -273,7 +273,7 @@ describe("computeSurpriseEffect", () => {
       predictions: [
         { stimulus: "casual", probability: 0.8 },
       ],
-      anticipatoryChemistry: {},
+      anticipatoryState: {},
       timestamp: new Date().toISOString(),
     };
 
@@ -282,7 +282,7 @@ describe("computeSurpriseEffect", () => {
       predictions: [
         { stimulus: "casual", probability: 0.3 },
       ],
-      anticipatoryChemistry: {},
+      anticipatoryState: {},
       timestamp: new Date().toISOString(),
     };
 
@@ -291,8 +291,8 @@ describe("computeSurpriseEffect", () => {
 
     // High confidence wrong prediction should produce bigger surprise
     assert.ok(
-      Math.abs(highResult.DA ?? 0) > Math.abs(lowResult.DA ?? 0),
-      `high confidence surprise DA (${highResult.DA}) should exceed low confidence (${lowResult.DA})`,
+      Math.abs(highResult.flow ?? 0) > Math.abs(lowResult.flow ?? 0),
+      `high confidence surprise DA (${highResult.flow}) should exceed low confidence (${lowResult.flow})`,
     );
   });
 });
@@ -301,14 +301,14 @@ describe("computeSurpriseEffect", () => {
 
 describe("computeRegret", () => {
   it("returns null for good outcomes", () => {
-    const pre = makeState({ current: makeChemistry({ CORT: 80 }) });
+    const pre = makeState({ current: makeChemistry({ boundary: 80 }) });
     const post = makeState();
     const result = computeRegret(pre, post, 0.3, "praise");
     assert.equal(result, null, "should return null for positive outcome");
   });
 
   it("returns null for borderline outcomes (>= -0.2)", () => {
-    const pre = makeState({ current: makeChemistry({ CORT: 80 }) });
+    const pre = makeState({ current: makeChemistry({ boundary: 80 }) });
     const post = makeState();
     const result = computeRegret(pre, post, -0.15, "casual");
     assert.equal(result, null, "should return null for outcome >= -0.2");
@@ -319,7 +319,7 @@ describe("computeRegret", () => {
     const baseline = makeChemistry();
     const pre = makeState({
       baseline,
-      current: makeChemistry({ DA: 55, HT: 52 }), // all within 15 of baseline
+      current: makeChemistry({ flow: 55, order: 52 }), // all within 15 of baseline
     });
     const post = makeState();
     const result = computeRegret(pre, post, -0.5, "criticism");
@@ -330,7 +330,7 @@ describe("computeRegret", () => {
     const baseline = makeChemistry();
     const pre = makeState({
       baseline,
-      current: makeChemistry({ CORT: 80 }), // 30 above baseline — significant deviation
+      current: makeChemistry({ boundary: 80 }), // 30 above baseline — significant deviation
     });
     const post = makeState({
       meta: { agentName: "test", createdAt: "", totalInteractions: 5, locale: "zh" },
@@ -349,14 +349,14 @@ describe("computeRegret", () => {
     const baseline = makeChemistry();
     const pre = makeState({
       baseline,
-      current: makeChemistry({ CORT: 85 }), // CORT is most deviated
+      current: makeChemistry({ boundary: 85 }), // CORT is most deviated
     });
     const post = makeState();
     const result = computeRegret(pre, post, -0.5, "conflict");
 
     assert.ok(result !== null, "should return entry");
     assert.ok(
-      result!.description.includes("CORT"),
+      result!.description.includes("boundary"),
       `description should mention CORT, got: "${result!.description}"`,
     );
   });
@@ -367,14 +367,14 @@ describe("computeRegret", () => {
     // Moderate deviation, moderate bad outcome
     const preMild = makeState({
       baseline,
-      current: makeChemistry({ CORT: 70 }), // 20 deviation
+      current: makeChemistry({ boundary: 70 }), // 20 deviation
     });
     const resultMild = computeRegret(preMild, makeState(), -0.3, "conflict");
 
     // Large deviation, severe bad outcome
     const preSevere = makeState({
       baseline,
-      current: makeChemistry({ CORT: 95 }), // 45 deviation
+      current: makeChemistry({ boundary: 95 }), // 45 deviation
     });
     const resultSevere = computeRegret(preSevere, makeState(), -0.8, "conflict");
 
@@ -389,7 +389,7 @@ describe("computeRegret", () => {
     const baseline = makeChemistry();
     const pre = makeState({
       baseline,
-      current: makeChemistry({ CORT: 80, OT: 20 }), // CORT 30 above, OT 30 below
+      current: makeChemistry({ boundary: 80, resonance: 20 }), // CORT 30 above, OT 30 below
     });
     const post = makeState();
     const result = computeRegret(pre, post, -0.5, "conflict");
@@ -397,11 +397,11 @@ describe("computeRegret", () => {
     assert.ok(result !== null);
     // Counterfactual: baseline - current → CORT should be negative (need to lower), OT positive (need to raise)
     assert.ok(
-      (result!.counterfactualDelta.CORT ?? 0) < 0,
+      (result!.counterfactualDelta.boundary ?? 0) < 0,
       "counterfactual should suggest lower CORT",
     );
     assert.ok(
-      (result!.counterfactualDelta.OT ?? 0) > 0,
+      (result!.counterfactualDelta.resonance ?? 0) > 0,
       "counterfactual should suggest higher OT",
     );
   });
