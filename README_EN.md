@@ -232,6 +232,22 @@ Resonance — fragile; severed quickly by misattunement, rebuilt slowly by genui
 
 Tendencies interact: high Boundary suppresses Resonance gain; collapsed Order amplifies Flow volatility. The system self-regulates toward homeostasis, but homeostasis is breakable.
 
+### Overlay — Broadcast Signals from Self-State (v11.4)
+
+Raw 4D self-state is too internal for external systems. `computeOverlay()` projects state deviations into 4 semantic-stable effect signals — Psyche's "hormones":
+
+```typescript
+import { computeOverlay } from "psyche-ai";
+
+const overlay = computeOverlay(engine.getState());
+// overlay.arousal        [-1, 1]  activation level
+// overlay.valence        [-1, 1]  positive/negative
+// overlay.agency         [-1, 1]  action capacity
+// overlay.vulnerability  [-1, 1]  susceptibility
+```
+
+Pure function, no side effects. Also available via `GET /overlay` (HTTP) or `get_state` (MCP).
+
 ### Persistent Subjective Bias (v9.2)
 
 Psyche's goal is now more precise than "make the model sound human." It aims to produce **persistent subjective bias**:

@@ -231,6 +231,8 @@ server.tool(
     const eng = await getEngine();
     const state = eng.getState();
     const summary = eng.getStatusSummary();
+    const { computeOverlay } = await import("../overlay.js");
+    const overlay = computeOverlay({ current: state.current, baseline: state.baseline });
     return {
       content: [{
         type: "text" as const,
@@ -238,6 +240,7 @@ server.tool(
           summary,
           current: state.current,
           baseline: state.baseline,
+          overlay,
           drives: state.drives,
           mbti: state.mbti,
           mode: state.meta?.mode,

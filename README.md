@@ -291,6 +291,22 @@ cd oasyce_psyche && npm install && npx tsx examples/quickstart.ts
 
 稳态是有限的、可打破的。溶解螺旋（序↓界↓正反馈）= 个体"死亡"。长期偏移导致基线漂移（异稳态）= 个体"适应"。
 
+### Overlay — 自我状态的广播信号（v11.4）
+
+4 维自我状态对外部系统来说太"内部"了。`computeOverlay()` 把状态偏差投影成 4 个语义稳定的效应信号——Psyche 的"激素"：
+
+```typescript
+import { computeOverlay } from "psyche-ai";
+
+const overlay = computeOverlay(engine.getState());
+// overlay.arousal        [-1, 1]  激活水平
+// overlay.valence        [-1, 1]  正负效价
+// overlay.agency         [-1, 1]  行动能力
+// overlay.vulnerability  [-1, 1]  易感性
+```
+
+纯函数，无副作用。也可以通过 `GET /overlay`（HTTP）或 `get_state`（MCP）获取。
+
 ### 持续主体偏置（v9.2）
 
 Psyche 现在更准确的目标，不是“模仿某种像人的风格”，而是让 AI 形成**持续主体偏置**：

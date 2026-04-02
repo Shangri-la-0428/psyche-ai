@@ -146,6 +146,21 @@ await psyche.processResponse(text);
 - `generationControls`
 - `writebackFeedback`
 
+### Overlay (v11.4)
+
+`computeOverlay(state)` projects 4D self-state deviations into 4 semantic-stable effect signals — Psyche's "hormones." These are broadcast signals any external system can consume without coupling to Psyche internals.
+
+```typescript
+interface PsycheOverlay {
+  arousal: number;       // [-1, 1] activation level (flow↑ + order↓)
+  valence: number;       // [-1, 1] positive/negative (order↑ + resonance↑)
+  agency: number;        // [-1, 1] action capacity (boundary↑ + flow↑)
+  vulnerability: number; // [-1, 1] susceptibility (boundary↓ + order↓)
+}
+```
+
+Pure function, no side effects. Exported from `psyche-ai` public API. Also available via `GET /overlay` (HTTP adapter) and `get_state` MCP tool (overlay field included in response).
+
 ### MCP tools
 
 - `process_input`

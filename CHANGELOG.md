@@ -1,5 +1,21 @@
 # 更新日志 / Changelog
 
+## v11.4.0 — Overlay：语义稳定的效应信号
+
+### Added
+- `computeOverlay(state)` — 从 4D 自我状态投影出 4 个语义稳定的效应信号
+  - `arousal`：唤醒水平（flow↑ + order↓）
+  - `valence`：正负效价（order↑ + resonance↑）
+  - `agency`：主体性/行动力（boundary↑ + flow↑）
+  - `vulnerability`：脆弱性（boundary↓ + order↓）
+- `PsycheOverlay` 类型 + `OVERLAY_KEYS` 常量
+- 10 个 overlay 测试
+
+纯线性投影，稀疏矩阵（每个信号只读 2 个维度），零耦合。
+Psyche 的激素——广播信号，不是点对点接口。
+
+---
+
 ## v11.3.1 — 代码诚实：un-deprecate 5 个活跃字段
 
 ### Fixed

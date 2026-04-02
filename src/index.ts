@@ -56,6 +56,10 @@ export { createCustomProfile, PRESET_PROFILES } from "./custom-profile.js";
 export { LLMExpressionAdapter } from "./reply-envelope.js";
 export type { ExpressionPort, ExpressionOutput, ReplyEnvelope } from "./reply-envelope.js";
 
+// ── Overlay (effect signals for external consumers) ─────────
+export { computeOverlay, OVERLAY_KEYS } from "./overlay.js";
+export type { PsycheOverlay } from "./overlay.js";
+
 // ── Diagnostics ─────────────────────────────────────────────
 export { computeLayerHealthSummary } from "./diagnostics.js";
 export type { LayerHealthSummary, LayerHealthDetail, LayerStatus, DiagnosticLayer } from "./diagnostics.js";

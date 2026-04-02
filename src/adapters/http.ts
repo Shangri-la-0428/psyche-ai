@@ -9,7 +9,8 @@
 // Endpoints:
 //   POST /process-input  { text, userId? }  → { systemContext, dynamicContext, stimulus, replyEnvelope?, ...compat aliases, sessionBridge?, writebackFeedback?, externalContinuity?, throngletsExports?, policyContext }
 //   POST /process-output { text, userId?, signals?, signalConfidence? }  → { cleanedText, stateChanged }
-//   GET  /state                             → PsycheState
+//   GET  /state                             → PsycheState + overlay
+//   GET  /overlay                           → PsycheOverlay (arousal/valence/agency/vulnerability)
 //   GET  /protocol?locale=zh                → { protocol }
 //
 // Zero dependencies — uses node:http only.
@@ -18,6 +19,7 @@
 import { createServer, type Server, type IncomingMessage, type ServerResponse } from "node:http";
 import type { PsycheEngine } from "../core.js";
 import type { WritebackSignalType } from "../types.js";
+import { computeOverlay } from "../overlay.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -86,7 +88,15 @@ export function createPsycheServer(engine: PsycheEngine, opts?: HttpAdapterOptio
 
       // GET /state
       if (req.method === "GET" && url.pathname === "/state") {
-        json(res, 200, engine.getState());
+        const state = engine.getState();
+        json(res, 200, { ...state, overlay: computeOverlay(state) });
+        return;
+      }
+
+      // GET /overlay
+      if (req.method === "GET" && url.pathname === "/overlay") {
+        const state = engine.getState();
+        json(res, 200, computeOverlay(state));
         return;
       }
 

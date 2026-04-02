@@ -266,6 +266,46 @@ psyche upgrade --check
 psyche upgrade
 ```
 
+## Overlay — 自我状态的语义稳定投影 (v11.4)
+
+`computeOverlay(state)` 把 4 维自我状态偏差通过一个纯线性投影映射成 4 个语义稳定的效应信号。这是 Psyche 的"激素系统"——广播式信号，不是点对点接口。任何外部系统都可以消费这 4 个值，而不需要理解 Psyche 的内部维度耦合。
+
+生物类比：激素不是精准投递的神经信号，而是广播到全身、被不同器官各自解读的化学信号。Overlay 就是 Psyche 的内分泌广播层。
+
+### 投影矩阵
+
+```
+                  order   flow   boundary  resonance
+arousal       = [ -0.4    0.6     0         0       ]
+valence       = [  0.5    0       0         0.5     ]
+agency        = [  0      0.4     0.6       0       ]
+vulnerability = [ -0.4    0      -0.6       0       ]
+```
+
+每个输出是 `[-1, 1]` 区间的连续值：
+
+- **arousal**：激活水平（高流 + 低序 → 高唤醒）
+- **valence**：正负效价（高序 + 高振 → 正效价）
+- **agency**：行动能力（高界 + 高流 → 高能动性）
+- **vulnerability**：易感性（低界 + 低序 → 高脆弱性）
+
+### 设计性质
+
+- **纯函数，无副作用**：输入当前状态，输出 overlay，不改变任何内部状态
+- **投影，不是适配器**：overlay 是自我状态的数学投影，不是为了翻译给外部消费而包装的接口层
+- **语义稳定**：arousal/valence/agency/vulnerability 这 4 个信号的含义不随 Psyche 内部维度实现的变化而漂移
+
+### 与 Thronglets FieldOverlay 的关系
+
+Thronglets 项目中有一个平行设计：`FieldOverlay`，把 field state 投影成语义稳定的效应信号供外部消费者使用。两者是同一个设计模式——将内部状态投影成广播信号——分别应用在私有主观性（Psyche）和共享场（Thronglets）两个层面。
+
+### 暴露路径
+
+- `computeOverlay(state)` 函数（`psyche-ai` 公共 API）
+- `GET /overlay`（HTTP adapter）
+- `get_state` MCP 工具（返回值中包含 overlay 字段）
+- Python SDK: `PsycheOverlay.compute()`
+
 ## v9 反向 Baseline Test 框架
 
 | 检测维度 | 模块 | 机制 |
@@ -928,6 +968,46 @@ CLI entrypoints:
 psyche upgrade --check
 psyche upgrade
 ```
+
+## Overlay — Semantic-Stable Projection of Self-State (v11.4)
+
+`computeOverlay(state)` applies a pure linear projection from 4D self-state deviations to 4 semantic-stable effect signals. These are Psyche's "hormones" — broadcast signals, not point-to-point interfaces. Any external system can consume these 4 values without understanding Psyche's internal dimension coupling.
+
+Biological analogy: hormones are not precisely routed nerve signals. They are chemicals broadcast system-wide and interpreted independently by different organs. Overlay is Psyche's endocrine broadcast layer.
+
+### Projection Matrix
+
+```
+                  order   flow   boundary  resonance
+arousal       = [ -0.4    0.6     0         0       ]
+valence       = [  0.5    0       0         0.5     ]
+agency        = [  0      0.4     0.6       0       ]
+vulnerability = [ -0.4    0      -0.6       0       ]
+```
+
+Each output is a continuous value in `[-1, 1]`:
+
+- **arousal**: activation level (high flow + low order → high arousal)
+- **valence**: positive/negative (high order + high resonance → positive valence)
+- **agency**: action capacity (high boundary + high flow → high agency)
+- **vulnerability**: susceptibility (low boundary + low order → high vulnerability)
+
+### Design Properties
+
+- **Pure function, no side effects**: takes current state, returns overlay, mutates nothing
+- **Projection, not adapter**: overlay is a mathematical projection of self-state, not a translation wrapper for external consumption
+- **Semantic stability**: the meaning of arousal/valence/agency/vulnerability does not drift when Psyche's internal dimension implementation changes
+
+### Relationship to Thronglets FieldOverlay
+
+Thronglets has a parallel design: `FieldOverlay` projects field state into semantic-stable effect signals for external consumers. Both are the same pattern — projecting internal state into broadcast signals — applied at two different layers: private subjectivity (Psyche) and shared field (Thronglets).
+
+### Exposure Paths
+
+- `computeOverlay(state)` function (`psyche-ai` public API)
+- `GET /overlay` (HTTP adapter)
+- `get_state` MCP tool (overlay field included in response)
+- Python SDK: `PsycheOverlay.compute()`
 
 ## File Structure Snapshot
 
