@@ -1,5 +1,17 @@
 # 更新日志 / Changelog
 
+## v11.5.0 — Self-State Export to Thronglets
+
+### Added
+- `SelfStateExport` — 4维自我状态 (order/flow/boundary/resonance) 稀疏导出到 Thronglets
+- 量化去重（步长10），只在维度显著变化时广播
+- 人类可读 summary（"flowing, attuned" / "chaotic, stuck" / "neutral"）
+
+### Changed
+- `AGENTS.md` 替代 `CLAUDE.md` 作为主文件，`CLAUDE.md` 为 symlink
+
+---
+
 ## v11.4.0 — Overlay：语义稳定的效应信号
 
 ### Added
