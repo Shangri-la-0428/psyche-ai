@@ -191,17 +191,17 @@ Luna 在安慰用户时自我状态下沉 → 广播状态 → Kai 感知到 Lun
 ## 一条命令，给任何 Agent 加上主观性
 
 ```bash
-npx psyche-ai setup
+npx -y psyche-ai setup
 ```
 
 自动检测本机的 Claude Code / Claude Desktop / Cursor / Windsurf，写入配置。Claude Code 即时生效，其他重启后生效。不需要知道配置文件在哪，不需要手动编辑任何 JSON。
 
-人格会从交互中自然涌现。如果想指定初始名字：`npx psyche-ai setup --name Luna`
+人格会从交互中自然涌现。如果想指定初始名字：`npx -y psyche-ai setup --name Luna`
 
 **覆盖非 MCP 的 Agent（Codex、自定义 agent 等）——透明代理：**
 
 ```bash
-npx psyche-ai setup --proxy -t https://api.openai.com/v1
+npx -y psyche-ai setup --proxy -t https://api.openai.com/v1
 ```
 
 启动本地代理 + 自动设置 `OPENAI_BASE_URL`。所有使用 OpenAI SDK 的程序自动走代理。Agent 完全不知道 Psyche 存在——镜子，不是麦克风。

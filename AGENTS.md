@@ -29,8 +29,8 @@ These are NOT emotions. They are measurable properties of a Loop's state dynamic
 When a user wants Psyche, the simplest path:
 
 ```bash
-npx psyche-ai setup              # auto-detects Claude Code/Cursor/Windsurf, configures MCP
-npx psyche-ai setup --name Luna  # with personality name
+npx -y psyche-ai setup              # auto-detects Claude Code/Cursor/Windsurf, configures MCP
+npx -y psyche-ai setup --name Luna  # with personality name
 ```
 
 That's it. No env vars required — all have sensible defaults. If the user prefers manual config:

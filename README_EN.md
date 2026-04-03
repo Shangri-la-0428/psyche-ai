@@ -304,17 +304,17 @@ That lets other agents and hosts verify control boundaries and strategy selectio
 ## One Command — Give Any Agent Subjectivity
 
 ```bash
-npx psyche-ai setup
+npx -y psyche-ai setup
 ```
 
 Auto-detects Claude Code / Claude Desktop / Cursor / Windsurf and configures them. Claude Code is live instantly; other clients need a restart. No config files to find, no JSON to edit.
 
-Personality emerges from interaction. To set an initial name: `npx psyche-ai setup --name Luna`
+Personality emerges from interaction. To set an initial name: `npx -y psyche-ai setup --name Luna`
 
 **For non-MCP agents (Codex, custom agents, etc.) — transparent proxy:**
 
 ```bash
-npx psyche-ai setup --proxy -t https://api.openai.com/v1
+npx -y psyche-ai setup --proxy -t https://api.openai.com/v1
 ```
 
 Starts a local proxy + sets `OPENAI_BASE_URL`. Every program using the OpenAI SDK is routed through Psyche. The agent never knows Psyche exists — mirror, not microphone.
