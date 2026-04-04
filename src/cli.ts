@@ -38,6 +38,7 @@ import { generateReport, formatReport, toGitHubIssueBody } from "./diagnostics.j
 import type { SessionMetrics } from "./diagnostics.js";
 import { getBaseline, getTemperament, getSensitivity, getDefaultSelfModel, traitsToBaseline } from "./profiles.js";
 import { buildDynamicContext, buildProtocolContext } from "./prompt.js";
+import type { AppraisalAxes } from "./types.js";
 import { DEFAULT_RELATIONSHIP_USER_ID, resolveRelationshipUserId } from "./relationship-key.js";
 import { t } from "./i18n.js";
 import type { MBTIType, PsycheState, Locale, PsycheMode, PersonalityTraits } from "./types.js";
@@ -496,6 +497,16 @@ async function cmdUpgrade(checkOnly: boolean): Promise<void> {
   console.log(result.message);
 }
 
+function summarizeProbeAppraisal(appraisal: AppraisalAxes | null | undefined): string {
+  if (!appraisal) return "null";
+  const top = Object.entries(appraisal)
+    .filter(([, value]) => value > 0.05)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 2);
+  if (top.length === 0) return "none";
+  return top.map(([axis, value]) => `${axis}=${value.toFixed(2)}`).join(", ");
+}
+
 async function cmdProbe(json: boolean): Promise<void> {
   const result = await runRuntimeProbe();
 
@@ -521,7 +532,9 @@ async function cmdProbe(json: boolean): Promise<void> {
   console.log(`  load path: ${result.loadPath}`);
   console.log(`  module path: ${result.modulePath}`);
   console.log(`  cli path: ${result.cliPath}`);
-  console.log(`  processInput: ok (stimulus=${result.stimulus ?? "null"})`);
+  console.log(
+    `  processInput: ok (appraisal=${summarizeProbeAppraisal(result.appraisal)}, legacyStimulus=${result.legacyStimulus ?? "null"})`,
+  );
   console.log(`  processOutput: ok (stateChanged=${String(result.stateChanged)})`);
   console.log(`  replyEnvelope: ${result.canonicalHostSurface ? "present" : "missing"}`);
   console.log(`  externalContinuity: ${result.externalContinuityAvailable ? "present" : "missing"}`);

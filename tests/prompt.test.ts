@@ -34,7 +34,7 @@ describe("buildProtocolContext", () => {
     const protocol = buildProtocolContext();
     assert.ok(protocol.includes("Psyche 心智协议"));
     assert.ok(protocol.includes("1. 感知"));
-    assert.ok(protocol.includes("2. 分类"));
+    assert.ok(protocol.includes("2. 评估"));
     assert.ok(protocol.includes("3. 反应"));
     assert.ok(protocol.includes("4. 涌现"));
     assert.ok(protocol.includes("5. 共情"));
@@ -45,7 +45,7 @@ describe("buildProtocolContext", () => {
     const protocol = buildProtocolContext("en");
     assert.ok(protocol.includes("Psyche Protocol"));
     assert.ok(protocol.includes("1. Perceive"));
-    assert.ok(protocol.includes("2. Classify"));
+    assert.ok(protocol.includes("2. Appraise"));
     assert.ok(protocol.includes("6. Update"));
   });
 

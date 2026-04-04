@@ -13,6 +13,7 @@ import type {
   StateLayerKind,
   StateReconciliationObservation,
   StateLayerObservation,
+  AppraisalAxes,
   StimulusType,
   ThrongletsExport,
   TurnControlDriver,
@@ -82,9 +83,22 @@ function pickDominantPlane(
   };
 }
 
-function summarizeCurrentTurn(stimulus: StimulusType | null, userText?: string): string {
-  if (stimulus) return `stimulus:${stimulus}`;
-  if (userText && userText.trim().length > 0) return "stimulus:none";
+function summarizeCurrentTurn(
+  appraisal: AppraisalAxes | null | undefined,
+  stimulus: StimulusType | null,
+  userText?: string,
+): string {
+  const topAxes = appraisal
+    ? Object.entries(appraisal)
+      .filter(([, value]) => value > 0.05)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 2)
+    : [];
+  if (topAxes.length > 0) {
+    return `appraisal:${topAxes.map(([axis, value]) => `${axis}=${value.toFixed(2)}`).join(",")}`;
+  }
+  if (stimulus) return `legacy-stimulus:${stimulus}`;
+  if (userText && userText.trim().length > 0) return "appraisal:none";
   return "no-user-input";
 }
 
@@ -114,6 +128,7 @@ function summarizeRelationship(
 function buildStateLayers(
   state: PsycheState,
   opts: {
+    appraisal: AppraisalAxes | null | undefined;
     stimulus: StimulusType | null;
     userText?: string;
     sessionBridge: SessionBridgeState | null;
@@ -127,7 +142,7 @@ function buildStateLayers(
       precedence: 1,
       scope: "turn",
       active: Boolean(opts.stimulus) || Boolean(opts.userText?.trim()),
-      summary: summarizeCurrentTurn(opts.stimulus, opts.userText),
+      summary: summarizeCurrentTurn(opts.appraisal, opts.stimulus, opts.userText),
     },
     {
       layer: "writeback-feedback",
@@ -444,6 +459,7 @@ export function buildTurnObservability(
   },
 ): TurnObservability {
   const stateLayers = buildStateLayers(state, {
+    appraisal: opts.replyEnvelope.subjectivityKernel.appraisal,
     stimulus: opts.stimulus,
     userText: opts.userText,
     sessionBridge: opts.sessionBridge,

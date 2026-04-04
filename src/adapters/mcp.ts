@@ -192,6 +192,7 @@ server.tool(
           systemContext: result.systemContext,
           dynamicContext: result.dynamicContext,
           appraisal,
+          legacyStimulus: result.stimulus,
           stimulus: result.stimulus,
           replyEnvelope: result.replyEnvelope ?? null,
           policyModifiers: result.policyModifiers ?? null,

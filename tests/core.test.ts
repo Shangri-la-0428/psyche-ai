@@ -151,6 +151,7 @@ describe("PsycheEngine", () => {
     assert.equal(result.observability?.controlBoundary.replyProfileBasis, "task-focus");
     assert.equal(result.observability?.stateLayers[0]?.layer, "current-turn");
     assert.equal(result.observability?.stateLayers[0]?.active, true);
+    assert.ok(result.observability?.stateLayers[0]?.summary.startsWith("appraisal:"));
     assert.equal(result.observability?.stateReconciliation.governingLayer, "current-turn");
     assert.equal(result.observability?.stateReconciliation.resolution, "current-turn-dominant");
     assert.ok(result.observability?.decisionRationale.triggerConditions.includes("task-focus>=0.62"));

@@ -59,6 +59,8 @@ describe("cli probe", () => {
     assert.equal(parsed.processInputCalled, true);
     assert.equal(parsed.processOutputCalled, true);
     assert.equal(parsed.canonicalHostSurface, true);
+    assert.ok(parsed.appraisal && typeof parsed.appraisal.taskFocus === "number");
+    assert.equal(parsed.legacyStimulus, parsed.stimulus);
     assert.ok(typeof parsed.loadPath === "string" && parsed.loadPath.length > 0);
   });
 });

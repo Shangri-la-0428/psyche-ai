@@ -324,6 +324,8 @@ describe("createPsycheServer (HTTP)", () => {
     assert.equal(status, 200);
     assert.ok(typeof data.dynamicContext === "string");
     assert.ok(data.dynamicContext.length > 0);
+    assert.ok("appraisal" in data);
+    assert.equal(data.legacyStimulus, "praise");
     assert.equal(data.stimulus, "praise");
     assert.ok(data.replyEnvelope);
     assert.ok(data.subjectivityKernel);
