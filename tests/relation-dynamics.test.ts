@@ -227,6 +227,36 @@ describe("computeRelationMove", () => {
     assert.equal(warmMove.type, "bid");
     assert.equal(tenseMove.type, "test");
   });
+
+  it("prefers appraisal residue over legacy stimulus when they disagree", () => {
+    const move = computeRelationMove("你还在吗", {
+      stimulus: "casual",
+      appraisal: {
+        ...DEFAULT_APPRAISAL_AXES,
+        attachmentPull: 0.68,
+        abandonmentRisk: 0.22,
+      },
+      field: {
+        ...DEFAULT_DYADIC_FIELD,
+        perceivedCloseness: 0.7,
+        feltSafety: 0.72,
+      },
+      relationship: {
+        ...DEFAULT_RELATIONSHIP,
+        trust: 76,
+        intimacy: 62,
+      },
+    });
+    assert.equal(move.type, "bid");
+  });
+
+  it("falls back to legacy stimulus when no appraisal residue is present", () => {
+    const move = computeRelationMove("嗯", {
+      stimulus: "authority",
+      appraisal: { ...DEFAULT_APPRAISAL_AXES },
+    });
+    assert.equal(move.type, "claim");
+  });
 });
 
 describe("evolveDyadicField", () => {

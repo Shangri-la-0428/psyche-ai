@@ -38,6 +38,7 @@ import { generateReport, formatReport, toGitHubIssueBody } from "./diagnostics.j
 import type { SessionMetrics } from "./diagnostics.js";
 import { getBaseline, getTemperament, getSensitivity, getDefaultSelfModel, traitsToBaseline } from "./profiles.js";
 import { buildDynamicContext, buildProtocolContext } from "./prompt.js";
+import type { AppraisalAxes } from "./types.js";
 import { DEFAULT_RELATIONSHIP_USER_ID, resolveRelationshipUserId } from "./relationship-key.js";
 import { t } from "./i18n.js";
 import type { MBTIType, PsycheState, Locale, PsycheMode, PersonalityTraits } from "./types.js";
@@ -45,6 +46,7 @@ import { DIMENSION_KEYS, DIMENSION_NAMES_ZH, DRIVE_KEYS, DRIVE_NAMES_ZH } from "
 import { isMBTIType, isDimensionKey, isLocale } from "./guards.js";
 import { getPackageVersion, selfUpdate } from "./update.js";
 import { runRuntimeProbe } from "./runtime-probe.js";
+import { defaultWorkspaceRoot } from "./storage.js";
 
 // ── Logger ───────────────────────────────────────────────────
 
@@ -496,6 +498,16 @@ async function cmdUpgrade(checkOnly: boolean): Promise<void> {
   console.log(result.message);
 }
 
+function summarizeProbeAppraisal(appraisal: AppraisalAxes | null | undefined): string {
+  if (!appraisal) return "null";
+  const top = Object.entries(appraisal)
+    .filter(([, value]) => value > 0.05)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 2);
+  if (top.length === 0) return "none";
+  return top.map(([axis, value]) => `${axis}=${value.toFixed(2)}`).join(", ");
+}
+
 async function cmdProbe(json: boolean): Promise<void> {
   const result = await runRuntimeProbe();
 
@@ -521,7 +533,9 @@ async function cmdProbe(json: boolean): Promise<void> {
   console.log(`  load path: ${result.loadPath}`);
   console.log(`  module path: ${result.modulePath}`);
   console.log(`  cli path: ${result.cliPath}`);
-  console.log(`  processInput: ok (stimulus=${result.stimulus ?? "null"})`);
+  console.log(
+    `  processInput: ok (appraisal=${summarizeProbeAppraisal(result.appraisal)}, legacyStimulus=${result.legacyStimulus ?? "null"})`,
+  );
   console.log(`  processOutput: ok (stateChanged=${String(result.stateChanged)})`);
   console.log(`  replyEnvelope: ${result.canonicalHostSurface ? "present" : "missing"}`);
   console.log(`  externalContinuity: ${result.externalContinuityAvailable ? "present" : "missing"}`);
@@ -695,6 +709,7 @@ async function cmdSetup(opts: {
 }): Promise<void> {
   const { name, mbti, locale, proxy, target, port, dryRun } = opts;
   const env: Record<string, string> = {};
+  env.PSYCHE_WORKSPACE = defaultWorkspaceRoot("mcp");
   if (name) env.PSYCHE_NAME = name;
   if (mbti) env.PSYCHE_MBTI = mbti.toUpperCase();
   if (locale) env.PSYCHE_LOCALE = locale;
@@ -716,7 +731,17 @@ async function cmdSetup(opts: {
       console.log("  → Claude Code — would configure via `claude mcp add`");
       claudeCodeDone = true; actions++;
     } else {
-      const addArgs = ["mcp", "add", "-s", "user", "psyche", "-e", "PSYCHE_LOCALE=" + (locale || "zh")];
+      const addArgs = [
+        "mcp",
+        "add",
+        "-s",
+        "user",
+        "psyche",
+        "-e",
+        "PSYCHE_WORKSPACE=" + env.PSYCHE_WORKSPACE,
+        "-e",
+        "PSYCHE_LOCALE=" + (locale || "zh"),
+      ];
       if (name) addArgs.push("-e", "PSYCHE_NAME=" + name);
       if (mbti) addArgs.push("-e", "PSYCHE_MBTI=" + mbti.toUpperCase());
       addArgs.push("--", "npx", "-y", "psyche-ai", "mcp");

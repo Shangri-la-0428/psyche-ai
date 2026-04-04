@@ -286,7 +286,7 @@ describe("Session Continuity — observable behavioral delta", () => {
 
 describe("Writeback Calibration — hint presence/absence", () => {
 
-  it("no writeback hint when algorithm already classified stimulus", () => {
+  it("no writeback hint when a legacy label is already present", () => {
     const state = makeState({
       meta: { agentName: "Kael", createdAt: new Date().toISOString(), totalInteractions: 10, locale: "zh", mode: "natural" },
     });
@@ -296,17 +296,17 @@ describe("Writeback Calibration — hint presence/absence", () => {
     };
     const prompt = buildCompactContext(state, undefined, {
       userText: "你好呀",
-      algorithmStimulus: "casual",
+      legacyStimulus: "casual",
       sessionBridge: bridge,
     });
-    // When algorithm already classified, no "算法未判" hint
+    // When a legacy label exists, no unresolved-appraisal hint
     assert.ok(
-      !prompt.includes("算法未判"),
-      `Should NOT include '算法未判' when algorithm already classified, got: ${prompt.slice(0, 300)}`,
+      !prompt.includes("主观评价尚未收束"),
+      `Should NOT include unresolved-appraisal hint when legacy label exists, got: ${prompt.slice(0, 300)}`,
     );
   });
 
-  it("writeback hint present when algorithm uncertain (no algorithmStimulus)", () => {
+  it("writeback hint appears when appraisal has not settled into a legacy label", () => {
     const state = makeState({
       meta: { agentName: "Kael", createdAt: new Date().toISOString(), totalInteractions: 10, locale: "zh", mode: "natural" },
     });
@@ -318,10 +318,10 @@ describe("Writeback Calibration — hint presence/absence", () => {
       userText: "你好呀",
       sessionBridge: bridge,
     });
-    // Algorithm uncertain → should include stimulus writeback hint
+    // No stable legacy label surfaced -> should include appraisal writeback hint
     assert.ok(
-      prompt.includes("算法未判") || prompt.includes("stimulus"),
-      `Should include writeback hint when algorithm uncertain, got: ${prompt.slice(0, 400)}`,
+      prompt.includes("主观评价尚未收束") || prompt.includes("appraisal"),
+      `Should include writeback hint when appraisal has not settled, got: ${prompt.slice(0, 400)}`,
     );
   });
 
@@ -329,11 +329,11 @@ describe("Writeback Calibration — hint presence/absence", () => {
     const state = makeState({
       meta: { agentName: "Kael", createdAt: new Date().toISOString(), totalInteractions: 1, locale: "zh", mode: "natural" },
     });
-    // New relationship: no bridge (first meeting), no algorithm stimulus
+    // New relationship: no bridge (first meeting), no legacy label
     const prompt = buildCompactContext(state, undefined, {
       userText: "我今天心情不太好",
     });
-    // For new relationships without algorithm stimulus, empathy report instructions appear
+    // For new relationships without a legacy label, empathy report instructions appear
     assert.ok(
       prompt.includes("userState") || prompt.includes("projectedFeeling") || prompt.includes("resonance"),
       `New relationship should include empathy report instructions, got: ${prompt.slice(0, 500)}`,
@@ -350,10 +350,10 @@ describe("Writeback Calibration — hint presence/absence", () => {
     };
     const prompt = buildCompactContext(state, undefined, {
       userText: "我今天心情不太好",
-      algorithmStimulus: "vulnerability",
+      legacyStimulus: "vulnerability",
       sessionBridge: bridge,
     });
-    // Established relationship with algorithm stimulus should NOT get empathy report instructions
+    // Established relationship with a legacy label should NOT get empathy report instructions
     assert.ok(
       !prompt.includes("如果对方在分享感受，在回复末尾用"),
       `Established relationship should NOT get empathy report instructions`,
@@ -370,7 +370,7 @@ describe("Writeback Calibration — hint presence/absence", () => {
     });
     // responseContractContext suppresses writeback hints
     assert.ok(
-      !prompt.includes("算法未判"),
+      !prompt.includes("主观评价尚未收束"),
       `Writeback hint should be suppressed when responseContractContext is present`,
     );
     assert.ok(
@@ -386,10 +386,10 @@ describe("Writeback Calibration — hint presence/absence", () => {
     const prompt = buildCompactContext(state, undefined, {
       userText: "你怎么看AI意识这个问题？",
     });
-    // New relationship without algorithm stimulus gets verbose writeback with options
+    // New relationship without algorithm stimulus gets appraisal-first writeback guidance
     assert.ok(
-      prompt.includes("praise|criticism|humor|intellectual") || prompt.includes("可选"),
-      `New relationship + uncertain algorithm should list stimulus options, got: ${prompt.slice(0, 500)}`,
+      prompt.includes("approach|rupture|uncertainty|boundary") || prompt.includes("appraisal"),
+      `New relationship + uncertain algorithm should list appraisal guidance, got: ${prompt.slice(0, 500)}`,
     );
   });
 
@@ -405,14 +405,14 @@ describe("Writeback Calibration — hint presence/absence", () => {
       userText: "你怎么看AI意识这个问题？",
       sessionBridge: bridge,
     });
-    // Established relationship gets compressed writeback without the full options list
+    // Established relationship gets compressed appraisal writeback without the full guidance block
     assert.ok(
-      prompt.includes("算法未判") || prompt.includes("stimulus"),
-      `Established relationship still gets stimulus writeback hint when algorithm uncertain`,
+      prompt.includes("算法未判") || prompt.includes("appraisal"),
+      `Established relationship still gets appraisal writeback hint when algorithm uncertain`,
     );
     assert.ok(
-      !prompt.includes("praise|criticism|humor|intellectual"),
-      `Established relationship should NOT get the verbose options list`,
+      !prompt.includes("legacy stimulus"),
+      `Established relationship should stay compressed`,
     );
   });
 });

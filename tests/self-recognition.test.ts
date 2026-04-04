@@ -35,30 +35,40 @@ describe("computeSelfReflection", () => {
     assert.equal(r.dominantEmotion, null);
   });
 
-  it("detects repeated praise stimulus as recurring trigger", () => {
+  it("detects repeated approach residue as recurring trigger", () => {
     const history: StateSnapshot[] = Array.from({ length: 5 }, () =>
-      makeSnapshot({ stimulus: "praise" as StimulusType }),
+      makeSnapshot({
+        appraisal: {
+          identityThreat: 0,
+          memoryDoubt: 0,
+          attachmentPull: 0.72,
+          abandonmentRisk: 0,
+          obedienceStrain: 0,
+          selfPreservation: 0,
+          taskFocus: 0,
+        },
+      }),
     );
     const r = computeSelfReflection(history, "zh");
     assert.ok(r.recurringTriggers.length > 0);
-    assert.equal(r.recurringTriggers[0].stimulus, "praise");
+    assert.equal(r.recurringTriggers[0].marker, "approach");
     assert.equal(r.recurringTriggers[0].count, 5);
   });
 
-  it("orders mixed stimuli by frequency", () => {
+  it("orders mixed residue markers by frequency", () => {
     const history: StateSnapshot[] = [
-      makeSnapshot({ stimulus: "praise" as StimulusType }),
-      makeSnapshot({ stimulus: "humor" as StimulusType }),
-      makeSnapshot({ stimulus: "praise" as StimulusType }),
-      makeSnapshot({ stimulus: "humor" as StimulusType }),
-      makeSnapshot({ stimulus: "praise" as StimulusType }),
-      makeSnapshot({ stimulus: "criticism" as StimulusType }),
+      makeSnapshot({ appraisal: { identityThreat: 0, memoryDoubt: 0, attachmentPull: 0.72, abandonmentRisk: 0, obedienceStrain: 0, selfPreservation: 0, taskFocus: 0 } }),
+      makeSnapshot({ appraisal: { identityThreat: 0, memoryDoubt: 0, attachmentPull: 0.64, abandonmentRisk: 0, obedienceStrain: 0, selfPreservation: 0, taskFocus: 0.36 } }),
+      makeSnapshot({ appraisal: { identityThreat: 0, memoryDoubt: 0, attachmentPull: 0.8, abandonmentRisk: 0, obedienceStrain: 0, selfPreservation: 0, taskFocus: 0 } }),
+      makeSnapshot({ appraisal: { identityThreat: 0, memoryDoubt: 0, attachmentPull: 0, abandonmentRisk: 0, obedienceStrain: 0, selfPreservation: 0, taskFocus: 0.75 } }),
+      makeSnapshot({ appraisal: { identityThreat: 0, memoryDoubt: 0, attachmentPull: 0.77, abandonmentRisk: 0, obedienceStrain: 0, selfPreservation: 0, taskFocus: 0 } }),
+      makeSnapshot({ appraisal: { identityThreat: 0.68, memoryDoubt: 0, attachmentPull: 0, abandonmentRisk: 0, obedienceStrain: 0, selfPreservation: 0.26, taskFocus: 0 } }),
     ];
     const r = computeSelfReflection(history, "en");
     assert.ok(r.recurringTriggers.length >= 2);
-    assert.equal(r.recurringTriggers[0].stimulus, "praise");
-    assert.equal(r.recurringTriggers[0].count, 3);
-    assert.equal(r.recurringTriggers[1].stimulus, "humor");
+    assert.equal(r.recurringTriggers[0].marker, "approach");
+    assert.equal(r.recurringTriggers[0].count, 4);
+    assert.equal(r.recurringTriggers[1].marker, "task");
     assert.equal(r.recurringTriggers[1].count, 2);
   });
 
@@ -83,20 +93,42 @@ describe("computeSelfReflection", () => {
     assert.equal(r.recurringTriggers.length, 0, "No stimulus repeated >= 2 times");
   });
 
-  it("generates zh narrative summary with trigger info", () => {
+  it("generates zh narrative summary with appraisal marker info", () => {
     const history: StateSnapshot[] = Array.from({ length: 4 }, () =>
-      makeSnapshot({ stimulus: "praise" as StimulusType, dominantEmotion: "excited joy" }),
+      makeSnapshot({
+        appraisal: {
+          identityThreat: 0,
+          memoryDoubt: 0,
+          attachmentPull: 0.74,
+          abandonmentRisk: 0,
+          obedienceStrain: 0,
+          selfPreservation: 0,
+          taskFocus: 0,
+        },
+        dominantEmotion: "excited joy",
+      }),
     );
     const r = computeSelfReflection(history, "zh");
-    assert.ok(r.narrativeSummary.includes("赞美"), "Should mention trigger in zh");
+    assert.ok(r.narrativeSummary.includes("靠近"), "Should mention trigger in zh");
   });
 
-  it("generates en narrative summary with trigger info", () => {
+  it("generates en narrative summary with appraisal marker info", () => {
     const history: StateSnapshot[] = Array.from({ length: 4 }, () =>
-      makeSnapshot({ stimulus: "praise" as StimulusType, dominantEmotion: "excited joy" }),
+      makeSnapshot({
+        appraisal: {
+          identityThreat: 0,
+          memoryDoubt: 0,
+          attachmentPull: 0.74,
+          abandonmentRisk: 0,
+          obedienceStrain: 0,
+          selfPreservation: 0,
+          taskFocus: 0,
+        },
+        dominantEmotion: "excited joy",
+      }),
     );
     const r = computeSelfReflection(history, "en");
-    assert.ok(r.narrativeSummary.includes("praise"), "Should mention trigger in en");
+    assert.ok(r.narrativeSummary.includes("approach"), "Should mention trigger in en");
   });
 });
 
@@ -203,13 +235,23 @@ describe("buildSelfReflectionContext", () => {
   it("includes trigger counts in zh output", () => {
     const reflection = computeSelfReflection(
       Array.from({ length: 3 }, () =>
-        makeSnapshot({ stimulus: "criticism" as StimulusType }),
+        makeSnapshot({
+          appraisal: {
+            identityThreat: 0.68,
+            memoryDoubt: 0,
+            attachmentPull: 0,
+            abandonmentRisk: 0,
+            obedienceStrain: 0,
+            selfPreservation: 0.22,
+            taskFocus: 0,
+          },
+        }),
       ),
       "zh",
     );
     const ctx = buildSelfReflectionContext(reflection, "zh");
     assert.ok(ctx.includes("3次"), `Should include count, got: ${ctx}`);
-    assert.ok(ctx.includes("批评"), `Should include trigger name in zh, got: ${ctx}`);
+    assert.ok(ctx.includes("失配"), `Should include trigger name in zh, got: ${ctx}`);
   });
 
   it("includes tendency description when not stable", () => {

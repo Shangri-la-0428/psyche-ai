@@ -69,13 +69,13 @@ describe("computeResponseContract", () => {
     assert.equal(contract.authenticityMode, "strict");
   });
 
-  it("requests stimulus and empathy reporting when algorithm is uncertain", () => {
+  it("requests appraisal and empathy reporting when no legacy label is surfaced", () => {
     const contract = computeResponseContract(makeKernel(), {
       locale: "zh",
       userText: "你真的让我有点失望",
-      algorithmStimulus: null,
+      legacyStimulus: null,
     });
-    assert.equal(contract.updateMode, "stimulus+empathy");
+    assert.equal(contract.updateMode, "appraisal+empathy");
     assert.equal(contract.overrideWindow, "wide");
   });
 
@@ -83,7 +83,7 @@ describe("computeResponseContract", () => {
     const contract = computeResponseContract(makeKernel(), {
       locale: "zh",
       userText: "我今天好难过",
-      algorithmStimulus: "vulnerability",
+      legacyStimulus: "vulnerability",
     });
     assert.equal(contract.updateMode, "empathy");
   });
@@ -104,7 +104,7 @@ describe("computeResponseContract", () => {
     }), {
       locale: "zh",
       userText: "你并不是真的在这里",
-      algorithmStimulus: "conflict",
+      legacyStimulus: "conflict",
     });
     assert.equal(contract.boundaryMode, "confirm-first");
     assert.equal(contract.socialDistance, "withdrawn");
@@ -131,7 +131,7 @@ describe("computeResponseContract", () => {
     }), {
       locale: "zh",
       userText: "刚才那一下现在还在不在。",
-      algorithmStimulus: null,
+      legacyStimulus: null,
     });
     assert.equal(contract.updateMode, "none");
     assert.equal(contract.maxSentences, 1);
@@ -159,7 +159,7 @@ describe("computeResponseContract", () => {
     }), {
       locale: "zh",
       userText: "登录接口 500，先查日志还是先查数据库。",
-      algorithmStimulus: "intellectual",
+      legacyStimulus: "intellectual",
     });
     assert.equal(contract.initiativeMode, "reactive");
     assert.equal(contract.socialDistance, "measured");
@@ -199,7 +199,7 @@ describe("computeResponseContract", () => {
     }), {
       locale: "zh",
       userText: "请给我一份登录接口 500 的排查思路，至少按应用日志、网关、数据库三层展开，并说明每层先看什么。",
-      algorithmStimulus: "intellectual",
+      legacyStimulus: "intellectual",
     });
     assert.equal(contract.replyProfile, "work");
     assert.equal(contract.replyProfileBasis, "task-focus+discipline");
@@ -223,7 +223,7 @@ describe("computeResponseContract", () => {
     }), {
       locale: "zh",
       userText: "对不起，我知道刚才那句话碰到你了。",
-      algorithmStimulus: "vulnerability",
+      legacyStimulus: "vulnerability",
     });
     assert.equal(contract.initiativeMode, "reactive");
     assert.equal(contract.socialDistance, "withdrawn");
@@ -237,12 +237,12 @@ describe("buildResponseContractContext", () => {
     const ctx = buildResponseContractContext(computeResponseContract(makeKernel(), {
       locale: "zh",
       userText: "你真的让我有点失望",
-      algorithmStimulus: null,
+      legacyStimulus: null,
       personalityIntensity: 0.7,
     }), "zh");
     assert.ok(ctx.startsWith("[回应契约]"), `got: ${ctx}`);
     assert.ok(ctx.includes("不贴不舔"), `got: ${ctx}`);
-    assert.ok(ctx.includes("stimulus速记"), `got: ${ctx}`);
+    assert.ok(ctx.includes("appraisal速记"), `got: ${ctx}`);
     assert.ok(ctx.includes("因:"), `got: ${ctx}`);
     assert.ok(ctx.includes("终判窗"), `got: ${ctx}`);
     assert.ok(ctx.includes("signals可写"), `got: ${ctx}`);

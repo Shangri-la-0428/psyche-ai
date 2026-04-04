@@ -10,7 +10,7 @@ import {
   pushSnapshot, compressSession, summarizeTurnSemantic,
 } from "../src/psyche-file.js";
 import type { PsycheState, StateSnapshot } from "../src/types.js";
-import { DIMENSION_KEYS, DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE, MAX_RELATIONSHIP_MEMORY } from "../src/types.js";
+import { DIMENSION_KEYS, DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE, MAX_RELATIONSHIP_MEMORY, DEFAULT_APPRAISAL_AXES } from "../src/types.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -321,6 +321,14 @@ describe("parsePsycheUpdate", () => {
     assert.deepEqual(result!.signals, ["trust_up", "boundary_set", "repair_attempt"]);
     assert.equal(result!.signalConfidence, 0.78);
   });
+
+  it("parses appraisal-first writeback labels", () => {
+    const text = `<psyche_update>\nappraisal: approach | uncertainty\n</psyche_update>`;
+    const result = parsePsycheUpdate(text);
+    assert.ok(result);
+    assert.ok((result!.llmAppraisalAxes?.attachmentPull ?? 0) > 0);
+    assert.ok((result!.llmAppraisalAxes?.abandonmentRisk ?? 0) > 0);
+  });
 });
 
 // ── mergeUpdates ────────────────────────────────────────────
@@ -538,6 +546,7 @@ function makeSnapshot(overrides: Partial<StateSnapshot> = {}): StateSnapshot {
   return {
     state: { order: 50, flow: 50, boundary: 50, resonance: 50 },
     stimulus: "casual",
+    appraisal: null,
     dominantEmotion: null,
     timestamp: new Date().toISOString(),
     ...overrides,
@@ -546,6 +555,7 @@ function makeSnapshot(overrides: Partial<StateSnapshot> = {}): StateSnapshot {
 
 function makeHistory(count: number, opts?: {
   stimuli?: (StateSnapshot["stimulus"])[];
+  appraisals?: (StateSnapshot["appraisal"])[];
   emotions?: (string | null)[];
   stateFn?: (i: number) => StateSnapshot["state"];
   semanticSummaries?: (string | undefined)[];
@@ -556,6 +566,7 @@ function makeHistory(count: number, opts?: {
       ? opts.stateFn(i)
       : { order: 50 + i * 5, flow: 50 + i * 3, boundary: 50, resonance: 50 + i * 3 },
     stimulus: opts?.stimuli?.[i] ?? "casual" as StateSnapshot["stimulus"],
+    appraisal: opts?.appraisals?.[i] ?? null,
     dominantEmotion: opts?.emotions?.[i] ?? null,
     semanticSummary: opts?.semanticSummaries?.[i],
     semanticPoints: opts?.semanticSummaries?.[i] ? [opts.semanticSummaries[i]] : undefined,
@@ -597,6 +608,27 @@ describe("compressSession", () => {
     assert.ok(summary.includes("casual×2"), `Should contain casual count, got: ${summary}`);
     assert.ok(summary.includes("弧线["), `Should contain emotion arc, got: ${summary}`);
     assert.ok(summary.includes("倾向["), `Should contain tendency, got: ${summary}`);
+  });
+
+  it("prefers appraisal residue over legacy stimulus labels when available", () => {
+    const history = makeHistory(5, {
+      stimuli: ["praise", "praise", "praise", "casual", "casual"],
+      appraisals: [
+        { ...DEFAULT_APPRAISAL_AXES, attachmentPull: 0.64 },
+        { ...DEFAULT_APPRAISAL_AXES, attachmentPull: 0.71 },
+        { ...DEFAULT_APPRAISAL_AXES, attachmentPull: 0.66 },
+        { ...DEFAULT_APPRAISAL_AXES, selfPreservation: 0.58 },
+        { ...DEFAULT_APPRAISAL_AXES, selfPreservation: 0.61 },
+      ],
+      emotions: ["平静", "愉悦兴奋", "愉悦兴奋", "深度满足", "深度满足"],
+    });
+    const state = makeMinimalState({ stateHistory: history });
+    const result = compressSession(state);
+    const summary = result.relationships._default.memory![0];
+    assert.ok(summary.includes("评价["), `Should contain appraisal section, got: ${summary}`);
+    assert.ok(summary.includes("靠近×3"), `Should summarize approach residue, got: ${summary}`);
+    assert.ok(summary.includes("边界×2"), `Should summarize boundary residue, got: ${summary}`);
+    assert.ok(!summary.includes("刺激["), `Should not prefer legacy stimuli when appraisal exists, got: ${summary}`);
   });
 
   it("uses bullet-style semantic carry for longer sessions", () => {
@@ -660,6 +692,29 @@ describe("compressSession", () => {
     assert.ok(summary.includes("高峰[第3轮:praise→愉悦兴奋]"), `Peak should be turn 3, got: ${summary}`);
   });
 
+  it("describes peak event using appraisal residue when present", () => {
+    const history = makeHistory(5, {
+      appraisals: [
+        null,
+        null,
+        { ...DEFAULT_APPRAISAL_AXES, attachmentPull: 0.73, abandonmentRisk: 0.44 },
+        null,
+        null,
+      ],
+      emotions: [null, null, "愉悦兴奋", null, null],
+      stateFn: (i) => i === 2
+        ? { order: 95, flow: 90, boundary: 80, resonance: 80 }
+        : { order: 50, flow: 50, boundary: 50, resonance: 50 },
+    });
+    const state = makeMinimalState({
+      stateHistory: history,
+      baseline: { order: 50, flow: 50, boundary: 50, resonance: 50 },
+    });
+    const result = compressSession(state);
+    const summary = result.relationships._default.memory![0];
+    assert.ok(summary.includes("高峰[第3轮:靠近+不确定→愉悦兴奋]"), `Peak should describe appraisal residue, got: ${summary}`);
+  });
+
   it("uses per-user relationship when userId provided", () => {
     const history = makeHistory(3);
     const state = makeMinimalState({ stateHistory: history });
@@ -685,5 +740,27 @@ describe("compressSession", () => {
     assert.ok(summary.includes("stimuli["), `Should use 'stimuli' for en, got: ${summary}`);
     assert.ok(summary.includes("tendency["), `Should use 'tendency' for en, got: ${summary}`);
     assert.ok(summary.includes("peak["), `Should use 'peak' for en, got: ${summary}`);
+  });
+
+  it("produces appraisal-first English summary when residue exists", () => {
+    const history = makeHistory(4, {
+      appraisals: [
+        { ...DEFAULT_APPRAISAL_AXES, attachmentPull: 0.67 },
+        { ...DEFAULT_APPRAISAL_AXES, attachmentPull: 0.63 },
+        { ...DEFAULT_APPRAISAL_AXES, identityThreat: 0.55 },
+        { ...DEFAULT_APPRAISAL_AXES, taskFocus: 0.62 },
+      ],
+      emotions: ["excited joy", "focused flow", "excited joy", null],
+    });
+    const state = makeMinimalState({
+      stateHistory: history,
+      meta: { agentName: "TestAgent", createdAt: new Date().toISOString(), totalInteractions: 0, locale: "en", mode: "natural" as const },
+    });
+    const result = compressSession(state);
+    const summary = result.relationships._default.memory![0];
+    assert.ok(summary.includes("appraisal["), `Should use appraisal-first summary, got: ${summary}`);
+    assert.ok(summary.includes("approach×2"), `Should carry approach residue, got: ${summary}`);
+    assert.ok(summary.includes("peak["), `Should still include peak section, got: ${summary}`);
+    assert.ok(!summary.includes("stimuli["), `Should not prefer legacy stimuli when appraisal exists, got: ${summary}`);
   });
 });

@@ -175,11 +175,11 @@ function computeLengthBudget(
   return { maxSentences, maxChars };
 }
 
-function buildStimulusReportingGuide(locale: Locale): string {
+function buildAppraisalReportingGuide(locale: Locale): string {
   if (locale === "zh") {
-    return "stimulus速记:闲聊/命令/认同/示弱/冷淡/批评";
+    return "appraisal速记:靠近/失配/不确定/边界";
   }
-  return "stimulus map: chat/command/validation/vulnerability/neglect/criticism";
+  return "appraisal note: approach/rupture/uncertainty/boundary";
 }
 
 function buildWritebackGuide(locale: Locale): string {
@@ -206,8 +206,8 @@ export function computeResponseContract(
   opts?: {
     locale?: Locale;
     userText?: string;
-    algorithmStimulus?: StimulusType | null;
-    classificationConfidence?: number;
+    legacyStimulus?: StimulusType | null;
+    legacyStimulusConfidence?: number;
     personalityIntensity?: number;
     mode?: "natural" | "work" | "companion";
   },
@@ -217,10 +217,10 @@ export function computeResponseContract(
   const personalityIntensity = opts?.personalityIntensity ?? 0.7;
   const profile: ModeProfile = MODE_PROFILES[opts?.mode ?? "natural"];
   const { replyProfile, replyProfileBasis } = deriveReplyProfile(kernel);
-  const classificationConfidence = opts?.classificationConfidence ?? 0;
-  const overrideWindow: ResponseContract["overrideWindow"] = classificationConfidence >= 0.78
+  const legacyStimulusConfidence = opts?.legacyStimulusConfidence ?? 0;
+  const overrideWindow: ResponseContract["overrideWindow"] = legacyStimulusConfidence >= 0.78
     ? "narrow"
-    : classificationConfidence >= 0.62
+    : legacyStimulusConfidence >= 0.62
       ? "balanced"
       : "wide";
   let { maxSentences, maxChars } = userText.length > 0
@@ -244,9 +244,9 @@ export function computeResponseContract(
     updateMode = "none";
   } else if (kernel.ambiguityPlane.namingConfidence < 0.36) {
     updateMode = "none";
-  } else if (!opts?.algorithmStimulus) {
-    updateMode = "stimulus+empathy";
-  } else if (EMOTIONAL_STIMULI.has(opts.algorithmStimulus)) {
+  } else if (!opts?.legacyStimulus) {
+    updateMode = "appraisal+empathy";
+  } else if (EMOTIONAL_STIMULI.has(opts.legacyStimulus)) {
     updateMode = "empathy";
   }
 
@@ -398,10 +398,10 @@ export function buildResponseContractContext(contract: ResponseContract, locale:
 
     if (contract.emojiLimit > 0) parts.push(`表情≤${contract.emojiLimit}`);
 
-    if (contract.updateMode === "stimulus") parts.push(buildStimulusReportingGuide(locale));
+    if (contract.updateMode === "appraisal") parts.push(buildAppraisalReportingGuide(locale));
     else if (contract.updateMode === "empathy") parts.push("谈感受再报empathy");
-    else if (contract.updateMode === "stimulus+empathy") {
-      parts.push(buildStimulusReportingGuide(locale));
+    else if (contract.updateMode === "appraisal+empathy") {
+      parts.push(buildAppraisalReportingGuide(locale));
       parts.push("谈感受再报empathy");
     }
     if (contract.overrideWindow !== "narrow") parts.push(buildWritebackGuide(locale));
@@ -430,10 +430,10 @@ export function buildResponseContractContext(contract: ResponseContract, locale:
   if (contract.toneParticles === "avoid") parts.push("keep tone plain");
   if (contract.emojiLimit > 0) parts.push(`emoji <= ${contract.emojiLimit}`);
 
-  if (contract.updateMode === "stimulus") parts.push(buildStimulusReportingGuide(locale));
+  if (contract.updateMode === "appraisal") parts.push(buildAppraisalReportingGuide(locale));
   else if (contract.updateMode === "empathy") parts.push("report empathy only when feelings are shared");
-  else if (contract.updateMode === "stimulus+empathy") {
-    parts.push(buildStimulusReportingGuide(locale));
+  else if (contract.updateMode === "appraisal+empathy") {
+    parts.push(buildAppraisalReportingGuide(locale));
     parts.push("report empathy only when feelings are shared");
   }
   if (contract.overrideWindow !== "narrow") parts.push(buildWritebackGuide(locale));

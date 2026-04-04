@@ -8,7 +8,7 @@ import {
   pushSnapshot,
 } from "../src/psyche-file.js";
 import type { SelfState, StateSnapshot, PsycheState } from "../src/types.js";
-import { DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE, DEFAULT_RELATIONSHIP } from "../src/types.js";
+import { DEFAULT_APPRAISAL_AXES, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE, DEFAULT_RELATIONSHIP } from "../src/types.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -20,6 +20,7 @@ function makeSnapshot(overrides: Partial<StateSnapshot> = {}): StateSnapshot {
   return {
     state: makeChem(),
     stimulus: null,
+    appraisal: null,
     dominantEmotion: null,
     timestamp: new Date().toISOString(),
     ...overrides,
@@ -150,6 +151,21 @@ describe("pushSnapshot (P11: intensity enrichment)", () => {
     assert.ok(snap.intensity! > 0);
   });
 
+  it("stores appraisal on the snapshot when provided", () => {
+    const state = makeState({ current: makeChem({ flow: 70, resonance: 62 }) });
+    const result = pushSnapshot(
+      state,
+      null,
+      undefined,
+      { ...DEFAULT_APPRAISAL_AXES, attachmentPull: 0.61, abandonmentRisk: 0.33 },
+    );
+    assert.equal(result.stateHistory.length, 1);
+    assert.equal(result.stateHistory[0].stimulus, null);
+    assert.ok(result.stateHistory[0].appraisal);
+    assert.equal(result.stateHistory[0].appraisal?.attachmentPull, 0.61);
+    assert.equal(result.stateHistory[0].appraisal?.abandonmentRisk, 0.33);
+  });
+
   it("consolidateHistory filters low intensity during session end", () => {
     const snaps: StateSnapshot[] = [
       makeSnapshot({ intensity: 0.05, timestamp: "2024-01-01T00:00:00Z" }),
@@ -257,12 +273,26 @@ describe("retrieveRelatedMemories", () => {
     assert.equal(result[0].state.flow, 50);
   });
 
-  it("stimulus match gives bonus", () => {
+  it("appraisal match gives bonus before legacy stimulus labels", () => {
+    const appraisal = { ...DEFAULT_APPRAISAL_AXES, attachmentPull: 0.74, abandonmentRisk: 0.31 };
+    const history = [
+      makeSnapshot({ state: makeChem({ flow: 60 }), stimulus: "praise", appraisal }),
+      makeSnapshot({
+        state: makeChem({ flow: 55 }),
+        stimulus: "praise",
+        appraisal: { ...DEFAULT_APPRAISAL_AXES, identityThreat: 0.71, selfPreservation: 0.54 },
+      }),
+    ];
+    // flow=55 is chemically closer, but appraisal similarity should favor flow=60
+    const result = retrieveRelatedMemories(history, makeChem({ flow: 57 }), "praise", 1, appraisal);
+    assert.equal(result[0].state.flow, 60);
+  });
+
+  it("falls back to legacy stimulus match when no appraisal residue is available", () => {
     const history = [
       makeSnapshot({ state: makeChem({ flow: 60 }), stimulus: "praise" }),
       makeSnapshot({ state: makeChem({ flow: 55 }), stimulus: "criticism" }),
     ];
-    // DA=55 is closer, but praise stimulus match should boost DA=60
     const result = retrieveRelatedMemories(history, makeChem({ flow: 57 }), "praise", 1);
     assert.equal(result[0].stimulus, "praise");
   });
@@ -280,5 +310,28 @@ describe("retrieveRelatedMemories", () => {
     const history = Array.from({ length: 10 }, () => makeSnapshot());
     const result = retrieveRelatedMemories(history, makeChem(), null, 3);
     assert.equal(result.length, 3);
+  });
+
+  it("compresses overflow memories using appraisal markers before legacy stimulus labels", () => {
+    const history = Array.from({ length: 30 }, (_, i) => makeSnapshot({
+      timestamp: new Date(Date.now() - (31 - i) * 60000).toISOString(),
+      appraisal: { ...DEFAULT_APPRAISAL_AXES, attachmentPull: 0.62, taskFocus: 0.12 },
+      stimulus: null,
+    }));
+    const state = makeState({
+      stateHistory: history,
+      current: makeChem({ flow: 72, resonance: 66 }),
+      relationships: { _default: { ...DEFAULT_RELATIONSHIP, memory: [] } },
+    });
+    const updated = pushSnapshot(
+      state,
+      null,
+      { summary: "继续靠近" },
+      { ...DEFAULT_APPRAISAL_AXES, attachmentPull: 0.59 },
+    );
+    const memory = updated.relationships._default.memory ?? [];
+    assert.ok(memory.length > 0);
+    assert.ok(memory[0].includes("评价[靠近"), `expected appraisal-first memory summary, got: ${memory[0]}`);
+    assert.ok(!memory[0].includes("刺激["), `expected no legacy stimulus summary when appraisal markers exist, got: ${memory[0]}`);
   });
 });

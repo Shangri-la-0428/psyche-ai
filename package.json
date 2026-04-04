@@ -1,6 +1,6 @@
 {
   "name": "psyche-ai",
-  "version": "11.5.0",
+  "version": "11.5.1",
   "description": "AI-first subjectivity kernel for agents with continuous appraisal, relation dynamics, and adaptive reply loops",
   "mcpName": "io.github.Shangri-la-0428/psyche-ai",
   "type": "module",
@@ -94,16 +94,16 @@
   "engines": {
     "node": ">=22.0.0"
   },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.28.0",
+    "zod": "^4.3.6"
+  },
   "peerDependencies": {
     "@langchain/core": ">=0.3.0",
-    "@modelcontextprotocol/sdk": "^1.27.1",
     "ai": ">=4.0.0",
     "openclaw": ">=2026.3.0"
   },
   "peerDependenciesMeta": {
-    "@modelcontextprotocol/sdk": {
-      "optional": true
-    },
     "openclaw": {
       "optional": true
     },
@@ -120,9 +120,7 @@
     ]
   },
   "devDependencies": {
-    "@modelcontextprotocol/sdk": "^1.28.0",
     "@types/node": "^25.5.0",
-    "typescript": "^5.9.3",
-    "zod": "^4.3.6"
+    "typescript": "^5.9.3"
   }
 }

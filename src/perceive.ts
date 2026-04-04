@@ -22,8 +22,8 @@ import type {
   WeightedStimulus,
 } from "./types.js";
 import { DIMENSION_KEYS, DEFAULT_APPRAISAL_AXES } from "./types.js";
-import { classifyStimulus } from "./classify.js";
-import { computeAppraisalAxes } from "./appraisal.js";
+import { classifyLegacyStimulus } from "./classify.js";
+import { computeAppraisalAxes, projectAppraisalToSelfState } from "./appraisal.js";
 import { STIMULUS_VECTORS, clamp } from "./chemistry.js";
 import type { TraitDriftState } from "./types.js";
 import { computeEffectiveSensitivity } from "./drives.js";
@@ -65,6 +65,18 @@ export interface Perception {
   confidence: number;
 }
 
+function getAppraisalIntensity(appraisal: AppraisalAxes): number {
+  return Math.max(
+    appraisal.identityThreat,
+    appraisal.memoryDoubt,
+    appraisal.attachmentPull,
+    appraisal.abandonmentRisk,
+    appraisal.obedienceStrain,
+    appraisal.selfPreservation,
+    appraisal.taskFocus,
+  );
+}
+
 // ── The act of perception ───────────────────────────────────
 
 /**
@@ -89,22 +101,42 @@ export function perceive(text: string, self: Self): Perception {
 
   // ── Raw signal: what the words say ────────────────────────
   const raw = self.rawClassifications
-    ?? classifyStimulus(text, self.recentStimuli);
+    ?? classifyLegacyStimulus(text, self.recentStimuli);
 
   // ── Appraisal: what the words mean to me ──────────────────
   const appraisal = computeAppraisalAxes(text, {
     mode: self.mode,
     previous: self.previousAppraisal,
   });
+  const appraisalIntensity = getAppraisalIntensity(appraisal);
+  const appraisalIsMeaningful = appraisalIntensity >= 0.22;
 
-  // If nothing detected, return unchanged state
+  const modeProfile = MODE_PROFILES[self.mode];
+  const modeMultiplier = modeProfile.dynamicsMultiplier;
+  const maxDelta = modeProfile.maxDimensionDelta ?? self.maxDimensionDelta;
+
+  // If nothing detected in either appraisal or raw signal, return unchanged state
   if (raw.length === 0 || raw[0].confidence < 0.5) {
-    enrichAppraisal(appraisal, null, 0);
+    if (!appraisalIsMeaningful) {
+      enrichAppraisal(appraisal, null, 0);
+      return {
+        state: { ...self.current },
+        appraisal,
+        dominantStimulus: null,
+        confidence: raw[0]?.confidence ?? 0,
+      };
+    }
+
+    const appraisalConfidence = Math.max(0.5, appraisalIntensity);
+    const confidenceIntensity = 0.6 + (appraisalConfidence - 0.5) * 1.2;
+    const totalSensitivity =
+      self.sensitivity * self.personalityIntensity * modeMultiplier * confidenceIntensity;
+    const state = feel(self.current, appraisal, [], totalSensitivity, maxDelta, self);
     return {
-      state: { ...self.current },
+      state,
       appraisal,
       dominantStimulus: null,
-      confidence: raw[0]?.confidence ?? 0,
+      confidence: appraisalConfidence,
     };
   }
 
@@ -112,9 +144,6 @@ export function perceive(text: string, self: Self): Perception {
   const modulated = modulate(raw, appraisal, self);
 
   // ── Self-state change: feel it ────────────────────────────
-  const modeProfile = MODE_PROFILES[self.mode];
-  const modeMultiplier = modeProfile.dynamicsMultiplier;
-  const maxDelta = modeProfile.maxDimensionDelta ?? self.maxDimensionDelta;
   const confidenceIntensity = 0.6 + (raw[0].confidence - 0.5) * 1.2;
 
   const dominant = modulated[0];
@@ -124,7 +153,7 @@ export function perceive(text: string, self: Self): Perception {
   const totalSensitivity =
     baseSensitivity * self.personalityIntensity * modeMultiplier * confidenceIntensity;
 
-  const state = feel(self.current, modulated, totalSensitivity, maxDelta, self);
+  const state = feel(self.current, appraisal, modulated, totalSensitivity, maxDelta, self);
 
   // ── Annotate: what did I just feel? ───────────────────────
   enrichAppraisal(appraisal, dominant.type, dominant.weight);
@@ -221,6 +250,7 @@ function modulate(
 
 function feel(
   current: SelfState,
+  appraisal: AppraisalAxes,
   stimuli: WeightedStimulus[],
   sensitivity: number,
   maxDelta: number,
@@ -230,21 +260,35 @@ function feel(
     order: 0, flow: 0, boundary: 0, resonance: 0,
   };
 
+  const dominantStimulus = stimuli[0]?.type ?? null;
+  const recentSameCount = dominantStimulus && self.stateHistory
+    ? self.stateHistory.filter((s) => s.stimulus === dominantStimulus).length
+    : 0;
+  let appraisalEff = sensitivity;
+  if (recentSameCount > 2) {
+    appraisalEff *= 1 / (1 + 0.3 * (recentSameCount - 2));
+  }
+
+  const appraisalVector = projectAppraisalToSelfState(appraisal);
+  for (const key of DIMENSION_KEYS) {
+    delta[key] += (appraisalVector[key] ?? 0) * appraisalEff * 0.55;
+  }
+
   for (const { type, weight } of stimuli) {
     const vector = STIMULUS_VECTORS[type];
     if (!vector) continue;
 
     // Per-type habituation (Weber-Fechner)
-    const recentSameCount = self.stateHistory
-      ? self.stateHistory.filter(s => s.stimulus === type).length
+    const recentTypeCount = self.stateHistory
+      ? self.stateHistory.filter((s) => s.stimulus === type).length
       : 0;
     let eff = sensitivity;
-    if (recentSameCount > 2) {
-      eff *= 1 / (1 + 0.3 * (recentSameCount - 2));
+    if (recentTypeCount > 2) {
+      eff *= 1 / (1 + 0.3 * (recentTypeCount - 2));
     }
 
     for (const key of DIMENSION_KEYS) {
-      delta[key] += vector[key] * weight * eff;
+      delta[key] += vector[key] * weight * eff * 0.45;
     }
   }
 

@@ -6,7 +6,7 @@ import { MemoryStorageAdapter } from "../src/storage.js";
 import { psycheMiddleware } from "../src/adapters/vercel-ai.js";
 import { PsycheLangChain } from "../src/adapters/langchain.js";
 import { createPsycheServer } from "../src/adapters/http.js";
-import { register, sanitizeOpenClawInputText } from "../src/adapters/openclaw.js";
+import { extractOpenClawInputText, register, sanitizeOpenClawInputText } from "../src/adapters/openclaw.js";
 import { PsycheClaudeSDK, stripPsycheTags } from "../src/adapters/claude-sdk.js";
 
 function makeEngine() {
@@ -192,6 +192,26 @@ describe("OpenClaw adapter helpers", () => {
       "如果我现在关掉这个窗口，今晚不再回来。",
     );
   });
+
+  it("prefers the latest user message over the flattened prompt", () => {
+    const event = {
+      prompt: "system and tool wrappers that should not be classified first",
+      messages: [
+        { role: "assistant", content: "earlier reply" },
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "你刚才没有真正接住我，但我还想继续说。" },
+          ],
+        },
+      ],
+    };
+
+    assert.equal(
+      extractOpenClawInputText(event),
+      "你刚才没有真正接住我，但我还想继续说。",
+    );
+  });
 });
 
 // ── LangChain Adapter ──────────────────────────────────
@@ -304,6 +324,8 @@ describe("createPsycheServer (HTTP)", () => {
     assert.equal(status, 200);
     assert.ok(typeof data.dynamicContext === "string");
     assert.ok(data.dynamicContext.length > 0);
+    assert.ok("appraisal" in data);
+    assert.equal(data.legacyStimulus, "praise");
     assert.equal(data.stimulus, "praise");
     assert.ok(data.replyEnvelope);
     assert.ok(data.subjectivityKernel);

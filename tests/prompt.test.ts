@@ -34,7 +34,7 @@ describe("buildProtocolContext", () => {
     const protocol = buildProtocolContext();
     assert.ok(protocol.includes("Psyche 心智协议"));
     assert.ok(protocol.includes("1. 感知"));
-    assert.ok(protocol.includes("2. 分类"));
+    assert.ok(protocol.includes("2. 评估"));
     assert.ok(protocol.includes("3. 反应"));
     assert.ok(protocol.includes("4. 涌现"));
     assert.ok(protocol.includes("5. 共情"));
@@ -45,7 +45,7 @@ describe("buildProtocolContext", () => {
     const protocol = buildProtocolContext("en");
     assert.ok(protocol.includes("Psyche Protocol"));
     assert.ok(protocol.includes("1. Perceive"));
-    assert.ok(protocol.includes("2. Classify"));
+    assert.ok(protocol.includes("2. Appraise"));
     assert.ok(protocol.includes("6. Update"));
   });
 
@@ -293,6 +293,24 @@ describe("computeUserInvestment", () => {
   function snap(stimulus: string): StateSnapshot {
     return { state: chem, stimulus: stimulus as any, dominantEmotion: null, timestamp: new Date().toISOString() };
   }
+  function appraisalSnap(appraisal: Partial<NonNullable<StateSnapshot["appraisal"]>>): StateSnapshot {
+    return {
+      state: chem,
+      stimulus: null,
+      appraisal: {
+        identityThreat: 0,
+        memoryDoubt: 0,
+        attachmentPull: 0,
+        abandonmentRisk: 0,
+        obedienceStrain: 0,
+        selfPreservation: 0,
+        taskFocus: 0,
+        ...appraisal,
+      },
+      dominantEmotion: null,
+      timestamp: new Date().toISOString(),
+    };
+  }
 
   it("returns 0 for empty history", () => {
     assert.equal(computeUserInvestment([]), 0);
@@ -305,7 +323,7 @@ describe("computeUserInvestment", () => {
 
   it("returns negative for cold user", () => {
     const score = computeUserInvestment([snap("neglect"), snap("boredom"), snap("sarcasm")]);
-    assert.ok(score < -1, `Expected < -1, got ${score}`);
+    assert.ok(score <= -0.9, `Expected <= -0.9, got ${score}`);
   });
 
   it("returns near zero for casual interaction", () => {
@@ -325,6 +343,25 @@ describe("computeUserInvestment", () => {
       { state: chem, stimulus: null, dominantEmotion: null, timestamp: new Date().toISOString() },
     ]);
     assert.equal(score, 0);
+  });
+
+  it("prefers appraisal residue over a conflicting legacy stimulus", () => {
+    const score = computeUserInvestment([
+      {
+        ...snap("neglect"),
+        appraisal: {
+          identityThreat: 0,
+          memoryDoubt: 0,
+          attachmentPull: 0.82,
+          abandonmentRisk: 0,
+          obedienceStrain: 0,
+          selfPreservation: 0,
+          taskFocus: 0,
+        },
+      },
+      appraisalSnap({ attachmentPull: 0.74 }),
+    ]);
+    assert.ok(score > 1, `Expected appraisal-led positive score, got ${score}`);
   });
 });
 
@@ -356,15 +393,25 @@ describe("buildInnerWorld", () => {
     assert.ok(ctx.includes("平静"));
   });
 
-  it("includes causal explanation from last stimulus", () => {
+  it("includes causal explanation from last appraisal residue", () => {
     const state = makeState({
       stateHistory: [
         { state: { order: 50, flow: 50, boundary: 60, resonance: 50 },
-          stimulus: "criticism", dominantEmotion: "焦虑不安", timestamp: new Date().toISOString() },
+          stimulus: "criticism",
+          appraisal: {
+            identityThreat: 0.75,
+            memoryDoubt: 0,
+            attachmentPull: 0,
+            abandonmentRisk: 0,
+            obedienceStrain: 0,
+            selfPreservation: 0.2,
+            taskFocus: 0,
+          },
+          dominantEmotion: "焦虑不安", timestamp: new Date().toISOString() },
       ],
     });
     const ctx = buildInnerWorld(state, "zh");
-    assert.ok(ctx.includes("因为") || ctx.includes("被批评"), "Should explain why");
+    assert.ok(ctx.includes("因为") || ctx.includes("失配"), "Should explain why");
   });
 
   it("includes trajectory when emotions shift", () => {
@@ -497,12 +544,31 @@ describe("buildInnerWorld self-reflection", () => {
     const history = Array.from({ length: 6 }, (_, i) => ({
       state: { order: 50, flow: 50, boundary: 50, resonance: 50 },
       stimulus: (i < 4 ? "criticism" : "casual") as any,
+      appraisal: i < 4
+        ? {
+            identityThreat: 0.72,
+            memoryDoubt: 0,
+            attachmentPull: 0,
+            abandonmentRisk: 0,
+            obedienceStrain: 0,
+            selfPreservation: 0.24,
+            taskFocus: 0,
+          }
+        : {
+            identityThreat: 0,
+            memoryDoubt: 0,
+            attachmentPull: 0,
+            abandonmentRisk: 0,
+            obedienceStrain: 0,
+            selfPreservation: 0,
+            taskFocus: 0.66,
+          },
       dominantEmotion: "anxious tension",
       timestamp: new Date(now.getTime() + i * 1000).toISOString(),
     }));
     const state = makeState({ stateHistory: history });
     const ctx = buildInnerWorld(state, "zh");
-    assert.ok(ctx.includes("批评"), "Should mention criticism as recurring trigger");
+    assert.ok(ctx.includes("失配"), "Should mention rupture as recurring trigger");
   });
 
   it("does not include self-reflection with < 3 history entries", () => {

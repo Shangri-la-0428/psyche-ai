@@ -53,7 +53,7 @@ export function runReflectiveTurnPhases(input: {
   userId?: string;
   localeFallback: Locale;
   personalityIntensity: number;
-  classificationConfidence?: number;
+  legacyStimulusConfidence?: number;
   minutesElapsed: number;
   nowIso: string;
   writebackNote?: string;
@@ -126,7 +126,7 @@ export function runReflectiveTurnPhases(input: {
     : computeExperientialField(state, metacognitiveAssessment ?? undefined, undefined, constructionContext);
   const sharedState = skip.has("shared-intentionality")
     ? null
-    : updateSharedIntentionality(state, input.appliedStimulus, input.userId);
+    : updateSharedIntentionality(state, input.appliedStimulus, input.userId, undefined, input.appraisalAxes);
   const ethicalAssessment = skip.has("ethics")
     ? null
     : assessEthics(state);
@@ -198,8 +198,8 @@ export function runReflectiveTurnPhases(input: {
   const replyEnvelope = deriveReplyEnvelope(state, input.appraisalAxes, {
     locale,
     userText: input.userText,
-    algorithmStimulus: input.appliedStimulus,
-    classificationConfidence: input.classificationConfidence,
+    legacyStimulus: input.appliedStimulus,
+    legacyStimulusConfidence: input.legacyStimulusConfidence,
     personalityIntensity: input.personalityIntensity,
     relationContext: input.relationContext,
   });

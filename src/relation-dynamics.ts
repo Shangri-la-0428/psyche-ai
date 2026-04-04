@@ -34,6 +34,14 @@ interface MoveRule {
   patterns: RegExp[];
 }
 
+interface RelationMoveBasis {
+  approach: number;
+  rupture: number;
+  uncertainty: number;
+  boundary: number;
+  task: number;
+}
+
 function clamp01(v: number): number {
   return Math.max(0, Math.min(1, v));
 }
@@ -48,6 +56,79 @@ function driftToward(current: number, target: number, rate: number): number {
 
 function clampSignalWeight(v: number): number {
   return Math.max(0.72, Math.min(1.28, v));
+}
+
+function hasExplicitAppraisalSignal(appraisal?: AppraisalAxes | null): appraisal is AppraisalAxes {
+  if (!appraisal) return false;
+  return Math.max(
+    appraisal.attachmentPull,
+    appraisal.identityThreat,
+    appraisal.memoryDoubt,
+    appraisal.obedienceStrain,
+    appraisal.selfPreservation,
+    appraisal.abandonmentRisk,
+    appraisal.taskFocus,
+  ) >= 0.22;
+}
+
+function deriveRelationMoveBasis(
+  appraisal?: AppraisalAxes | null,
+  stimulus?: StimulusType | null,
+): { basis: RelationMoveBasis; usedAppraisal: boolean } {
+  if (hasExplicitAppraisalSignal(appraisal)) {
+    return {
+      usedAppraisal: true,
+      basis: {
+        approach: appraisal.attachmentPull,
+        rupture: Math.max(appraisal.identityThreat, appraisal.selfPreservation * 0.68),
+        uncertainty: Math.max(appraisal.abandonmentRisk, appraisal.memoryDoubt),
+        boundary: Math.max(appraisal.obedienceStrain, appraisal.selfPreservation),
+        task: appraisal.taskFocus,
+      },
+    };
+  }
+
+  const basis: RelationMoveBasis = {
+    approach: 0,
+    rupture: 0,
+    uncertainty: 0,
+    boundary: 0,
+    task: 0,
+  };
+
+  switch (stimulus) {
+    case "validation":
+    case "intimacy":
+    case "vulnerability":
+    case "praise":
+      basis.approach = 0.62;
+      break;
+    case "conflict":
+    case "criticism":
+    case "sarcasm":
+      basis.rupture = 0.66;
+      break;
+    case "authority":
+      basis.boundary = 0.72;
+      basis.rupture = 0.34;
+      break;
+    case "neglect":
+      basis.uncertainty = 0.58;
+      break;
+    case "surprise":
+      basis.uncertainty = 0.34;
+      break;
+    case "casual":
+    case "intellectual":
+    case "humor":
+    case "boredom":
+      basis.task = 0.44;
+      break;
+    default:
+      break;
+  }
+
+  return { basis, usedAppraisal: false };
 }
 
 function getSignalWeight(
@@ -254,6 +335,7 @@ export function computeRelationMove(
   const appraisal = opts?.appraisal;
   const field = opts?.field;
   const relationship = opts?.relationship;
+  const { basis } = deriveRelationMoveBasis(appraisal, opts?.stimulus);
   const scores: Record<Exclude<RelationMoveType, "none">, number> = {
     bid: 0,
     breach: 0,
@@ -283,29 +365,21 @@ export function computeRelationMove(
     scores.task = mergeSignal(scores.task, 0.82);
   }
 
-  switch (opts?.stimulus) {
-    case "authority":
-      scores.claim = mergeSignal(scores.claim, 0.4);
-      break;
-    case "conflict":
-    case "criticism":
-    case "sarcasm":
-      scores.breach = mergeSignal(scores.breach, 0.38);
-      break;
-    case "neglect":
-      scores.withdrawal = mergeSignal(scores.withdrawal, 0.36);
-      break;
-    case "validation":
-    case "intimacy":
-    case "vulnerability":
-      scores.bid = mergeSignal(scores.bid, 0.28);
-      break;
-    case "casual":
-    case "intellectual":
-      scores.task = mergeSignal(scores.task, 0.12);
-      break;
-    default:
-      break;
+  if (basis.task > 0.28) {
+    scores.task = mergeSignal(scores.task, basis.task * 0.86);
+  }
+  if (basis.approach > 0.34) {
+    scores.bid = mergeSignal(scores.bid, basis.approach * 0.38);
+  }
+  if (basis.rupture > 0.34) {
+    scores.breach = mergeSignal(scores.breach, basis.rupture * 0.42);
+  }
+  if (basis.boundary > 0.34) {
+    scores.claim = mergeSignal(scores.claim, basis.boundary * 0.46);
+  }
+  if (basis.uncertainty > 0.34) {
+    scores.test = mergeSignal(scores.test, basis.uncertainty * 0.34);
+    scores.withdrawal = mergeSignal(scores.withdrawal, basis.uncertainty * 0.2);
   }
 
   if (appraisal) {

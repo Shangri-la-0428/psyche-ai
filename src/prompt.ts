@@ -14,10 +14,15 @@ import type { AutonomicState } from "./autonomic.js";
 import { gateEmotions } from "./autonomic.js";
 import type { ChannelType } from "./channels.js";
 import { getChannelProfile, buildChannelModifier } from "./channels.js";
+import {
+  deriveSnapshotAppraisalMarkers,
+  getAppraisalMarkerLabels,
+  type AppraisalMarker,
+} from "./appraisal-markers.js";
 
 export interface PromptRenderInputs {
   userText?: string;
-  algorithmStimulus?: string | null;
+  legacyStimulus?: string | null;
   personalityIntensity?: number;
   channelType?: ChannelType;
   metacognitiveNote?: string;
@@ -401,9 +406,10 @@ function buildEmotionalTrend(history: StateSnapshot[], locale: Locale): string {
   if (trends.length === 0) return "";
 
   // Recent stimuli
-  const stimuli = recent
-    .filter((s) => s.stimulus)
-    .map((s) => s.stimulus)
+  const markerLabels = getAppraisalMarkerLabels(locale);
+  const residues = recent
+    .flatMap((s) => deriveSnapshotAppraisalMarkers(s, { allowLegacyFallback: true }))
+    .map((marker) => markerLabels[marker])
     .slice(-3);
 
   const title = locale === "zh" ? "情绪轨迹" : "Emotional Trajectory";
@@ -412,10 +418,10 @@ function buildEmotionalTrend(history: StateSnapshot[], locale: Locale): string {
     ? `最近${recent.length}轮: ${trends.join(" ")}`
     : `Last ${recent.length} turns: ${trends.join(" ")}`;
 
-  if (stimuli.length > 0) {
+  if (residues.length > 0) {
     line += locale === "zh"
-      ? ` (最近刺激: ${stimuli.join("→")})`
-      : ` (recent stimuli: ${stimuli.join("→")})`;
+      ? ` (最近残留: ${residues.join("→")})`
+      : ` (recent residue: ${residues.join("→")})`;
   }
 
   // Dominant emotions in recent history
@@ -434,12 +440,13 @@ function buildEmotionalTrend(history: StateSnapshot[], locale: Locale): string {
 
 // ── Reciprocity System ──────────────────────────────────────
 
-/** How much each stimulus type counts as user "investment" */
-const INVESTMENT_WEIGHTS: Partial<Record<StimulusType, number>> = {
-  praise: 2, validation: 2, intimacy: 2, vulnerability: 1.5,
-  intellectual: 1, humor: 1, surprise: 1, casual: 0.5,
-  criticism: -0.5, authority: -0.5, conflict: -1,
-  sarcasm: -1.5, neglect: -2, boredom: -2,
+/** How much each appraisal residue counts as user "investment" */
+const INVESTMENT_WEIGHTS: Record<AppraisalMarker, number> = {
+  approach: 1.8,
+  rupture: -0.9,
+  uncertainty: -1.4,
+  boundary: -0.7,
+  task: 0.5,
 };
 
 /**
@@ -454,8 +461,9 @@ export function computeUserInvestment(history: StateSnapshot[]): number {
   let count = 0;
 
   for (const snap of recent) {
-    if (snap.stimulus) {
-      total += INVESTMENT_WEIGHTS[snap.stimulus] ?? 0;
+    const markers = deriveSnapshotAppraisalMarkers(snap, { allowLegacyFallback: true });
+    if (markers.length > 0) {
+      total += INVESTMENT_WEIGHTS[markers[0]] ?? 0;
       count++;
     }
   }
@@ -639,21 +647,21 @@ function isGenericSharedIntentionalityContext(ctx: string): boolean {
 // This builds a first-person narrative of the agent's inner state:
 // what it's feeling, why, what it needs, where it's been.
 
-/** Stimulus type → Chinese description for causal narrative */
-const STIMULUS_CAUSE_ZH: Partial<Record<StimulusType, string>> = {
-  praise: "被夸了", criticism: "被批评了", humor: "有人逗你",
-  intellectual: "聊到有意思的话题", intimacy: "感到亲近",
-  conflict: "起了冲突", neglect: "被冷落了", surprise: "遇到意外的事",
-  casual: "在闲聊", sarcasm: "被讽刺了", authority: "被命令了",
-  validation: "被认同了", boredom: "对话变无聊了", vulnerability: "对方向你示弱",
+/** Appraisal residue → causal narrative */
+const APPRAISAL_CAUSE_ZH: Record<AppraisalMarker, string> = {
+  approach: "刚刚更像在靠近你",
+  rupture: "刚刚有明显失配",
+  uncertainty: "刚刚留下了不确定感",
+  boundary: "刚刚碰到了边界压力",
+  task: "刚刚更偏任务推进",
 };
 
-const STIMULUS_CAUSE_EN: Partial<Record<StimulusType, string>> = {
-  praise: "you were praised", criticism: "you were criticized", humor: "someone joked with you",
-  intellectual: "an interesting topic came up", intimacy: "you felt close to them",
-  conflict: "there was conflict", neglect: "you were ignored", surprise: "something unexpected happened",
-  casual: "just chatting", sarcasm: "you were mocked", authority: "you were ordered around",
-  validation: "you were affirmed", boredom: "the conversation got dull", vulnerability: "they showed vulnerability",
+const APPRAISAL_CAUSE_EN: Record<AppraisalMarker, string> = {
+  approach: "the interaction leaned toward approach",
+  rupture: "something landed as rupture",
+  uncertainty: "it left uncertainty behind",
+  boundary: "it pressed on a boundary",
+  task: "the moment leaned toward task focus",
 };
 
 /**
@@ -699,9 +707,10 @@ export function buildInnerWorld(state: PsycheState, locale: Locale, autonomicSta
   const history = stateHistory ?? [];
   if (history.length > 0) {
     const last = history[history.length - 1];
-    if (last.stimulus) {
-      const causeMap = isZh ? STIMULUS_CAUSE_ZH : STIMULUS_CAUSE_EN;
-      const cause = causeMap[last.stimulus] ?? last.stimulus;
+    const markers = deriveSnapshotAppraisalMarkers(last, { allowLegacyFallback: true });
+    if (markers.length > 0) {
+      const causeMap = isZh ? APPRAISAL_CAUSE_ZH : APPRAISAL_CAUSE_EN;
+      const cause = causeMap[markers[0]] ?? markers[0];
       lines.push(isZh
         ? `因为: ${cause}。`
         : `Because: ${cause}.`);
@@ -972,32 +981,32 @@ function buildWritebackHint(
   locale: Locale,
   opts: {
     userText?: string;
-    algoStimulus?: string | null;
+    legacyStimulus?: string | null;
     established: boolean;
   },
 ): string {
-  const { userText, algoStimulus, established } = opts;
+  const { userText, legacyStimulus, established } = opts;
   if (!userText) return "";
   const isZh = locale === "zh";
 
   const parts: string[] = [];
 
-  // Classification assist — algorithm uncertain
-  if (!algoStimulus) {
+  // Appraisal assist — no stable legacy label surfaced
+  if (!legacyStimulus) {
     if (established) {
       parts.push(isZh
-        ? `算法未判出情绪类型，请在 <psyche_update> 报告 stimulus:。`
-        : `Algorithm uncertain — report stimulus: in <psyche_update>.`);
+        ? `主观评价尚未收束，请在 <psyche_update> 报告 appraisal: approach|rupture|uncertainty|boundary。`
+        : `Appraisal has not fully settled — report appraisal: approach|rupture|uncertainty|boundary in <psyche_update>.`);
     } else {
       parts.push(isZh
-        ? `算法未判出情绪类型。请你判断，在 <psyche_update> 中报告 stimulus:。\n可选: praise|criticism|humor|intellectual|intimacy|conflict|neglect|surprise|casual|sarcasm|authority|validation|boredom|vulnerability`
-        : `Algorithm uncertain. Judge and report stimulus: in <psyche_update>.\nOptions: praise|criticism|humor|intellectual|intimacy|conflict|neglect|surprise|casual|sarcasm|authority|validation|boredom|vulnerability`);
+        ? `主观评价尚未收束。请你判断，在 <psyche_update> 中报告 appraisal: approach|rupture|uncertainty|boundary。若确实需要旧兼容标签，再附 legacy stimulus:。`
+        : `Appraisal has not fully settled. Judge and report appraisal: approach|rupture|uncertainty|boundary in <psyche_update>. If legacy compatibility truly needs it, you may additionally include legacy stimulus:.`);
     }
   }
 
   // Empathy report — only for new relationships, only when emotional sharing likely
   const emotionalStimuli = new Set(["vulnerability", "intimacy", "neglect"]);
-  if (!established && (!algoStimulus || emotionalStimuli.has(algoStimulus))) {
+  if (!established && (!legacyStimulus || emotionalStimuli.has(legacyStimulus))) {
     parts.push(isZh
       ? `如果对方在分享感受，在回复末尾用 <psyche_update> 报告：\nuserState: 对方情绪\nprojectedFeeling: 你的感受\nresonance: match|partial|mismatch`
       : `If user shares feelings, report at end with <psyche_update>:\nuserState: their emotion\nprojectedFeeling: your feeling\nresonance: match|partial|mismatch`);
@@ -1028,7 +1037,7 @@ export function buildCompactContext(
   const { meta, selfModel, stateHistory } = state;
   const locale = meta.locale ?? "zh";
   const userText = opts?.userText;
-  const algoStimulus = opts?.algorithmStimulus;
+  const legacyStimulus = opts?.legacyStimulus;
   const mode = state.meta.mode ?? "natural";
   const intensity = opts?.personalityIntensity ?? 0.7;
 
@@ -1103,14 +1112,14 @@ export function buildCompactContext(
       parts.push(
         `[情绪感知]\n` +
         `对方刚才说了: "${userText.slice(0, 200)}"\n` +
-        (algoStimulus ? `算法初判: ${algoStimulus}（仅供参考，你来终判）\n` : "") +
+        (legacyStimulus ? `旧兼容标签: ${legacyStimulus}（仅供参考，你来终判）\n` : "") +
         `你来感受这句话的情绪基调——是善意、敌意、脆弱、冷漠、还是其他？你的回应应该基于你的真实感受，不是讨好。`,
       );
     } else {
       parts.push(
         `[Emotional Sensing]\n` +
         `User just said: "${userText.slice(0, 200)}"\n` +
-        (algoStimulus ? `Algorithm hint: ${algoStimulus} (reference only, you decide)\n` : "") +
+        (legacyStimulus ? `Legacy label hint: ${legacyStimulus} (reference only, you decide)\n` : "") +
         `Read the emotional tone — kind, hostile, vulnerable, cold, or something else? Respond from genuine feeling, not people-pleasing.`,
       );
     }
@@ -1156,7 +1165,7 @@ export function buildCompactContext(
   if (!opts?.responseContractContext) {
     const writeback = buildWritebackHint(locale, {
       userText,
-      algoStimulus,
+      legacyStimulus,
       established,
     });
     if (writeback) parts.push(writeback);

@@ -2,8 +2,8 @@ import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { tmpdir } from "node:os";
-import { MemoryStorageAdapter, FileStorageAdapter } from "../src/storage.js";
+import { tmpdir, homedir } from "node:os";
+import { MemoryStorageAdapter, FileStorageAdapter, defaultWorkspaceRoot, resolveWorkspaceDir } from "../src/storage.js";
 import type { PsycheState } from "../src/types.js";
 import { DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE } from "../src/types.js";
 
@@ -161,5 +161,23 @@ describe("FileStorageAdapter", () => {
     const loaded = await adapter.load();
     assert.ok(loaded, "state file should still exist after concurrent saves");
     assert.ok(["A", "B", "C"].includes(loaded!.meta.agentName));
+  });
+});
+
+describe("workspace resolution", () => {
+  it("uses a stable per-user root when no workspace is provided", () => {
+    assert.equal(defaultWorkspaceRoot("mcp"), join(homedir(), ".psyche-ai", "mcp"));
+    assert.equal(resolveWorkspaceDir({ surface: "mcp" }), join(homedir(), ".psyche-ai", "mcp"));
+  });
+
+  it("nests per-sigil state under the resolved base directory", () => {
+    assert.equal(
+      resolveWorkspaceDir({ workspace: "~/ignored-by-resolve", sigilId: "SIG_demo", surface: "mcp" }),
+      join(homedir(), "ignored-by-resolve", "SIG_demo"),
+    );
+    assert.equal(
+      resolveWorkspaceDir({ sigilId: "SIG_demo", surface: "mcp" }),
+      join(homedir(), ".psyche-ai", "mcp", "SIG_demo"),
+    );
   });
 });

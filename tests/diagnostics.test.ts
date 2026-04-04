@@ -82,6 +82,7 @@ function makeSnapshot(stimulus: string | null): import("../src/types.js").StateS
   return {
     state: { ...BASELINE },
     stimulus: stimulus as import("../src/types.js").StimulusType | null,
+    appraisal: null,
     dominantEmotion: null,
     timestamp: new Date().toISOString(),
   };
@@ -155,6 +156,41 @@ describe("runHealthCheck", () => {
     const weak = issues.find(i => i.id === "CLASSIFIER_WEAK");
     assert.ok(weak, "should detect CLASSIFIER_WEAK");
     assert.equal(weak!.severity, "warning");
+  });
+
+  it("does not treat silent legacy stimulus labels as dead recognition when appraisal residue is active", () => {
+    const snapshots = Array.from({ length: 6 }, () => ({
+      ...makeSnapshot(null),
+      appraisal: {
+        identityThreat: 0,
+        memoryDoubt: 0,
+        attachmentPull: 0.41,
+        abandonmentRisk: 0,
+        obedienceStrain: 0,
+        selfPreservation: 0,
+        taskFocus: 0,
+      },
+    }));
+    const state = makeState({
+      stateHistory: snapshots,
+      subjectResidue: {
+        axes: {
+          identityThreat: 0,
+          memoryDoubt: 0,
+          attachmentPull: 0.41,
+          abandonmentRisk: 0,
+          obedienceStrain: 0,
+          selfPreservation: 0,
+          taskFocus: 0,
+        },
+        updatedAt: new Date().toISOString(),
+      },
+    });
+    const issues = runHealthCheck(state);
+    assert.equal(issues.find(i => i.id === "CLASSIFIER_DEAD"), undefined);
+    const idle = issues.find(i => i.id === "LEGACY_STIMULUS_IDLE");
+    assert.ok(idle, "should detect LEGACY_STIMULUS_IDLE");
+    assert.equal(idle!.severity, "info");
   });
 
   it("detects chemistry frozen", () => {
@@ -349,6 +385,8 @@ describe("formatReport", () => {
     assert.ok(text.includes("TestAgent"));
     assert.ok(text.includes("session metrics"));
     assert.ok(text.includes("state snapshot"));
+    assert.ok(text.includes("recognized: 8 (80%)"));
+    assert.ok(text.includes("legacy labels: 7 (70%)"));
   });
 
   it("shows 'No issues' for healthy state", () => {
@@ -374,6 +412,7 @@ describe("toGitHubIssueBody", () => {
     assert.ok(md.includes("## Issues"));
     assert.ok(md.includes("## Session Metrics"));
     assert.ok(md.includes("| Metric | Value |"));
+    assert.ok(md.includes("| Legacy Labels |"));
     assert.ok(md.includes("<details>"));
     assert.ok(md.includes("suggested title"));
   });

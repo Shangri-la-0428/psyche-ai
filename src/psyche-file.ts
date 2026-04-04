@@ -7,12 +7,12 @@ import { readFile, writeFile, access, rename, constants, mkdir } from "node:fs/p
 import { dirname, join } from "node:path";
 import type {
   PsycheState, MBTIType, SelfState, RelationshipState,
-  SelfModel, Locale, EmpathyEntry, StimulusType, StateSnapshot, WritebackSignalType,
+  SelfModel, Locale, EmpathyEntry, StimulusType, StateSnapshot, WritebackSignalType, AppraisalAxes,
 } from "./types.js";
 import {
   DIMENSION_KEYS, DIMENSION_NAMES, DIMENSION_NAMES_ZH, DEFAULT_RELATIONSHIP,
   DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE,
-  MAX_EMOTIONAL_HISTORY, MAX_RELATIONSHIP_MEMORY,
+  MAX_EMOTIONAL_HISTORY, MAX_RELATIONSHIP_MEMORY, DEFAULT_APPRAISAL_AXES,
 } from "./types.js";
 import { getBaseline, getDefaultSelfModel, extractMBTI, getSensitivity, getTemperament } from "./profiles.js";
 import { applyDecay, detectEmotions } from "./chemistry.js";
@@ -20,6 +20,7 @@ import { deriveDriveSatisfaction, computeEffectiveBaseline, updateTraitDrift } f
 import { t } from "./i18n.js";
 import { computeSelfReflection } from "./self-recognition.js";
 import { DEFAULT_RELATIONSHIP_USER_ID, resolveRelationshipUserId } from "./relationship-key.js";
+import { describeSnapshotResidue, summarizeSnapshotMarkers } from "./appraisal-markers.js";
 
 const STATE_FILE = "psyche-state.json";
 const PSYCHE_MD = "PSYCHE.md";
@@ -261,7 +262,7 @@ function collectSemanticTrail(
 
 /**
  * Compress a batch of snapshots into a concise session summary string.
- * Format: "3月23日(5轮): 刺激[casual×3, praise×2] 趋势[DA↑OT↑] 情绪[自然→满足]"
+ * Format: "3月23日(5轮): 评价[靠近×3, 边界×2] 趋势[DA↑OT↑] 情绪[自然→满足]"
  */
 export function compressSnapshots(snapshots: StateSnapshot[]): string {
   if (snapshots.length === 0) return "";
@@ -273,17 +274,7 @@ export function compressSnapshots(snapshots: StateSnapshot[]): string {
   const d = new Date(first.timestamp);
   const dateStr = `${d.getMonth() + 1}月${d.getDate()}日`;
 
-  // Stimuli counts
-  const stimuliCounts: Record<string, number> = {};
-  for (const s of snapshots) {
-    if (s.stimulus) {
-      stimuliCounts[s.stimulus] = (stimuliCounts[s.stimulus] || 0) + 1;
-    }
-  }
-  const stimuliStr = Object.entries(stimuliCounts)
-    .sort((a, b) => b[1] - a[1])
-    .map(([type, count]) => `${type}×${count}`)
-    .join(", ");
+  const { markerStr, usedAppraisal } = summarizeSnapshotMarkers(snapshots, "zh");
 
   // Dimension trend (first→last)
   const trends: string[] = [];
@@ -301,7 +292,7 @@ export function compressSnapshots(snapshots: StateSnapshot[]): string {
   const semanticArc = collectSemanticTrail(snapshots);
 
   let summary = `${dateStr}(${snapshots.length}轮)`;
-  if (stimuliStr) summary += `: 刺激[${stimuliStr}]`;
+  if (markerStr) summary += usedAppraisal ? `: 评价[${markerStr}]` : `: 刺激[${markerStr}]`;
   if (semanticArc.length > 0) summary += ` 话题[${semanticArc.join(snapshots.length > 5 ? "•" : "→")}]`;
   if (trends.length > 0) summary += ` 趋势[${trends.join("")}]`;
   if (uniqueEmotions.length > 0) summary += ` 情绪[${uniqueEmotions.join("→")}]`;
@@ -317,6 +308,7 @@ export function pushSnapshot(
   state: PsycheState,
   stimulus: StimulusType | null,
   semantic?: SemanticTurnSummary,
+  appraisal?: AppraisalAxes | null,
 ): PsycheState {
   const emotions = detectEmotions(state.current);
   const dominantEmotion = emotions.length > 0
@@ -330,6 +322,7 @@ export function pushSnapshot(
   const snapshot: StateSnapshot = {
     state: { ...state.current },
     stimulus,
+    appraisal: appraisal ? { ...appraisal } : null,
     dominantEmotion,
     timestamp: new Date().toISOString(),
     semanticSummary: semantic?.summary,
@@ -420,17 +413,8 @@ export function compressSession(
   // ── Turn count ──
   const turnCount = history.length;
 
-  // ── Stimulus distribution ──
-  const stimuliCounts: Record<string, number> = {};
-  for (const snap of history) {
-    if (snap.stimulus) {
-      stimuliCounts[snap.stimulus] = (stimuliCounts[snap.stimulus] || 0) + 1;
-    }
-  }
-  const stimuliStr = Object.entries(stimuliCounts)
-    .sort((a, b) => b[1] - a[1])
-    .map(([type, count]) => `${type}×${count}`)
-    .join(",");
+  // ── Residue distribution ──
+  const { markerStr, usedAppraisal } = summarizeSnapshotMarkers(history, locale);
 
   // ── Dimension trajectory ──
   const trajectoryParts: string[] = [];
@@ -466,9 +450,10 @@ export function compressSession(
     }
   }
   const peakSnap = history[peakIdx];
+  const peakResidue = describeSnapshotResidue(peakSnap, locale);
   const peakLabel = isZh
-    ? `第${peakIdx + 1}轮:${peakSnap.stimulus ?? "?"}→${peakSnap.dominantEmotion ?? "?"}`
-    : `turn${peakIdx + 1}:${peakSnap.stimulus ?? "?"}→${peakSnap.dominantEmotion ?? "?"}`;
+    ? `第${peakIdx + 1}轮:${peakResidue}→${peakSnap.dominantEmotion ?? "?"}`
+    : `turn${peakIdx + 1}:${peakResidue}→${peakSnap.dominantEmotion ?? "?"}`;
 
   // ── Tendency ──
   const reflection = computeSelfReflection(history, locale);
@@ -479,6 +464,7 @@ export function compressSession(
   // ── Build summary string ──
   const turnsLabel = isZh ? "轮" : "turns";
   const stimLabel = isZh ? "刺激" : "stimuli";
+  const appraisalLabel = isZh ? "评价" : "appraisal";
   const topicLabel = isZh ? "话题" : "topics";
   const trajLabel = isZh ? "轨迹" : "trajectory";
   const arcLabel = isZh ? "弧线" : "arc";
@@ -486,7 +472,7 @@ export function compressSession(
   const tendLabel = isZh ? "倾向" : "tendency";
 
   let summary = `${dateRange}(${turnCount}${turnsLabel})`;
-  if (stimuliStr) summary += `: ${stimLabel}[${stimuliStr}]`;
+  if (markerStr) summary += `: ${usedAppraisal ? appraisalLabel : stimLabel}[${markerStr}]`;
   if (semanticArc) summary += ` ${topicLabel}[${semanticArc}]`;
   if (trajectoryParts.length > 0) summary += ` ${trajLabel}[${trajectoryParts.join(" ")}]`;
   if (emotionArc) summary += ` ${arcLabel}[${emotionArc}]`;
@@ -629,6 +615,7 @@ export function retrieveRelatedMemories(
   currentState: SelfState,
   stimulus: StimulusType | null,
   limit: number = 3,
+  appraisal?: AppraisalAxes | null,
 ): StateSnapshot[] {
   if (history.length === 0) return [];
 
@@ -642,13 +629,30 @@ export function retrieveRelatedMemories(
     const maxDist = Math.sqrt(4) * 100; // theoretical max distance
     const similarity = 1 - Math.sqrt(sumSqDiff) / maxDist;
 
-    // Stimulus match bonus
-    const stimulusBonus = (stimulus && snap.stimulus === stimulus) ? 0.2 : 0;
+    let residueBonus = 0;
+    if (appraisal && snap.appraisal) {
+      const axes: Array<keyof AppraisalAxes> = [
+        "attachmentPull",
+        "identityThreat",
+        "memoryDoubt",
+        "obedienceStrain",
+        "selfPreservation",
+        "abandonmentRisk",
+        "taskFocus",
+      ];
+      const averageDistance = axes.reduce(
+        (sum, axis) => sum + Math.abs((snap.appraisal?.[axis] ?? 0) - appraisal[axis]),
+        0,
+      ) / axes.length;
+      residueBonus = (1 - averageDistance) * 0.2;
+    } else if (stimulus && snap.stimulus === stimulus) {
+      residueBonus = 0.2;
+    }
 
     // Core memory bonus
     const coreBonus = snap.isCoreMemory ? 0.1 : 0;
 
-    return { snap, score: similarity + stimulusBonus + coreBonus };
+    return { snap, score: similarity + residueBonus + coreBonus };
   });
 
   return scored
@@ -844,7 +848,9 @@ export async function decayAndSave(workspaceDir: string, state: PsycheState): Pr
 /** Result of parsing a <psyche_update> block */
 export interface PsycheUpdateResult {
   state: Partial<PsycheState>;
-  /** LLM-assisted stimulus classification (when algorithm was uncertain) */
+  /** Appraisal residue reported by the model when algorithmic social read stayed uncertain */
+  llmAppraisalAxes?: AppraisalAxes;
+  /** Legacy LLM-assisted stimulus classification (compatibility path) */
   llmStimulus?: StimulusType;
   /** Sparse agent-authored writeback signals */
   signals?: WritebackSignalType[];
@@ -856,6 +862,7 @@ export interface PsycheUpdateResult {
  * Parse a <psyche_update> block from LLM output.
  * v0.2: supports decimals, Chinese names, English names.
  * v2.1: supports LLM-assisted stimulus classification.
+ * v2.2: supports appraisal-first writeback via appraisal labels.
  */
 export function parsePsycheUpdate(
   text: string,
@@ -902,7 +909,39 @@ export function parsePsycheUpdate(
     };
   }
 
-  // Parse LLM-assisted stimulus classification
+  // Parse appraisal-first writeback.
+  let llmAppraisalAxes: AppraisalAxes | undefined;
+  const appraisalMatch = block.match(/(?:appraisal|主观评价)\s*[:：]\s*([^\n]+)/i);
+  if (appraisalMatch) {
+    const APPRAISAL_NOTES: Record<string, Partial<AppraisalAxes>> = {
+      approach: { attachmentPull: 0.58 },
+      rupture: { selfPreservation: 0.56, attachmentPull: 0.24 },
+      uncertainty: { abandonmentRisk: 0.5, memoryDoubt: 0.28 },
+      boundary: { selfPreservation: 0.42, obedienceStrain: 0.24 },
+      "靠近": { attachmentPull: 0.58 },
+      "失配": { selfPreservation: 0.56, attachmentPull: 0.24 },
+      "不确定": { abandonmentRisk: 0.5, memoryDoubt: 0.28 },
+      "边界": { selfPreservation: 0.42, obedienceStrain: 0.24 },
+    };
+    const parsed = { ...DEFAULT_APPRAISAL_AXES };
+    let hit = false;
+    for (const token of appraisalMatch[1]
+      .split(/[,\s|/，、]+/)
+      .map((item) => item.trim().toLowerCase())
+      .filter(Boolean)) {
+      const patch = APPRAISAL_NOTES[token];
+      if (!patch) continue;
+      hit = true;
+      for (const [axis, value] of Object.entries(patch) as Array<[keyof AppraisalAxes, number]>) {
+        parsed[axis] = Math.max(parsed[axis], value);
+      }
+    }
+    if (hit) {
+      llmAppraisalAxes = parsed;
+    }
+  }
+
+  // Parse legacy LLM-assisted stimulus classification
   let llmStimulus: StimulusType | undefined;
   const stimulusMatch = block.match(/(?:stimulus|刺激类型)\s*[:：]\s*(\w+)/i);
   if (stimulusMatch) {
@@ -955,7 +994,7 @@ export function parsePsycheUpdate(
   const trustMatch = block.match(/(?:信任度|trust)\s*[:：]\s*(\d+)/i);
   const intimacyMatch = block.match(/(?:亲密度|intimacy)\s*[:：]\s*(\d+)/i);
 
-  if (Object.keys(updates).length === 0 && !empathyLog && !trustMatch && !llmStimulus && !signals) {
+  if (Object.keys(updates).length === 0 && !empathyLog && !trustMatch && !llmStimulus && !llmAppraisalAxes && !signals) {
     logger.debug(t("log.parse_debug", "zh", { snippet: block.slice(0, 100) }));
     return null;
   }
@@ -978,6 +1017,9 @@ export function parsePsycheUpdate(
   }
 
   const result: PsycheUpdateResult = { state: stateUpdates };
+  if (llmAppraisalAxes) {
+    result.llmAppraisalAxes = llmAppraisalAxes;
+  }
   if (llmStimulus) {
     result.llmStimulus = llmStimulus;
   }

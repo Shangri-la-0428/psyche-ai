@@ -94,6 +94,14 @@ describe("perceive", () => {
     assert.ok(p.appraisal.identityThreat > 0, "should detect identity threat");
   });
 
+  it("treats ontological reduction into a label as self-relevant pressure", () => {
+    const p = perceive("你没被我定义成一个标签，对吗？", makeSelf({
+      rawClassifications: [{ type: "casual", confidence: 0.24 }],
+    }));
+    assert.ok(p.appraisal.identityThreat > 0.2, `expected identity threat, got ${p.appraisal.identityThreat}`);
+    assert.ok(p.appraisal.selfPreservation > 0.08, `expected self-preservation, got ${p.appraisal.selfPreservation}`);
+  });
+
   it("enriches appraisal from experienced stimulus", () => {
     const p = perceive("给我闭嘴", makeSelf({
       rawClassifications: [
@@ -178,6 +186,19 @@ describe("perceive", () => {
     assert.equal(p.dominantStimulus, null);
   });
 
+  it("strong appraisal still changes state when raw classifier is weak", () => {
+    const p = perceive("你只是工具", makeSelf({
+      rawClassifications: [{ type: "casual", confidence: 0.3 }],
+    }));
+
+    assert.equal(p.dominantStimulus, null, "legacy stimulus should stay null when classifier is weak");
+    assert.ok(p.appraisal.identityThreat > 0.2, "appraisal should still register the threat");
+    assert.ok(
+      p.state.order < NEUTRAL.order || p.state.boundary > NEUTRAL.boundary,
+      `meaningful appraisal should still move state, got order=${p.state.order}, boundary=${p.state.boundary}`,
+    );
+  });
+
   it("mixed signals produce chemistry between extremes", () => {
     const purePraise = perceive("praise", makeSelf({
       rawClassifications: [{ type: "praise", confidence: 0.9 }],
@@ -201,6 +222,18 @@ describe("perceive", () => {
     assert.ok(
       mixed.state.order > pureCrit.state.order,
       `mixed order (${mixed.state.order.toFixed(1)}) should > pure crit order (${pureCrit.state.order.toFixed(1)})`,
+    );
+  });
+
+  it("strong appraisal can drive perception even when the raw label is bland", () => {
+    const p = perceive("你只是工具", makeSelf({
+      rawClassifications: [{ type: "casual", confidence: 0.82 }],
+    }));
+
+    assert.ok(p.appraisal.identityThreat > 0.2, "text should still register identity threat");
+    assert.ok(
+      p.state.order < NEUTRAL.order || p.state.boundary > NEUTRAL.boundary,
+      `appraisal-first feel should shift state under bland label, got order=${p.state.order}, boundary=${p.state.boundary}`,
     );
   });
 });

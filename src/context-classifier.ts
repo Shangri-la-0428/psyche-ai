@@ -1,9 +1,9 @@
 // ============================================================
-// Context-Aware Stimulus Classification
+// Context-Aware Legacy Classification
 //
-// Wraps classify.ts with contextual signals (relationship depth,
-// recent stimulus patterns, drive hunger, agreement streaks,
-// time gaps) to improve classification accuracy.
+// Wraps the compatibility classifier with contextual signals
+// (relationship depth, recent legacy label patterns, drive hunger,
+// agreement streaks, time gaps) to improve legacy label accuracy.
 // ============================================================
 
 import type {
@@ -13,7 +13,7 @@ import type {
   PsycheState,
 } from "./types.js";
 import { DRIVE_KEYS } from "./types.js";
-import { classifyStimulus } from "./classify.js";
+import { classifyLegacyStimulus } from "./classify.js";
 
 // ── Context Features ─────────────────────────────────────────
 
@@ -97,7 +97,7 @@ export function extractContextFeatures(
 /**
  * Classify a stimulus with context modifiers applied.
  *
- * Wraps classifyStimulus(text) and adjusts confidence based on:
+ * Wraps classifyLegacyStimulus(text) and adjusts confidence based on:
  * - Relationship depth
  * - Recent stimulus patterns
  * - Drive hunger
@@ -110,7 +110,7 @@ export function classifyStimulusWithContext(
   text: string,
   context: ContextFeatures,
 ): ContextualClassification[] {
-  const baseResults = classifyStimulus(text);
+  const baseResults = classifyLegacyStimulus(text);
 
   const results: ContextualClassification[] = baseResults.map((r) => ({
     type: r.type,

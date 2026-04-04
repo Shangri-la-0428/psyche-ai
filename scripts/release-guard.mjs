@@ -34,6 +34,13 @@ function checkVersionInChangelog(version) {
   }
 }
 
+function checkOpenClawPluginVersion(version) {
+  const plugin = JSON.parse(readFileSync(join(ROOT, "openclaw.plugin.json"), "utf8"));
+  if (plugin.version !== version) {
+    fail(`openclaw.plugin.json version (${plugin.version ?? "missing"}) must match package.json version (${version})`);
+  }
+}
+
 function checkLocalMainAlignment() {
   const branch = run("git", ["branch", "--show-current"]);
   if (branch !== "main") {
@@ -69,6 +76,7 @@ function main() {
 
   checkCleanWorktree();
   checkVersionInChangelog(version);
+  checkOpenClawPluginVersion(version);
 
   if (MODE === "ci") {
     checkCiMainContainment();

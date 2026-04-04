@@ -9,10 +9,10 @@ import type {
   SharedIntentionalityState,
   TheoryOfMindModel,
 } from "../src/shared-intentionality.js";
-import type { PsycheState, SelfState, RelationshipState, StimulusType } from "../src/types.js";
+import type { AppraisalAxes, PsycheState, SelfState, RelationshipState, StimulusType } from "../src/types.js";
 import {
   DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE,
-  DEFAULT_PERSONHOOD_STATE, DEFAULT_RELATIONSHIP,
+  DEFAULT_PERSONHOOD_STATE, DEFAULT_RELATIONSHIP, DEFAULT_APPRAISAL_AXES,
 } from "../src/types.js";
 
 // -- Helpers ------------------------------------------------------------------
@@ -42,6 +42,10 @@ function makeState(overrides?: Partial<PsycheState>): PsycheState {
     meta: { agentName: "test", createdAt: new Date().toISOString(), totalInteractions: 10, locale: "zh" },
     ...overrides,
   };
+}
+
+function makeAppraisal(overrides: Partial<AppraisalAxes> = {}): AppraisalAxes {
+  return { ...DEFAULT_APPRAISAL_AXES, ...overrides };
 }
 
 // -- estimateOtherMood --------------------------------------------------------
@@ -119,6 +123,18 @@ describe("estimateOtherMood", () => {
     const result = estimateOtherMood("validation", rel, prev);
     assert.ok(result.confidence >= 0 && result.confidence <= 1, `confidence ${result.confidence} out of [0,1]`);
   });
+
+  it("uses appraisal residue as the primary mood signal when present", () => {
+    const rel: RelationshipState = { trust: 62, intimacy: 42, phase: "familiar" };
+    const result = estimateOtherMood(
+      "casual",
+      rel,
+      undefined,
+      makeAppraisal({ attachmentPull: 0.58, abandonmentRisk: 0.52 }),
+    );
+    assert.equal(result.mood, "mixed");
+    assert.ok(result.confidence > 0.25, `confidence ${result.confidence}`);
+  });
 });
 
 // -- updateSharedIntentionality -----------------------------------------------
@@ -180,6 +196,32 @@ describe("updateSharedIntentionality", () => {
     const turn3 = updateSharedIntentionality(state, "praise", undefined, turn2);
     assert.ok(turn3.mutualAwareness >= turn1.mutualAwareness,
       `awareness should not decrease with sustained engagement: ${turn1.mutualAwareness} -> ${turn3.mutualAwareness}`);
+  });
+
+  it("establishes joint attention from appraisal residue even when stimulus is null", () => {
+    const state = makeState();
+    const result = updateSharedIntentionality(
+      state,
+      null,
+      undefined,
+      undefined,
+      makeAppraisal({ attachmentPull: 0.64, taskFocus: 0.21 }),
+    );
+    assert.notEqual(result.jointAttention, null, "strong appraisal residue should establish joint attention");
+    assert.equal(result.jointAttention!.topic, "connection");
+  });
+
+  it("derives support-seeking intent from uncertainty-heavy appraisal residue", () => {
+    const state = makeState();
+    const result = updateSharedIntentionality(
+      state,
+      "casual",
+      undefined,
+      undefined,
+      makeAppraisal({ abandonmentRisk: 0.67, memoryDoubt: 0.49, attachmentPull: 0.31 }),
+    );
+    assert.equal(result.theoryOfMind.estimatedIntent, "support-seeking");
+    assert.equal(result.theoryOfMind.estimatedMood, "mixed");
   });
 });
 

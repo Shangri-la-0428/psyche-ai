@@ -89,8 +89,8 @@ export function deriveReplyEnvelope(
   opts: {
     locale: Locale;
     userText?: string;
-    algorithmStimulus?: StimulusType | null;
-    classificationConfidence?: number;
+    legacyStimulus?: StimulusType | null;
+    legacyStimulusConfidence?: number;
     personalityIntensity?: number;
     relationContext?: ResolvedRelationContext;
     expressionPort?: ExpressionPort;
@@ -106,8 +106,8 @@ export function deriveReplyEnvelope(
   const responseContract = computeResponseContract(subjectivityKernel, {
     locale: opts.locale,
     userText: opts.userText,
-    algorithmStimulus: opts.algorithmStimulus,
-    classificationConfidence: opts.classificationConfidence,
+    legacyStimulus: opts.legacyStimulus,
+    legacyStimulusConfidence: opts.legacyStimulusConfidence,
     personalityIntensity: opts.personalityIntensity,
     mode: state.meta.mode,
   });

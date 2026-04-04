@@ -1,5 +1,14 @@
 # 更新日志 / Changelog
 
+## v11.5.1 — MCP Package Boot Fix
+
+### Fixed
+- 将 MCP 运行时必需依赖 `@modelcontextprotocol/sdk` 和 `zod` 移入 `dependencies`，修复 `npx psyche-ai mcp` 在干净环境下启动失败
+- 新增打包级 smoke test：真实 `npm pack` + 临时安装 + MCP initialize 握手，防止“本地能跑、发布后坏掉”的回归
+- MCP server 版本号从 `package.json` 动态读取，避免 adapter 内部版本漂移
+
+---
+
 ## v11.5.0 — Self-State Export to Thronglets
 
 ### Added

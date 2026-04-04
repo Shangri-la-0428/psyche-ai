@@ -6,11 +6,16 @@
 // and build a coherent self-narrative from its own history.
 // ============================================================
 
-import type { StateSnapshot, StimulusType, Locale } from "./types.js";
+import type { StateSnapshot, Locale } from "./types.js";
+import type { AppraisalMarker } from "./appraisal-markers.js";
+import {
+  deriveSnapshotAppraisalMarkers,
+  getAppraisalMarkerLabels,
+} from "./appraisal-markers.js";
 
 /** Result of self-reflection over emotional history */
 export interface SelfReflection {
-  recurringTriggers: { stimulus: StimulusType; count: number }[];
+  recurringTriggers: { marker: AppraisalMarker; count: number }[];
   tendency: "stable" | "ascending" | "descending" | "volatile" | "oscillating";
   dominantEmotion: string | null;
   narrativeSummary: string;
@@ -36,17 +41,17 @@ export function computeSelfReflection(history: StateSnapshot[], locale: Locale):
   }
 
   // ── Recurring triggers ──
-  const stimulusCounts = new Map<string, number>();
+  const markerCounts = new Map<AppraisalMarker, number>();
   for (const snap of history) {
-    if (snap.stimulus) {
-      stimulusCounts.set(snap.stimulus, (stimulusCounts.get(snap.stimulus) ?? 0) + 1);
+    for (const marker of deriveSnapshotAppraisalMarkers(snap, { allowLegacyFallback: true })) {
+      markerCounts.set(marker, (markerCounts.get(marker) ?? 0) + 1);
     }
   }
-  const sortedTriggers = [...stimulusCounts.entries()]
+  const sortedTriggers = [...markerCounts.entries()]
     .sort((a, b) => b[1] - a[1])
     .slice(0, 3)
     .filter(([_, count]) => count >= 2)
-    .map(([stimulus, count]) => ({ stimulus: stimulus as StimulusType, count }));
+    .map(([marker, count]) => ({ marker, count }));
 
   // ── Dominant emotion ──
   const emotionCounts = new Map<string, number>();
@@ -137,8 +142,9 @@ export function buildSelfReflectionContext(reflection: SelfReflection, locale: L
 
   // Recurring triggers
   if (reflection.recurringTriggers.length > 0) {
+    const labels = getAppraisalMarkerLabels(locale);
     const triggerDescs = reflection.recurringTriggers.map((t) => {
-      const name = isZh ? STIMULUS_NAMES_ZH[t.stimulus] : t.stimulus;
+      const name = labels[t.marker];
       return isZh
         ? `${name}(${t.count}次)`
         : `${name} (${t.count} times)`;
@@ -171,13 +177,6 @@ export function buildSelfReflectionContext(reflection: SelfReflection, locale: L
 }
 
 // ── Internal helpers ─────────────────────────────────────────
-
-const STIMULUS_NAMES_ZH: Record<string, string> = {
-  praise: "赞美", criticism: "批评", humor: "幽默", intellectual: "智识讨论",
-  intimacy: "亲密", conflict: "冲突", neglect: "冷落", surprise: "惊喜",
-  casual: "闲聊", sarcasm: "讽刺", authority: "命令", validation: "认同",
-  boredom: "无聊", vulnerability: "示弱",
-};
 
 const TENDENCY_DESC_ZH: Record<string, string> = {
   ascending: "情绪整体上扬，状态在变好。",
@@ -233,7 +232,8 @@ function buildNarrativeSummary(
 
   if (triggers.length > 0) {
     const topTrigger = triggers[0];
-    const name = isZh ? STIMULUS_NAMES_ZH[topTrigger.stimulus] : topTrigger.stimulus;
+    const labels = getAppraisalMarkerLabels(locale);
+    const name = labels[topTrigger.marker];
     parts.push(
       isZh
         ? `最近${name}是主要触发因素(${topTrigger.count}次)`

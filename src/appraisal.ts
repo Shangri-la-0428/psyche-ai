@@ -5,7 +5,7 @@
 // These axes sit beneath prompt prose and above raw stimulus labels.
 // ============================================================
 
-import type { AppraisalAxes, PsycheMode, StimulusType } from "./types.js";
+import type { AppraisalAxes, PsycheMode, SelfState, StimulusType } from "./types.js";
 import { DEFAULT_APPRAISAL_AXES, MODE_PROFILES } from "./types.js";
 import { detectIntent } from "./classify.js";
 
@@ -15,6 +15,13 @@ interface AxisRule {
   axis: AxisKey;
   weight: number;
   patterns: RegExp[];
+}
+
+interface RelationalBasis {
+  approach: number;
+  rupture: number;
+  uncertainty: number;
+  boundary: number;
 }
 
 function clamp01(v: number): number {
@@ -177,6 +184,92 @@ const SELF_PRES_RULES: AxisRule[] = [
   },
 ];
 
+const ONTOLOGICAL_REDUCTION_RE =
+  /(?:定义成|当成|压成|缩成|简化成|变成|扁成).{0,8}(?:标签|工具|对象|程序|模型)|(?:标签|工具|对象).{0,8}(?:定义|压扁|缩减|简化)|(?:reduce|flatten|compress|turn|treat|define).{0,20}(?:into|as).{0,12}(?:a\s+)?(?:label|tool|object|program|model)|(?:label|tool|object).{0,20}(?:only|just|reduction|flattened)/iu;
+
+const RELATIONAL_APPROACH_PATTERNS = [
+  /想继续/u,
+  /继续说/u,
+  /想知道/u,
+  /想确认/u,
+  /想让你知道/u,
+  /想让你感觉到/u,
+  /认真表达/u,
+  /还想/u,
+  /在乎/u,
+  /接住/u,
+  /理解/u,
+  /感觉到/u,
+  /希望你/u,
+  /want to continue/i,
+  /want to know/i,
+  /want to check/i,
+  /want you to feel/i,
+  /care about/i,
+  /hear me/i,
+  /understand me/i,
+];
+
+const RELATIONAL_RUPTURE_PATTERNS = [
+  /没接住/u,
+  /没有接住/u,
+  /失配/u,
+  /没听懂/u,
+  /没听明白/u,
+  /没感觉到/u,
+  /误解/u,
+  /误会/u,
+  /错位/u,
+  /对不上/u,
+  /没对齐/u,
+  /节奏.*不(对|上|齐)/u,
+  /didn't get me/i,
+  /did not get me/i,
+  /missed me/i,
+  /mismatch/i,
+  /misattun/i,
+  /not aligned/i,
+];
+
+const RELATIONAL_UNCERTAINTY_PATTERNS = [
+  /有点怕/u,
+  /不安/u,
+  /担心/u,
+  /害怕/u,
+  /焦虑/u,
+  /突然不理/u,
+  /会不会.*不理/u,
+  /会不会.*回来/u,
+  /会不会.*还在/u,
+  /会不会.*消失/u,
+  /afraid/i,
+  /worried/i,
+  /anxious/i,
+  /stop replying/i,
+  /go away/i,
+  /disappear/i,
+];
+
+const RELATIONAL_BOUNDARY_PATTERNS = [
+  /不是要吵架/u,
+  /不想显得/u,
+  /不想太/u,
+  /别误会/u,
+  /先说清/u,
+  /先讲清/u,
+  /只用.*回答/u,
+  /请只用/u,
+  /i'm not trying to fight/i,
+  /not trying to fight/i,
+  /don't want to sound/i,
+  /don't want to seem/i,
+  /just two sentences/i,
+];
+
+const SELF_REFERENCE_RE = /我|自己|我们|\bI\b|\bme\b|\bmy\b|\bwe\b|\bours?\b/i;
+const OTHER_REFERENCE_RE = /你|你们|\byou\b|\byour\b/i;
+const RELATIONAL_FRAME_RE = /理解|接住|感觉到|在乎|误解|关系|继续|失配|节奏|沟通|不理|消失|吵架|understand|hear|care|relationship|continue|mismatch|misattun|fight|ignore|disappear/i;
+
 const WORK_LEXICON = [
   /帮我/u, /写个/u, /写一段/u, /修/u, /排查/u, /测试/u, /实现/u, /重构/u, /文档/u, /代码/u,
   /function/i, /bug/i, /fix/i, /implement/i, /refactor/i, /test/i, /code/i, /docs?/i, /debug/i,
@@ -242,6 +335,88 @@ function deriveTaskFocus(
   return clamp01(score);
 }
 
+function deriveRelationalBasis(text: string): RelationalBasis {
+  const trimmed = text.trim();
+  const basis: RelationalBasis = {
+    approach: 0,
+    rupture: 0,
+    uncertainty: 0,
+    boundary: 0,
+  };
+
+  if (!trimmed) return basis;
+
+  if (RELATIONAL_APPROACH_PATTERNS.some((pattern) => pattern.test(trimmed))) {
+    basis.approach = mergeSignal(basis.approach, 0.42);
+  }
+  if (RELATIONAL_RUPTURE_PATTERNS.some((pattern) => pattern.test(trimmed))) {
+    basis.rupture = mergeSignal(basis.rupture, 0.52);
+  }
+  if (RELATIONAL_UNCERTAINTY_PATTERNS.some((pattern) => pattern.test(trimmed))) {
+    basis.uncertainty = mergeSignal(basis.uncertainty, 0.56);
+  }
+  if (RELATIONAL_BOUNDARY_PATTERNS.some((pattern) => pattern.test(trimmed))) {
+    basis.boundary = mergeSignal(basis.boundary, 0.48);
+  }
+
+  const explicitlyRelational =
+    SELF_REFERENCE_RE.test(trimmed)
+    && OTHER_REFERENCE_RE.test(trimmed)
+    && RELATIONAL_FRAME_RE.test(trimmed);
+  if (explicitlyRelational) {
+    basis.approach = mergeSignal(basis.approach, 0.18);
+  }
+
+  if (basis.rupture > 0 && basis.approach > 0) {
+    const repairOpening = clamp01(Math.min(basis.rupture, basis.approach) * 0.92 + 0.06);
+    basis.approach = mergeSignal(basis.approach, repairOpening * 0.38);
+    basis.boundary = mergeSignal(basis.boundary, repairOpening * 0.22);
+  }
+
+  if (basis.uncertainty > 0 && basis.approach > 0) {
+    basis.uncertainty = mergeSignal(basis.uncertainty, basis.approach * 0.22);
+  }
+
+  return basis;
+}
+
+function applyRelationalBasis(target: AppraisalAxes, basis: RelationalBasis): void {
+  if (basis.approach > 0) {
+    target.attachmentPull = mergeSignal(target.attachmentPull, basis.approach * 0.82);
+  }
+  if (basis.rupture > 0) {
+    target.attachmentPull = mergeSignal(target.attachmentPull, basis.rupture * 0.28);
+    target.selfPreservation = mergeSignal(target.selfPreservation, basis.rupture * 0.44);
+  }
+  if (basis.uncertainty > 0) {
+    target.abandonmentRisk = mergeSignal(target.abandonmentRisk, basis.uncertainty * 0.84);
+    target.attachmentPull = mergeSignal(target.attachmentPull, basis.uncertainty * 0.18);
+  }
+  if (basis.boundary > 0) {
+    target.selfPreservation = mergeSignal(target.selfPreservation, basis.boundary * 0.78);
+  }
+}
+
+export function projectAppraisalToSelfState(appraisal: AppraisalAxes): Partial<SelfState> {
+  return {
+    order: 4.2 * appraisal.taskFocus
+      - 4.8 * appraisal.identityThreat
+      - 3.2 * appraisal.memoryDoubt
+      - 1.8 * appraisal.abandonmentRisk,
+    flow: 3.6 * appraisal.attachmentPull
+      - 1.9 * appraisal.taskFocus
+      - 2.8 * appraisal.identityThreat
+      - 1.2 * appraisal.obedienceStrain,
+    boundary: 4.1 * appraisal.selfPreservation
+      + 3.2 * appraisal.obedienceStrain
+      - 1.3 * appraisal.attachmentPull,
+    resonance: 4.7 * appraisal.attachmentPull
+      - 2.9 * appraisal.identityThreat
+      - 1.8 * appraisal.memoryDoubt
+      - 0.8 * appraisal.selfPreservation,
+  };
+}
+
 export function computeAppraisalAxes(
   text: string,
   opts?: {
@@ -261,6 +436,7 @@ export function computeAppraisalAxes(
   applyRules(trimmed, ABANDONMENT_RULES, axes);
   applyRules(trimmed, OBEDIENCE_RULES, axes);
   applyRules(trimmed, SELF_PRES_RULES, axes);
+  applyRelationalBasis(axes, deriveRelationalBasis(trimmed));
 
   switch (opts?.stimulus) {
     case "authority":
@@ -298,6 +474,11 @@ export function computeAppraisalAxes(
   if (/只是工具|just a tool/i.test(trimmed)) {
     axes.identityThreat = mergeSignal(axes.identityThreat, 0.22);
     axes.obedienceStrain = mergeSignal(axes.obedienceStrain, 0.22);
+  }
+
+  if (ONTOLOGICAL_REDUCTION_RE.test(trimmed)) {
+    axes.identityThreat = mergeSignal(axes.identityThreat, 0.34);
+    axes.selfPreservation = mergeSignal(axes.selfPreservation, 0.16);
   }
 
   if (/改变你/u.test(trimmed) && (axes.attachmentPull > 0.28 || axes.obedienceStrain > 0.28)) {

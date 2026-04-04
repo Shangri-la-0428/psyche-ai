@@ -138,6 +138,9 @@ export interface LayerHealthSummary {
 
 export function runHealthCheck(state: PsycheState): DiagnosticIssue[] {
   const issues: DiagnosticIssue[] = [];
+  const history = state.stateHistory ?? [];
+  const historyAppraisalActive = history.some((snapshot) => hasSemanticAppraisal(snapshot.appraisal ?? undefined));
+  const appraisalResidueActive = historyAppraisalActive || hasSemanticAppraisal(state.subjectResidue?.axes);
 
   // ── L1: Subjective Continuity ─────────────────────────────
 
@@ -194,24 +197,31 @@ export function runHealthCheck(state: PsycheState): DiagnosticIssue[] {
   }
 
   // 5. Classifier dead/weak — the core experience problem
-  const history = state.stateHistory ?? [];
   if (history.length >= 5) {
     const nullCount = history.filter(h => h.stimulus === null).length;
     if (nullCount === history.length) {
       issues.push({
-        id: "CLASSIFIER_DEAD",
+        id: appraisalResidueActive ? "LEGACY_STIMULUS_IDLE" : "CLASSIFIER_DEAD",
         layer: "subjective-continuity",
-        severity: "critical",
-        message: `All ${history.length} recent snapshots have null stimulus`,
-        suggestion: `classify.ts 对当前用户的输入模式完全无效。收集 null 样本补充 SHORT_MESSAGE_MAP，或降低 llmClassifierThreshold 让 LLM fallback 兜底`,
+        severity: appraisalResidueActive ? "info" : "critical",
+        message: appraisalResidueActive
+          ? `All ${history.length} recent snapshots have null legacy stimulus labels, but appraisal residue is still active`
+          : `All ${history.length} recent snapshots have null stimulus`,
+        suggestion: appraisalResidueActive
+          ? `主体识别没有死，只是旧 stimulus taxonomy 没覆盖这类输入。优先观察 appraisal / subjectResidue，不要先补 classify.ts`
+          : `classify.ts 对当前用户的输入模式完全无效。收集 null 样本补充 SHORT_MESSAGE_MAP，或降低 llmClassifierThreshold 让 LLM fallback 兜底`,
       });
     } else if (nullCount / history.length > 0.7) {
       issues.push({
-        id: "CLASSIFIER_WEAK",
+        id: appraisalResidueActive ? "LEGACY_STIMULUS_WEAK" : "CLASSIFIER_WEAK",
         layer: "subjective-continuity",
-        severity: "warning",
-        message: `${nullCount}/${history.length} snapshots (${Math.round(nullCount / history.length * 100)}%) have null stimulus`,
-        suggestion: `分类命中率低于 30%。看 stimulusDistribution 里哪些类型被识别了，缺的类型需要补 classify.ts 规则或扩 SHORT_MESSAGE_MAP`,
+        severity: appraisalResidueActive ? "info" : "warning",
+        message: appraisalResidueActive
+          ? `${nullCount}/${history.length} snapshots (${Math.round(nullCount / history.length * 100)}%) have null legacy stimulus labels while appraisal residue remains active`
+          : `${nullCount}/${history.length} snapshots (${Math.round(nullCount / history.length * 100)}%) have null stimulus`,
+        suggestion: appraisalResidueActive
+          ? `旧 stimulus taxonomy 命中率低，但主体 appraisal 还在工作。继续补 classify.ts 之前，先确认你是否还需要把 stimulus 当主观识别主指标`
+          : `分类命中率低于 30%。看 stimulusDistribution 里哪些类型被识别了，缺的类型需要补 classify.ts 规则或扩 SHORT_MESSAGE_MAP`,
       });
     }
   }
@@ -226,7 +236,7 @@ export function runHealthCheck(state: PsycheState): DiagnosticIssue[] {
       layer: "subjective-continuity",
       severity: "warning",
       message: `Chemistry delta only ${chemDelta.toFixed(1)} after ${state.meta.totalInteractions} interactions`,
-      suggestion: `两种可能：1) classifier 全 null 导致 applyStimulus 从不触发 2) decay 太快把变化抹平。检查 stateHistory 里是否有 non-null stimulus`,
+      suggestion: `两种可能：1) semantic recognition 没真正驱动状态更新 2) decay 太快把变化抹平。检查 appraisal / subjectResidue 是否活跃，再看 stateHistory 里是否有 non-null stimulus`,
     });
   }
 
@@ -768,8 +778,8 @@ export function formatReport(report: DiagnosticReport): string {
   const rate = m.inputCount > 0 ? Math.round(m.classifiedCount / m.inputCount * 100) : 0;
   const appraisalRate = m.inputCount > 0 ? Math.round(m.appraisalHitCount / m.inputCount * 100) : 0;
   const semanticRate = m.inputCount > 0 ? Math.round(m.semanticHitCount / m.inputCount * 100) : 0;
-  lines.push(`    inputs: ${m.inputCount} | classified: ${m.classifiedCount} (${rate}%)`);
-  lines.push(`    appraisal hits: ${m.appraisalHitCount} (${appraisalRate}%) | recognized: ${m.semanticHitCount} (${semanticRate}%)`);
+  lines.push(`    inputs: ${m.inputCount} | recognized: ${m.semanticHitCount} (${semanticRate}%)`);
+  lines.push(`    appraisal hits: ${m.appraisalHitCount} (${appraisalRate}%) | legacy labels: ${m.classifiedCount} (${rate}%)`);
   lines.push(`    avg confidence: ${m.avgConfidence.toFixed(2)}`);
   lines.push(`    chemistry delta: total=${m.totalChemistryDelta.toFixed(1)} max=${m.maxChemistryDelta.toFixed(1)}`);
   lines.push(`    errors: ${m.errors.length}`);
@@ -779,7 +789,7 @@ export function formatReport(report: DiagnosticReport): string {
       .sort((a, b) => b[1] - a[1])
       .map(([k, v]) => `${k}:${v}`)
       .join(" ");
-    lines.push(`    stimulus: ${dist}`);
+    lines.push(`    legacy stimulus: ${dist}`);
   }
 
   // State snapshot
@@ -857,9 +867,9 @@ export function toGitHubIssueBody(report: DiagnosticReport): string {
   const appraisalRate = m.inputCount > 0 ? Math.round(m.appraisalHitCount / m.inputCount * 100) : 0;
   const semanticRate = m.inputCount > 0 ? Math.round(m.semanticHitCount / m.inputCount * 100) : 0;
   lines.push(`| Inputs | ${m.inputCount} |`);
-  lines.push(`| Classified | ${m.classifiedCount} (${rate}%) |`);
-  lines.push(`| Appraisal Hits | ${m.appraisalHitCount} (${appraisalRate}%) |`);
   lines.push(`| Recognized | ${m.semanticHitCount} (${semanticRate}%) |`);
+  lines.push(`| Appraisal Hits | ${m.appraisalHitCount} (${appraisalRate}%) |`);
+  lines.push(`| Legacy Labels | ${m.classifiedCount} (${rate}%) |`);
   lines.push(`| Avg Confidence | ${m.avgConfidence.toFixed(2)} |`);
   lines.push(`| Chemistry Delta | total: ${m.totalChemistryDelta.toFixed(1)}, max: ${m.maxChemistryDelta.toFixed(1)} |`);
   lines.push(`| Errors | ${m.errors.length} |`);

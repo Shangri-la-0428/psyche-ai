@@ -30,12 +30,17 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { createRequire } from "node:module";
 import { z } from "zod";
 import { PsycheEngine } from "../core.js";
 import type { PsycheEngineConfig, ProcessInputResult } from "../core.js";
-import { MemoryStorageAdapter, FileStorageAdapter } from "../storage.js";
+import { MemoryStorageAdapter, FileStorageAdapter, resolveWorkspaceDir } from "../storage.js";
 import type { MBTIType, Locale, PsycheMode } from "../types.js";
 import { runDemo } from "../demo.js";
+
+const require = createRequire(import.meta.url);
+const PACKAGE_VERSION =
+  (require("../../package.json") as { version?: string }).version ?? "0.0.0";
 
 // ── Config from env ────────────────────────────────────────
 
@@ -45,7 +50,7 @@ const MODE = (process.env.PSYCHE_MODE ?? "natural") as PsycheMode;
 const LOCALE = (process.env.PSYCHE_LOCALE ?? "en") as Locale;
 const PERSIST = process.env.PSYCHE_PERSIST !== "false";
 const SIGIL_ID = process.env.PSYCHE_SIGIL_ID ?? undefined;
-const BASE_WORKSPACE = process.env.PSYCHE_WORKSPACE ?? process.cwd();
+const WORKSPACE_OVERRIDE = process.env.PSYCHE_WORKSPACE;
 const INTENSITY = process.env.PSYCHE_INTENSITY
   ? Number(process.env.PSYCHE_INTENSITY)
   : 0.7;
@@ -91,8 +96,12 @@ async function getEngine(): Promise<PsycheEngine> {
   };
 
   const persist = cfg.persist !== false;
-  // Per-Sigil workspace isolation: each Sigil gets its own state directory
-  const workspace = sigilId ? `${BASE_WORKSPACE}/${sigilId}` : BASE_WORKSPACE;
+  // Default to a stable per-user writable root so hosts do not need to supply cwd.
+  const workspace = resolveWorkspaceDir({
+    workspace: WORKSPACE_OVERRIDE,
+    sigilId,
+    surface: "mcp",
+  });
   const storage = persist
     ? new FileStorageAdapter(workspace)
     : new MemoryStorageAdapter();
@@ -106,7 +115,7 @@ async function getEngine(): Promise<PsycheEngine> {
 
 const server = new McpServer({
   name: "psyche",
-  version: "11.4.0",
+  version: PACKAGE_VERSION,
 }, {
   capabilities: {
     resources: {},
@@ -167,7 +176,7 @@ server.tool(
   "process_input",
   "Process user input through the emotional engine. Returns emotional " +
   "context to inject into the LLM system prompt (systemContext + dynamicContext), " +
-  "detected stimulus type, a canonical replyEnvelope, compatibility aliases " +
+  "an appraisal-first semantic reading, an optional legacy stimulus hint, a canonical replyEnvelope, compatibility aliases " +
   "(policyModifiers + subjectivityKernel + responseContract + generationControls), an optional " +
   "externalContinuity envelope, and sparse low-frequency throngletsExports " +
   "suitable for additive external continuity layers. " +
@@ -185,6 +194,8 @@ server.tool(
         text: JSON.stringify({
           systemContext: result.systemContext,
           dynamicContext: result.dynamicContext,
+          appraisal: result.appraisal,
+          legacyStimulus: result.legacyStimulus,
           stimulus: result.stimulus,
           replyEnvelope: result.replyEnvelope ?? null,
           policyModifiers: result.policyModifiers ?? null,

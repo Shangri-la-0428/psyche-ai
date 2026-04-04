@@ -2,22 +2,22 @@
 // PsycheEngine — Framework-agnostic emotional intelligence core
 //
 // Three-phase API:
-//   processInput(text)   → systemContext + dynamicContext + replyEnvelope + stimulus
+//   processInput(text)   → systemContext + dynamicContext + replyEnvelope + appraisal
 //   processOutput(text)  → cleanedText + stateChanged
 //   processOutcome(text) → outcomeScore (optional: evaluate last interaction)
 //
 // Auto-learning: processInput auto-evaluates the previous turn's
 // outcome using the new user message as the outcome signal.
 //
-// Orchestrates: self-state, classify, prompt, profiles, guards, learning
+// Orchestrates: self-state, appraisal, prompt, profiles, guards, learning
 // ============================================================
 
-import type { PsycheState, StimulusType, Locale, MBTIType, SelfState, OutcomeScore, PsycheMode, PersonalityTraits, PolicyModifiers, ClassifierProvider, SubjectivityKernel, ResponseContract, GenerationControls, SessionBridgeState, ThrongletsExport, TurnObservability, WritebackCalibrationFeedback, WritebackSignalType, ExternalContinuityEnvelope } from "./types.js";
+import type { PsycheState, StimulusType, Locale, MBTIType, SelfState, OutcomeScore, PsycheMode, PersonalityTraits, PolicyModifiers, ClassifierProvider, SubjectivityKernel, ResponseContract, GenerationControls, SessionBridgeState, ThrongletsExport, TurnObservability, WritebackCalibrationFeedback, WritebackSignalType, ExternalContinuityEnvelope, AppraisalAxes } from "./types.js";
 import { DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE, DEFAULT_ENERGY_BUDGETS, DEFAULT_TRAIT_DRIFT, DEFAULT_SUBJECT_RESIDUE, DEFAULT_DYADIC_FIELD, MODE_PROFILES } from "./types.js";
 import type { StorageAdapter } from "./storage.js";
 import { MemoryStorageAdapter } from "./storage.js";
 import { applyDecay, applyStimulus, applyContagion, clamp, describeEmotionalState } from "./chemistry.js";
-import { classifyStimulus, BuiltInClassifier, buildLLMClassifierPrompt, parseLLMClassification } from "./classify.js";
+import { classifyLegacyStimulus, BuiltInClassifier, buildLLMClassifierPrompt, parseLLMClassification } from "./classify.js";
 import { perceive } from "./perceive.js";
 import { buildCompactContext, buildProtocolContext } from "./prompt.js";
 import type { PromptRenderInputs } from "./prompt.js";
@@ -32,6 +32,7 @@ import {
   detectExistentialThreat, deriveDriveSatisfaction,
   computeEffectiveBaseline, computeEffectiveSensitivity,
 } from "./drives.js";
+import { mergeAppraisalResidue } from "./appraisal.js";
 import { checkForUpdate, getPackageVersion } from "./update.js";
 import { DiagnosticCollector, generateReport, formatLogEntry, submitFeedback } from "./diagnostics.js";
 import type { DiagnosticReport, SessionMetrics } from "./diagnostics.js";
@@ -87,9 +88,15 @@ export interface ProcessInputResult {
   systemContext: string;
   /** Per-turn emotional state context */
   dynamicContext: string;
-  /** Detected stimulus type from user input, null if none */
+  /** Canonical host-facing subjective appraisal for this turn, null if no appraisal fired */
+  appraisal: AppraisalAxes | null;
+  /** Optional legacy stimulus hint preserved for compatibility only */
+  legacyStimulus: StimulusType | null;
+  /** Compatibility alias for legacy consumers: use legacyStimulus when possible */
   stimulus: StimulusType | null;
-  /** Confidence of the primary algorithmic stimulus guess, if any */
+  /** Confidence of the optional legacy stimulus hint, if any */
+  legacyStimulusConfidence?: number;
+  /** Compatibility alias for legacy consumers: use legacyStimulusConfidence when possible */
   stimulusConfidence?: number;
   /** Legacy compatibility alias: raw policy vector behind the canonical replyEnvelope. */
   policyModifiers?: PolicyModifiers;
@@ -290,9 +297,9 @@ export class PsycheEngine {
   private lastReport: DiagnosticReport | null = null;
   /** URL for auto-submitting diagnostic reports */
   private readonly feedbackUrl: string | undefined;
-  /** Most recent algorithmic stimulus read + confidence band */
-  private lastStimulusAssessment: {
-    stimulus: StimulusType | null;
+  /** Most recent legacy compatibility hint + confidence band */
+  private lastCompatibilityAssessment: {
+    legacyStimulus: StimulusType | null;
     confidence: number;
     overrideWindow: ResponseContract["overrideWindow"];
   } | null = null;
@@ -401,7 +408,8 @@ export class PsycheEngine {
 
   /**
    * Phase 1: Process user input text.
-   * Classifies stimulus, applies chemistry, builds context for LLM injection.
+   * Computes appraisal, preserves an optional legacy compatibility hint,
+   * applies chemistry, and builds context for LLM injection.
    */
   async processInput(text: string, opts?: { userId?: string }): Promise<ProcessInputResult> {
     let state = this.ensureInitialized();
@@ -411,7 +419,7 @@ export class PsycheEngine {
 
     // ── Auto-learning: evaluate previous turn's outcome ──────
     if (this.pendingPrediction && text.length > 0) {
-      const nextClassifications = classifyStimulus(text);
+      const nextClassifications = classifyLegacyStimulus(text);
       const nextStimulus = (nextClassifications[0]?.confidence ?? 0) >= 0.5
         ? nextClassifications[0].type
         : null;
@@ -572,14 +580,14 @@ export class PsycheEngine {
       if (appliedStimulus) {
         state = applyRelationshipDrift(state, appliedStimulus, opts?.userId);
       }
-      this.lastStimulusAssessment = {
-        stimulus: appliedStimulus,
+      this.lastCompatibilityAssessment = {
+        legacyStimulus: appliedStimulus,
         confidence: perception.confidence,
         overrideWindow: perception.confidence >= 0.78 ? "narrow" : perception.confidence >= 0.62 ? "balanced" : "wide",
       };
     } else {
-      this.lastStimulusAssessment = {
-        stimulus: null,
+      this.lastCompatibilityAssessment = {
+        legacyStimulus: null,
         confidence: 0,
         overrideWindow: "wide",
       };
@@ -646,6 +654,7 @@ export class PsycheEngine {
       state,
       appliedStimulus,
       semanticSummary,
+      appraisalAxes,
     );
 
     // Increment interaction count
@@ -691,7 +700,7 @@ export class PsycheEngine {
       userId: opts?.userId,
       localeFallback: this.cfg.locale,
       personalityIntensity: this.cfg.personalityIntensity,
-      classificationConfidence: this.lastStimulusAssessment?.confidence,
+      legacyStimulusConfidence: this.lastCompatibilityAssessment?.confidence,
       minutesElapsed,
       nowIso: now.toISOString(),
       writebackNote,
@@ -721,7 +730,7 @@ export class PsycheEngine {
     };
     const promptRenderInputs: PromptRenderInputs = {
       userText: text || undefined,
-      algorithmStimulus: appliedStimulus,
+      legacyStimulus: appliedStimulus,
       personalityIntensity: this.cfg.personalityIntensity,
       metacognitiveNote: reflectiveTurn.metacognitiveNote,
       decisionContext: reflectiveTurn.decisionContext,
@@ -740,7 +749,7 @@ export class PsycheEngine {
       replyEnvelope,
       promptRenderInputs,
       compactMode: this.cfg.compactMode,
-      stimulus: appliedStimulus,
+      legacyStimulus: appliedStimulus,
       userText: text || undefined,
       sessionBridge,
       writebackFeedback,
@@ -753,8 +762,11 @@ export class PsycheEngine {
     return {
       systemContext: "",
       dynamicContext: buildCompactContext(state, opts?.userId, promptRenderInputs),
+      appraisal: appraisalAxes,
+      legacyStimulus: appliedStimulus,
       stimulus: appliedStimulus,
-      stimulusConfidence: this.lastStimulusAssessment?.confidence,
+      legacyStimulusConfidence: this.lastCompatibilityAssessment?.confidence,
+      stimulusConfidence: this.lastCompatibilityAssessment?.confidence,
       replyEnvelope,
       policyModifiers: derivedReplyEnvelope.policyModifiers,
       subjectivityKernel: replyEnvelope.subjectivityKernel,
@@ -851,9 +863,23 @@ export class PsycheEngine {
         state = mergeUpdates(state, parseResult.state, this.cfg.maxDimensionDelta, opts?.userId);
         stateChanged = true;
 
+        if (parseResult.llmAppraisalAxes) {
+          state = {
+            ...state,
+            subjectResidue: {
+              axes: mergeAppraisalResidue(
+                state.subjectResidue?.axes,
+                parseResult.llmAppraisalAxes,
+                state.meta.mode,
+              ),
+              updatedAt: new Date().toISOString(),
+            },
+          };
+        }
+
         // LLM-assisted classification: if algorithm didn't apply a stimulus
         // but LLM classified one, retroactively apply chemistry + drives
-        const overrideAllowed = this.lastStimulusAssessment?.overrideWindow !== "narrow";
+        const overrideAllowed = this.lastCompatibilityAssessment?.overrideWindow !== "narrow";
         if (parseResult.llmStimulus && (!this._lastAlgorithmApplied || overrideAllowed)) {
           const effectiveSensitivity = computeEffectiveSensitivity(
             (state.sensitivity ?? 1.0), state.current, state.baseline, parseResult.llmStimulus, state.traitDrift,

@@ -2,7 +2,7 @@
   "id": "psyche-ai",
   "name": "Artificial Psyche",
   "description": "AI-first subjectivity kernel for agents with continuous appraisal, relation dynamics, and adaptive reply loops",
-  "version": "9.2.11",
+  "version": "11.5.1",
   "configSchema": {
     "type": "object",
     "additionalProperties": false,

@@ -9,7 +9,8 @@
 import type { PsycheState } from "./types.js";
 import { migrateToLatest } from "./psyche-file.js";
 import { readFile, writeFile, appendFile, access, rename, constants, mkdir } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { homedir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 
 // ── Interface ────────────────────────────────────────────────
 
@@ -20,6 +21,28 @@ export interface StorageAdapter {
   appendLog?(line: string): Promise<void>;
   /** Read all lines from the diagnostics log. Returns empty array if not available. */
   readLog?(): Promise<string[]>;
+}
+
+export function defaultWorkspaceRoot(surface = "runtime"): string {
+  return join(homedir(), ".psyche-ai", surface);
+}
+
+function expandHome(path: string): string {
+  if (path === "~") return homedir();
+  if (path.startsWith("~/")) return join(homedir(), path.slice(2));
+  return path;
+}
+
+export function resolveWorkspaceDir(options: {
+  workspace?: string;
+  sigilId?: string;
+  surface?: string;
+}): string {
+  const explicitWorkspace = options.workspace?.trim();
+  const baseDir = explicitWorkspace
+    ? resolve(expandHome(explicitWorkspace))
+    : defaultWorkspaceRoot(options.surface ?? "runtime");
+  return options.sigilId ? join(baseDir, options.sigilId) : baseDir;
 }
 
 // ── MemoryStorageAdapter ─────────────────────────────────────

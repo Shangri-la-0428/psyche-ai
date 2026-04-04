@@ -8,10 +8,9 @@ import {
 } from "../src/temporal.js";
 import type { AnticipationState } from "../src/temporal.js";
 import type {
-  SelfState, StateSnapshot, PsycheState, StimulusType,
+  AppraisalAxes, SelfState, StateSnapshot, PsycheState, StimulusType,
 } from "../src/types.js";
-import { DIMENSION_KEYS, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE, DEFAULT_RELATIONSHIP } from "../src/types.js";
-import { STIMULUS_VECTORS } from "../src/chemistry.js";
+import { DEFAULT_APPRAISAL_AXES, DIMENSION_KEYS, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE, DEFAULT_RELATIONSHIP } from "../src/types.js";
 
 // ── Helpers ──────────────────────────────────────────────────
 
@@ -119,25 +118,28 @@ describe("predictNextStimulus", () => {
     );
   });
 
-  it("Markov influence: repeated patterns bias prediction", () => {
-    // Build a strong pattern: humor always follows casual
+  it("prefers appraisal residue over conflicting legacy labels", () => {
     const history: StateSnapshot[] = [
-      makeSnapshot("casual"),
-      makeSnapshot("humor"),
-      makeSnapshot("casual"),
-      makeSnapshot("humor"),
-      makeSnapshot("casual"),
-      makeSnapshot("humor"),
-      makeSnapshot("casual"), // last stimulus is casual → expect humor next
+      makeSnapshot("casual", {
+        appraisal: { ...DEFAULT_APPRAISAL_AXES, attachmentPull: 0.74 },
+      }),
+      makeSnapshot("casual", {
+        appraisal: { ...DEFAULT_APPRAISAL_AXES, attachmentPull: 0.69 },
+      }),
+      makeSnapshot("casual", {
+        appraisal: { ...DEFAULT_APPRAISAL_AXES, attachmentPull: 0.77 },
+      }),
+      makeSnapshot("casual", {
+        appraisal: { ...DEFAULT_APPRAISAL_AXES, attachmentPull: 0.71 },
+      }),
     ];
     const predictions = predictNextStimulus(history, "familiar");
+    const top = predictions[0];
 
-    // Humor should have higher probability than most others (Markov learned the pattern)
-    const humorPred = predictions.find((p) => p.stimulus === "humor");
-    assert.ok(humorPred, "should have humor prediction");
+    assert.equal(top.stimulus, "intimacy");
     assert.ok(
-      humorPred!.probability > 0.1,
-      `humor probability should be elevated by Markov, got ${humorPred!.probability}`,
+      (top.appraisal?.attachmentPull ?? 0) > 0.6,
+      `predicted appraisal should preserve approach residue, got ${top.appraisal?.attachmentPull}`,
     );
   });
 });
@@ -195,6 +197,24 @@ describe("generateAnticipation", () => {
     // All probabilities are <= 0.2, so no chemistry shifts should occur
     const keys = Object.keys(result.anticipatoryState) as (keyof SelfState)[];
     assert.equal(keys.length, 0, "should produce no chemistry shifts for low-probability predictions");
+  });
+
+  it("prefers appraisal residue over a conflicting compatibility stimulus", () => {
+    const predictions = [
+      {
+        stimulus: "casual" as StimulusType,
+        probability: 0.85,
+        appraisal: {
+          ...DEFAULT_APPRAISAL_AXES,
+          attachmentPull: 0.78,
+          abandonmentRisk: 0.24,
+        } satisfies AppraisalAxes,
+      },
+    ];
+
+    const result = generateAnticipation(predictions, makeChemistry());
+    assert.ok((result.anticipatoryState.resonance ?? 0) > 0, "approach residue should lift resonance");
+    assert.ok((result.anticipatoryState.flow ?? 0) > 0, "approach residue should lift flow");
   });
 });
 
@@ -294,6 +314,33 @@ describe("computeSurpriseEffect", () => {
       Math.abs(highResult.flow ?? 0) > Math.abs(lowResult.flow ?? 0),
       `high confidence surprise DA (${highResult.flow}) should exceed low confidence (${lowResult.flow})`,
     );
+  });
+
+  it("uses actual appraisal over a bland legacy stimulus label when provided", () => {
+    const anticipated: AnticipationState = {
+      predictions: [
+        {
+          stimulus: "intimacy",
+          probability: 0.75,
+          appraisal: { ...DEFAULT_APPRAISAL_AXES, attachmentPull: 0.74 },
+        },
+      ],
+      anticipatoryState: { resonance: 2 },
+      timestamp: new Date().toISOString(),
+    };
+
+    const result = computeSurpriseEffect(
+      anticipated,
+      "casual",
+      {
+        ...DEFAULT_APPRAISAL_AXES,
+        identityThreat: 0.66,
+        selfPreservation: 0.42,
+      },
+    );
+
+    assert.ok((result.flow ?? 0) < 0, "rupture appraisal should override the bland label");
+    assert.ok((result.order ?? 0) < 0, "rupture appraisal should register as disappointment");
   });
 });
 

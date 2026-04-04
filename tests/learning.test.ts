@@ -133,6 +133,8 @@ describe("evaluateOutcome", () => {
     const state = makeState({ meta: { agentName: "t", createdAt: "", totalInteractions: 42, locale: "zh" } });
     const result = evaluateOutcome(state, state, null, "humor");
     assert.equal(result.stimulus, "humor");
+    assert.equal(result.legacyStimulus, "humor");
+    assert.equal(result.marker, "task");
     assert.equal(result.turnIndex, 42);
   });
 });
@@ -192,8 +194,27 @@ describe("updateLearnedVector", () => {
     const result = updateLearnedVector(learning, "praise", "new_ctx", 0.5, actual, baseline);
     assert.equal(result.learnedVectors.length, 1);
     assert.equal(result.learnedVectors[0].stimulus, "praise");
+    assert.equal(result.learnedVectors[0].legacyStimulus, "praise");
+    assert.equal(result.learnedVectors[0].marker, "approach");
     assert.equal(result.learnedVectors[0].contextHash, "new_ctx");
     assert.equal(result.learnedVectors[0].sampleCount, 1);
+  });
+
+  it("shares learned adjustments across legacy stimuli in the same residue family", () => {
+    const learning = makeLearning({
+      learnedVectors: [{
+        stimulus: "praise",
+        legacyStimulus: "praise",
+        marker: "approach",
+        contextHash: "ctx",
+        adjustment: { flow: 4 },
+        confidence: 0.7,
+        sampleCount: 6,
+        lastUpdated: new Date().toISOString(),
+      }],
+    });
+    const result = getLearnedVector(learning, "validation", "ctx");
+    assert.equal(result.flow, STIMULUS_VECTORS.validation.flow + 4);
   });
 
   it("reinforces on positive outcome", () => {
@@ -334,18 +355,36 @@ describe("computeContextHash", () => {
     assert.ok(h2.startsWith("close:"), `expected close prefix, got ${h2}`);
   });
 
-  it("includes stimulus history", () => {
+  it("includes appraisal residue history", () => {
     const state = makeState({
       stateHistory: [
-        { state: makeChemistry(), stimulus: "praise", dominantEmotion: null, timestamp: "" },
-        { state: makeChemistry(), stimulus: "humor", dominantEmotion: null, timestamp: "" },
-        { state: makeChemistry(), stimulus: "casual", dominantEmotion: null, timestamp: "" },
+        {
+          state: makeChemistry(),
+          stimulus: "praise",
+          appraisal: { identityThreat: 0, memoryDoubt: 0, attachmentPull: 0.8, abandonmentRisk: 0, obedienceStrain: 0, selfPreservation: 0, taskFocus: 0 },
+          dominantEmotion: null,
+          timestamp: "",
+        },
+        {
+          state: makeChemistry(),
+          stimulus: "humor",
+          appraisal: { identityThreat: 0, memoryDoubt: 0, attachmentPull: 0, abandonmentRisk: 0, obedienceStrain: 0, selfPreservation: 0, taskFocus: 0.6 },
+          dominantEmotion: null,
+          timestamp: "",
+        },
+        {
+          state: makeChemistry(),
+          stimulus: "casual",
+          appraisal: { identityThreat: 0.7, memoryDoubt: 0, attachmentPull: 0, abandonmentRisk: 0, obedienceStrain: 0, selfPreservation: 0, taskFocus: 0 },
+          dominantEmotion: null,
+          timestamp: "",
+        },
       ],
     });
     const hash = computeContextHash(state);
-    assert.ok(hash.includes("praise"), `hash should include stimulus history: ${hash}`);
-    assert.ok(hash.includes("humor"), `hash should include humor: ${hash}`);
-    assert.ok(hash.includes("casual"), `hash should include casual: ${hash}`);
+    assert.ok(hash.includes("approach"), `hash should include approach residue: ${hash}`);
+    assert.ok(hash.includes("task"), `hash should include task residue: ${hash}`);
+    assert.ok(hash.includes("rupture"), `hash should include rupture residue: ${hash}`);
   });
 
   it("includes drive levels", () => {
@@ -457,6 +496,8 @@ describe("recordPrediction", () => {
     const result = recordPrediction(learning, pred, actual, "praise");
     assert.equal(result.predictionHistory.length, 1);
     assert.equal(result.predictionHistory[0].stimulus, "praise");
+    assert.equal(result.predictionHistory[0].legacyStimulus, "praise");
+    assert.equal(result.predictionHistory[0].marker, "approach");
     assert.ok(result.predictionHistory[0].predictionError >= 0);
   });
 

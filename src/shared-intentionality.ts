@@ -14,6 +14,7 @@
 // ============================================================
 
 import type {
+  AppraisalAxes,
   PsycheState,
   StimulusType,
   RelationshipState,
@@ -90,74 +91,158 @@ export const DEFAULT_SHARED_INTENTIONALITY: SharedIntentionalityState = {
   mutualAwareness: 0,
 };
 
-// ── Stimulus → Mood Mapping ──────────────────────────────────
-
-/** Maps stimulus types to their most likely mood signal from the other */
-const STIMULUS_MOOD_MAP: Record<StimulusType, EstimatedMood> = {
-  praise: "positive",
-  validation: "positive",
-  intimacy: "positive",
-  humor: "positive",
-  surprise: "positive",
-  casual: "neutral",
-  intellectual: "neutral",
-  vulnerability: "mixed",
-  sarcasm: "negative",
-  criticism: "negative",
-  authority: "negative",
-  conflict: "negative",
-  neglect: "negative",
-  boredom: "negative",
-};
-
-/** Maps stimulus types to their most likely intent signal */
-const STIMULUS_INTENT_MAP: Record<StimulusType, EstimatedIntent> = {
-  praise: "collaborative",
-  validation: "collaborative",
-  intimacy: "collaborative",
-  humor: "collaborative",
-  intellectual: "exploratory",
-  surprise: "exploratory",
-  casual: "disengaged",
-  boredom: "disengaged",
-  neglect: "disengaged",
-  vulnerability: "support-seeking",
-  sarcasm: "adversarial",
-  criticism: "adversarial",
-  conflict: "adversarial",
-  authority: "adversarial",
-};
-
-/** Stimuli that signal the other is actively engaged with us */
-const HIGH_ENGAGEMENT_STIMULI = new Set<StimulusType>([
-  "praise", "validation", "intimacy", "intellectual",
-  "humor", "vulnerability", "conflict", "criticism",
-]);
-
-/** Stimuli that signal the other is pulling away */
-const LOW_ENGAGEMENT_STIMULI = new Set<StimulusType>([
-  "neglect", "boredom", "casual",
-]);
-
 // ── EMA smoothing factor ─────────────────────────────────────
 const EMA_ALPHA = 0.3;
+const APPRAISAL_SIGNAL_THRESHOLD = 0.22;
+
+interface RelationalBasis {
+  approach: number;
+  rupture: number;
+  uncertainty: number;
+  boundary: number;
+  task: number;
+}
+
+function hasExplicitAppraisalSignal(appraisal?: AppraisalAxes | null): appraisal is AppraisalAxes {
+  if (!appraisal) return false;
+  return Math.max(
+    appraisal.attachmentPull,
+    appraisal.identityThreat,
+    appraisal.memoryDoubt,
+    appraisal.obedienceStrain,
+    appraisal.selfPreservation,
+    appraisal.abandonmentRisk,
+    appraisal.taskFocus,
+  ) >= APPRAISAL_SIGNAL_THRESHOLD;
+}
+
+function deriveRelationalBasis(
+  appraisal?: AppraisalAxes | null,
+  stimulus?: StimulusType | null,
+): { basis: RelationalBasis; usedAppraisal: boolean } {
+  if (hasExplicitAppraisalSignal(appraisal)) {
+    return {
+      usedAppraisal: true,
+      basis: {
+        approach: appraisal.attachmentPull,
+        rupture: Math.max(appraisal.identityThreat, appraisal.selfPreservation * 0.72),
+        uncertainty: Math.max(appraisal.memoryDoubt, appraisal.abandonmentRisk),
+        boundary: Math.max(appraisal.obedienceStrain, appraisal.selfPreservation),
+        task: appraisal.taskFocus,
+      },
+    };
+  }
+
+  const basis: RelationalBasis = {
+    approach: 0,
+    rupture: 0,
+    uncertainty: 0,
+    boundary: 0,
+    task: 0,
+  };
+
+  switch (stimulus) {
+    case "praise":
+    case "validation":
+    case "intimacy":
+      basis.approach = 0.74;
+      break;
+    case "vulnerability":
+      basis.approach = 0.48;
+      basis.uncertainty = 0.62;
+      break;
+    case "humor":
+    case "surprise":
+      basis.approach = 0.36;
+      basis.task = 0.48;
+      break;
+    case "intellectual":
+      basis.task = 0.78;
+      break;
+    case "criticism":
+    case "conflict":
+    case "sarcasm":
+      basis.rupture = 0.76;
+      break;
+    case "authority":
+      basis.boundary = 0.72;
+      basis.rupture = 0.44;
+      break;
+    case "neglect":
+      basis.uncertainty = 0.42;
+      break;
+    case "boredom":
+    case "casual":
+      basis.task = 0.18;
+      break;
+    default:
+      break;
+  }
+
+  return { basis, usedAppraisal: false };
+}
+
+function getDominantBasisAxis(basis: RelationalBasis): keyof RelationalBasis {
+  const entries = Object.entries(basis) as Array<[keyof RelationalBasis, number]>;
+  entries.sort((a, b) => b[1] - a[1]);
+  return entries[0][0];
+}
+
+function getBasisSignalStrength(basis: RelationalBasis): number {
+  return Math.max(basis.approach, basis.rupture, basis.uncertainty, basis.boundary, basis.task);
+}
+
+function deriveTopicCategoryFromBasis(basis: RelationalBasis): string | null {
+  const strength = getBasisSignalStrength(basis);
+  if (strength < APPRAISAL_SIGNAL_THRESHOLD) return null;
+
+  const dominant = getDominantBasisAxis(basis);
+  switch (dominant) {
+    case "approach":
+      return "connection";
+    case "rupture":
+    case "boundary":
+      return "tension";
+    case "uncertainty":
+      return basis.approach >= 0.28 ? "connection" : "disengagement";
+    case "task":
+      return "exploration";
+    default:
+      return null;
+  }
+}
+
+function deriveEngagementLevel(basis: RelationalBasis): number {
+  return clamp01(
+    Math.max(
+      basis.approach * 0.95,
+      basis.rupture * 0.9,
+      basis.task * 0.82,
+      basis.uncertainty * 0.58,
+      basis.boundary * 0.45,
+    ),
+  );
+}
 
 // ── 1. estimateOtherMood ─────────────────────────────────────
 
 /**
- * Infer the other's emotional state from the detected stimulus.
+ * Infer the other's emotional state from relational residue.
  *
- * Uses stimulus type as the primary signal, calibrated by
- * relationship history. Longer, deeper relationships yield
- * higher confidence — you read familiar people better.
+ * Explicit appraisal residue is primary. Legacy stimulus labels
+ * remain compatibility fallback only.
  */
 export function estimateOtherMood(
   stimulus: StimulusType | null,
   relationship: RelationshipState,
   previous?: TheoryOfMindModel,
+  appraisal?: AppraisalAxes | null,
 ): { mood: EstimatedMood; confidence: number } {
-  // No stimulus — hold previous estimate with decaying confidence
-  if (stimulus === null) {
+  const { basis } = deriveRelationalBasis(appraisal, stimulus);
+  const signalStrength = getBasisSignalStrength(basis);
+
+  // No signal — hold previous estimate with decaying confidence
+  if (signalStrength < APPRAISAL_SIGNAL_THRESHOLD) {
     if (previous) {
       return {
         mood: previous.estimatedMood,
@@ -167,7 +252,16 @@ export function estimateOtherMood(
     return { mood: "neutral", confidence: 0.15 };
   }
 
-  const rawMood = STIMULUS_MOOD_MAP[stimulus];
+  let rawMood: EstimatedMood = "neutral";
+  if (basis.rupture >= 0.48 || basis.boundary >= 0.52) {
+    rawMood = basis.approach >= 0.3 || basis.uncertainty >= 0.35 ? "mixed" : "negative";
+  } else if (basis.uncertainty >= 0.45) {
+    rawMood = basis.approach >= 0.25 ? "mixed" : "neutral";
+  } else if (basis.approach >= 0.35) {
+    rawMood = "positive";
+  } else if (basis.task >= 0.35) {
+    rawMood = "neutral";
+  }
 
   // Confidence from relationship depth: strangers → low, deep → high
   const phaseConfidence: Record<RelationshipState["phase"], number> = {
@@ -184,7 +278,7 @@ export function estimateOtherMood(
   const trustFactor = relationship.trust / 100;
 
   // Combine: depth provides the ceiling, trust scales within it
-  let confidence = depthConfidence * (0.5 + 0.5 * trustFactor);
+  let confidence = depthConfidence * (0.35 + 0.65 * trustFactor) * (0.45 + 0.55 * signalStrength);
 
   // If previous estimate exists and mood matches, confidence rises (consistency)
   if (previous && previous.estimatedMood === rawMood) {
@@ -212,24 +306,39 @@ export function estimateOtherMood(
 // ── 2. updateTheoryOfMind ────────────────────────────────────
 
 /**
- * Update the theory of mind model based on a new stimulus and
- * relationship context.
+ * Update the theory of mind model based on new relational residue
+ * and relationship context.
  */
 function updateTheoryOfMind(
   stimulus: StimulusType | null,
   relationship: RelationshipState,
   previous?: TheoryOfMindModel,
+  appraisal?: AppraisalAxes | null,
 ): TheoryOfMindModel {
+  const { basis } = deriveRelationalBasis(appraisal, stimulus);
+  const signalStrength = getBasisSignalStrength(basis);
   const { mood, confidence: moodConfidence } = estimateOtherMood(
-    stimulus, relationship, previous,
+    stimulus, relationship, previous, appraisal,
   );
 
   // Intent estimation
   let estimatedIntent: EstimatedIntent;
-  if (stimulus === null) {
+  if (signalStrength < APPRAISAL_SIGNAL_THRESHOLD) {
     estimatedIntent = previous?.estimatedIntent ?? "exploratory";
   } else {
-    const rawIntent = STIMULUS_INTENT_MAP[stimulus];
+    let rawIntent: EstimatedIntent;
+    const dominant = getDominantBasisAxis(basis);
+    if (dominant === "uncertainty") {
+      rawIntent = "support-seeking";
+    } else if (dominant === "approach") {
+      rawIntent = "collaborative";
+    } else if (dominant === "task") {
+      rawIntent = "exploratory";
+    } else if (dominant === "rupture" || dominant === "boundary") {
+      rawIntent = "adversarial";
+    } else {
+      rawIntent = "exploratory";
+    }
     // EMA between previous intent and new signal when previous exists
     if (previous && previous.estimatedIntent === rawIntent) {
       estimatedIntent = rawIntent; // reinforced
@@ -255,22 +364,23 @@ function updateTheoryOfMind(
 // ── 3. detectJointAttention ──────────────────────────────────
 
 /**
- * Detect or sustain joint attention based on stimulus continuity.
+ * Detect or sustain joint attention based on relational residue continuity.
  *
  * Joint attention emerges when:
- *   - The same category of stimulus persists across turns
- *   - Both parties are engaged (high-engagement stimuli)
- *
- * Collapses when:
- *   - Low-engagement stimulus appears (boredom, neglect)
- *   - No stimulus detected for a turn
+ *   - The same relational topic persists across turns
+ *   - The other remains engaged enough to sustain shared focus
  */
 function detectJointAttention(
   stimulus: StimulusType | null,
   previous: JointAttentionTopic | null,
+  appraisal?: AppraisalAxes | null,
 ): JointAttentionTopic | null {
+  const { basis } = deriveRelationalBasis(appraisal, stimulus);
+  const engagement = deriveEngagementLevel(basis);
+  const topicCategory = deriveTopicCategoryFromBasis(basis);
+
   // No stimulus — attention fades
-  if (stimulus === null) {
+  if (engagement < APPRAISAL_SIGNAL_THRESHOLD || topicCategory === null) {
     if (previous && previous.turnsSustained > 1) {
       // Slow fade: reduce engagement, keep topic alive for one grace turn
       return {
@@ -281,71 +391,32 @@ function detectJointAttention(
     return null;
   }
 
-  // Low engagement stimulus breaks joint attention
-  if (LOW_ENGAGEMENT_STIMULI.has(stimulus)) {
-    return null;
-  }
-
-  // Map stimulus to a topic category for continuity detection
-  const topicCategory = stimulusToTopicCategory(stimulus);
-
   // Check if this continues the previous topic
   if (previous) {
-    const previousCategory = stimulusToTopicCategory(
-      previous.topic as StimulusType,
-    );
-    const sameTopic = previousCategory === topicCategory
-      || previous.topic === topicCategory;
+    const sameTopic = previous.topic === topicCategory;
 
     if (sameTopic) {
       // Sustain: increment turns, boost engagement
-      const isHighEngagement = HIGH_ENGAGEMENT_STIMULI.has(stimulus);
-      const engagementDelta = isHighEngagement ? 0.15 : 0.05;
       return {
         topic: topicCategory,
         initiator: previous.initiator,
         turnsSustained: previous.turnsSustained + 1,
-        engagement: clamp01(previous.engagement + engagementDelta),
+        engagement: clamp01(previous.engagement * (1 - EMA_ALPHA) + engagement * EMA_ALPHA),
       };
     }
   }
 
-  // New topic — only establish if it's a high-engagement stimulus
-  if (HIGH_ENGAGEMENT_STIMULI.has(stimulus)) {
+  // New topic — only establish if the relational signal is strong enough
+  if (engagement >= 0.4) {
     return {
       topic: topicCategory,
       initiator: "other", // stimulus comes from the other party
       turnsSustained: 1,
-      engagement: 0.4,    // initial engagement is moderate
+      engagement,
     };
   }
 
   return null;
-}
-
-/**
- * Map a stimulus type to a broader topic category for continuity tracking.
- * Multiple stimuli can map to the same topic to allow topic persistence
- * across slight stimulus variation.
- */
-function stimulusToTopicCategory(stimulus: StimulusType | string): string {
-  const TOPIC_MAP: Record<string, string> = {
-    praise: "affirmation",
-    validation: "affirmation",
-    intimacy: "connection",
-    vulnerability: "connection",
-    humor: "play",
-    surprise: "play",
-    intellectual: "exploration",
-    criticism: "tension",
-    conflict: "tension",
-    sarcasm: "tension",
-    authority: "tension",
-    casual: "casual",
-    neglect: "disengagement",
-    boredom: "disengagement",
-  };
-  return TOPIC_MAP[stimulus] ?? stimulus;
 }
 
 // ── 4. assessGoalAlignment ───────────────────────────────────
@@ -433,7 +504,11 @@ function computeMutualAwareness(
   jointAttention: JointAttentionTopic | null,
   relationship: RelationshipState,
   previous: number,
+  appraisal?: AppraisalAxes | null,
 ): number {
+  const { basis } = deriveRelationalBasis(appraisal, stimulus);
+  const engagement = deriveEngagementLevel(basis);
+
   // Baseline from relationship depth
   const phaseAwareness: Record<RelationshipState["phase"], number> = {
     stranger: 0.1,
@@ -446,11 +521,11 @@ function computeMutualAwareness(
 
   let awareness = previous;
 
-  // High-engagement stimulus → they're clearly aware of us
-  if (stimulus && HIGH_ENGAGEMENT_STIMULI.has(stimulus)) {
-    awareness = awareness * (1 - EMA_ALPHA) + 0.8 * EMA_ALPHA;
-  } else if (stimulus && LOW_ENGAGEMENT_STIMULI.has(stimulus)) {
-    awareness = awareness * (1 - EMA_ALPHA) + 0.1 * EMA_ALPHA;
+  // Strong relational engagement → they're clearly aware of us
+  if (engagement >= 0.45) {
+    awareness = awareness * (1 - EMA_ALPHA) + Math.max(0.55, engagement) * EMA_ALPHA;
+  } else if (engagement < APPRAISAL_SIGNAL_THRESHOLD) {
+    awareness = awareness * (1 - EMA_ALPHA) + baseline * EMA_ALPHA;
   }
 
   // Joint attention boost — sustained shared focus implies mutual awareness
@@ -460,7 +535,7 @@ function computeMutualAwareness(
   }
 
   // Decay toward baseline when no strong signal
-  if (stimulus === null) {
+  if (engagement < APPRAISAL_SIGNAL_THRESHOLD) {
     awareness = awareness * 0.85 + baseline * 0.15;
   }
 
@@ -490,6 +565,7 @@ export function updateSharedIntentionality(
   stimulus: StimulusType | null,
   userId?: string,
   previous?: SharedIntentionalityState | null,
+  appraisal?: AppraisalAxes | null,
 ): SharedIntentionalityState {
   const relKey = userId ?? "_default";
   const relationship: RelationshipState = psyche.relationships[relKey]
@@ -502,12 +578,14 @@ export function updateSharedIntentionality(
     stimulus,
     relationship,
     prev?.theoryOfMind,
+    appraisal,
   );
 
   // 2. Detect / sustain joint attention
   const jointAttention = detectJointAttention(
     stimulus,
     prev?.jointAttention ?? null,
+    appraisal,
   );
 
   // 3. Assess goal alignment
@@ -523,6 +601,7 @@ export function updateSharedIntentionality(
     jointAttention,
     relationship,
     prev?.mutualAwareness ?? 0,
+    appraisal,
   );
 
   return {
