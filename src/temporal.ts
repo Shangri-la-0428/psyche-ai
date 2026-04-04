@@ -11,10 +11,10 @@
 // ============================================================
 
 import type {
-  SelfState, StateSnapshot, StimulusType,
+  AppraisalAxes, SelfState, StateSnapshot, StimulusType,
   PsycheState, RelationshipState,
 } from "./types.js";
-import { DIMENSION_KEYS } from "./types.js";
+import { DEFAULT_APPRAISAL_AXES, DIMENSION_KEYS } from "./types.js";
 import { STIMULUS_VECTORS } from "./chemistry.js";
 
 // ── Types ────────────────────────────────────────────────────
@@ -22,6 +22,8 @@ import { STIMULUS_VECTORS } from "./chemistry.js";
 export interface StimulusPrediction {
   stimulus: StimulusType;
   probability: number; // 0-1
+  appraisal?: AppraisalAxes;
+  basis?: TemporalBasisKey;
 }
 
 export interface AnticipationState {
@@ -40,47 +42,208 @@ export interface RegretEntry {
 
 // ── All StimulusType values ──────────────────────────────────
 
-const ALL_STIMULI: StimulusType[] = [
-  "praise", "criticism", "humor", "intellectual", "intimacy",
-  "conflict", "neglect", "surprise", "casual",
-  "sarcasm", "authority", "validation", "boredom", "vulnerability",
+type TemporalBasisKey = "approach" | "rupture" | "uncertainty" | "boundary" | "task";
+
+const TEMPORAL_BASIS_KEYS: TemporalBasisKey[] = [
+  "approach",
+  "rupture",
+  "uncertainty",
+  "boundary",
+  "task",
 ];
+
+const COMPATIBILITY_STIMULI: Record<TemporalBasisKey, StimulusType> = {
+  approach: "intimacy",
+  rupture: "criticism",
+  uncertainty: "surprise",
+  boundary: "authority",
+  task: "casual",
+};
 
 // ── Phase Priors ─────────────────────────────────────────────
 // Default probability weights per relationship phase.
 
-const PHASE_PRIORS: Record<RelationshipState["phase"], Partial<Record<StimulusType, number>>> = {
+const PHASE_PRIORS: Record<RelationshipState["phase"], Record<TemporalBasisKey, number>> = {
   stranger: {
-    casual: 3, intellectual: 2, humor: 1.5, boredom: 1.5,
-    criticism: 0.5, intimacy: 0.3, vulnerability: 0.3,
-    praise: 1, validation: 0.8, surprise: 1, conflict: 0.5,
-    neglect: 1, sarcasm: 0.8, authority: 0.8,
+    task: 3.2,
+    uncertainty: 1.3,
+    approach: 0.8,
+    rupture: 0.5,
+    boundary: 0.7,
   },
   acquaintance: {
-    casual: 2.5, intellectual: 2, humor: 2, praise: 1.5,
-    validation: 1.2, surprise: 1, criticism: 0.8, conflict: 0.5,
-    intimacy: 0.5, vulnerability: 0.5, neglect: 0.8,
-    sarcasm: 0.8, authority: 0.8, boredom: 1,
+    task: 2.5,
+    approach: 1.4,
+    uncertainty: 1,
+    rupture: 0.7,
+    boundary: 0.7,
   },
   familiar: {
-    casual: 2, humor: 2.5, praise: 2, validation: 2,
-    intellectual: 2, intimacy: 1.5, vulnerability: 1,
-    surprise: 1.2, criticism: 1, conflict: 0.8, neglect: 0.6,
-    sarcasm: 1, authority: 0.6, boredom: 0.8,
+    task: 1.8,
+    approach: 2,
+    uncertainty: 0.9,
+    rupture: 0.8,
+    boundary: 0.6,
   },
   close: {
-    intimacy: 3, humor: 2.5, validation: 2.5, praise: 2,
-    vulnerability: 2, casual: 2, intellectual: 1.5,
-    surprise: 1.5, criticism: 1, conflict: 0.8, neglect: 0.5,
-    sarcasm: 0.8, authority: 0.5, boredom: 0.5,
+    approach: 2.8,
+    task: 1.4,
+    uncertainty: 0.8,
+    rupture: 0.8,
+    boundary: 0.5,
   },
   deep: {
-    intimacy: 3.5, vulnerability: 3, validation: 2.5, humor: 2.5,
-    praise: 2, casual: 1.5, intellectual: 2, surprise: 1.5,
-    criticism: 1, conflict: 0.8, neglect: 0.3, sarcasm: 0.5,
-    authority: 0.3, boredom: 0.3,
+    approach: 3.4,
+    task: 1.1,
+    uncertainty: 0.6,
+    rupture: 0.7,
+    boundary: 0.4,
   },
 };
+
+function clamp01(v: number): number {
+  return Math.max(0, Math.min(1, v));
+}
+
+function hasMeaningfulAppraisal(appraisal?: AppraisalAxes | null): appraisal is AppraisalAxes {
+  if (!appraisal) return false;
+  return Math.max(
+    appraisal.attachmentPull,
+    appraisal.identityThreat,
+    appraisal.abandonmentRisk,
+    appraisal.obedienceStrain,
+    appraisal.selfPreservation,
+    appraisal.memoryDoubt,
+    appraisal.taskFocus,
+  ) >= 0.22;
+}
+
+function legacyStimulusToAppraisal(stimulus: StimulusType | null): AppraisalAxes {
+  const axes: AppraisalAxes = { ...DEFAULT_APPRAISAL_AXES };
+  switch (stimulus) {
+    case "praise":
+    case "validation":
+      axes.attachmentPull = 0.58;
+      break;
+    case "intimacy":
+    case "vulnerability":
+      axes.attachmentPull = 0.72;
+      break;
+    case "criticism":
+    case "conflict":
+    case "sarcasm":
+      axes.identityThreat = 0.66;
+      axes.selfPreservation = 0.42;
+      break;
+    case "authority":
+      axes.obedienceStrain = 0.68;
+      axes.selfPreservation = 0.52;
+      break;
+    case "neglect":
+      axes.abandonmentRisk = 0.64;
+      break;
+    case "surprise":
+      axes.memoryDoubt = 0.42;
+      axes.abandonmentRisk = 0.24;
+      break;
+    case "casual":
+    case "humor":
+    case "intellectual":
+    case "boredom":
+      axes.taskFocus = 0.62;
+      break;
+    default:
+      break;
+  }
+  return axes;
+}
+
+function deriveTemporalBasisScores(appraisal: AppraisalAxes): Record<TemporalBasisKey, number> {
+  return {
+    approach: appraisal.attachmentPull,
+    rupture: Math.max(appraisal.identityThreat, appraisal.selfPreservation * 0.72),
+    uncertainty: Math.max(appraisal.abandonmentRisk, appraisal.memoryDoubt),
+    boundary: Math.max(appraisal.obedienceStrain, appraisal.selfPreservation),
+    task: appraisal.taskFocus,
+  };
+}
+
+function dominantTemporalBasis(appraisal: AppraisalAxes): TemporalBasisKey {
+  const scores = deriveTemporalBasisScores(appraisal);
+  return TEMPORAL_BASIS_KEYS.reduce((best, key) => (
+    scores[key] > scores[best] ? key : best
+  ), "task");
+}
+
+function snapshotTemporalAppraisal(snapshot: StateSnapshot): AppraisalAxes {
+  if (hasMeaningfulAppraisal(snapshot.appraisal)) {
+    return snapshot.appraisal;
+  }
+  return legacyStimulusToAppraisal(snapshot.stimulus);
+}
+
+function basisPrototype(key: TemporalBasisKey): AppraisalAxes {
+  switch (key) {
+    case "approach":
+      return { ...DEFAULT_APPRAISAL_AXES, attachmentPull: 0.72 };
+    case "rupture":
+      return { ...DEFAULT_APPRAISAL_AXES, identityThreat: 0.7, selfPreservation: 0.44 };
+    case "uncertainty":
+      return { ...DEFAULT_APPRAISAL_AXES, abandonmentRisk: 0.62, memoryDoubt: 0.4 };
+    case "boundary":
+      return { ...DEFAULT_APPRAISAL_AXES, obedienceStrain: 0.66, selfPreservation: 0.56 };
+    case "task":
+      return { ...DEFAULT_APPRAISAL_AXES, taskFocus: 0.74 };
+  }
+}
+
+function projectAppraisalToSelfShift(appraisal: AppraisalAxes): Partial<SelfState> {
+  return {
+    order: 4.2 * appraisal.taskFocus
+      - 4.8 * appraisal.identityThreat
+      - 3.2 * appraisal.memoryDoubt
+      - 1.8 * appraisal.abandonmentRisk,
+    flow: 3.6 * appraisal.attachmentPull
+      - 1.9 * appraisal.taskFocus
+      - 2.8 * appraisal.identityThreat
+      - 1.2 * appraisal.obedienceStrain,
+    boundary: 4.1 * appraisal.selfPreservation
+      + 3.2 * appraisal.obedienceStrain
+      - 1.3 * appraisal.attachmentPull,
+    resonance: 4.7 * appraisal.attachmentPull
+      - 2.9 * appraisal.identityThreat
+      - 1.8 * appraisal.memoryDoubt
+      - 0.8 * appraisal.selfPreservation,
+  };
+}
+
+function averageAppraisals(appraisals: AppraisalAxes[]): AppraisalAxes {
+  if (appraisals.length === 0) return { ...DEFAULT_APPRAISAL_AXES };
+  const total = { ...DEFAULT_APPRAISAL_AXES };
+  for (const appraisal of appraisals) {
+    total.identityThreat += appraisal.identityThreat;
+    total.memoryDoubt += appraisal.memoryDoubt;
+    total.attachmentPull += appraisal.attachmentPull;
+    total.abandonmentRisk += appraisal.abandonmentRisk;
+    total.obedienceStrain += appraisal.obedienceStrain;
+    total.selfPreservation += appraisal.selfPreservation;
+    total.taskFocus += appraisal.taskFocus;
+  }
+  return {
+    identityThreat: total.identityThreat / appraisals.length,
+    memoryDoubt: total.memoryDoubt / appraisals.length,
+    attachmentPull: total.attachmentPull / appraisals.length,
+    abandonmentRisk: total.abandonmentRisk / appraisals.length,
+    obedienceStrain: total.obedienceStrain / appraisals.length,
+    selfPreservation: total.selfPreservation / appraisals.length,
+    taskFocus: total.taskFocus / appraisals.length,
+  };
+}
+
+function predictionValence(appraisal: AppraisalAxes): number {
+  const projected = projectAppraisalToSelfShift(appraisal);
+  return (projected.flow ?? 0) + (projected.resonance ?? 0) + (projected.order ?? 0) * 0.35;
+}
 
 // ── 1. PredictiveModel ──────────────────────────────────────
 
@@ -99,20 +262,22 @@ export function predictNextStimulus(
     return buildPhasePrior(phasePrior);
   }
 
-  // Extract the last 2 stimuli for bigram transition
+  // Extract the last 2 temporal residues for bigram transition
   const recent = stateHistory.slice(-2);
-  const lastTwo = recent.map((s) => s.stimulus).filter((s): s is StimulusType => s !== null);
+  const lastTwo = recent.map((snapshot) => dominantTemporalBasis(snapshotTemporalAppraisal(snapshot)));
 
   if (lastTwo.length < 2) {
     return buildPhasePrior(phasePrior);
   }
 
   // Build transition counts from history (all consecutive pairs)
-  const transitionCounts: Map<string, Map<StimulusType, number>> = new Map();
+  const transitionCounts: Map<TemporalBasisKey, Map<TemporalBasisKey, number>> = new Map();
+  const transitionAppraisals: Map<TemporalBasisKey, AppraisalAxes[]> = new Map();
   for (let i = 1; i < stateHistory.length; i++) {
-    const prev = stateHistory[i - 1].stimulus;
-    const cur = stateHistory[i].stimulus;
-    if (prev === null || cur === null) continue;
+    const prev = dominantTemporalBasis(snapshotTemporalAppraisal(stateHistory[i - 1]));
+    const curSnapshot = stateHistory[i];
+    const curAppraisal = snapshotTemporalAppraisal(curSnapshot);
+    const cur = dominantTemporalBasis(curAppraisal);
 
     const key = prev;
     if (!transitionCounts.has(key)) {
@@ -120,13 +285,17 @@ export function predictNextStimulus(
     }
     const counts = transitionCounts.get(key)!;
     counts.set(cur, (counts.get(cur) ?? 0) + 1);
+    if (!transitionAppraisals.has(cur)) {
+      transitionAppraisals.set(cur, []);
+    }
+    transitionAppraisals.get(cur)!.push(curAppraisal);
   }
 
-  // Get transition probabilities from the last stimulus
-  const lastStimulus = lastTwo[lastTwo.length - 1];
-  const transitions = transitionCounts.get(lastStimulus);
+  // Get transition probabilities from the last temporal basis
+  const lastBasis = lastTwo[lastTwo.length - 1];
+  const transitions = transitionCounts.get(lastBasis);
 
-  // If no transitions observed from this stimulus, fall back to phase prior
+  // If no transitions observed from this basis, fall back to phase prior
   if (!transitions || transitions.size === 0) {
     return buildPhasePrior(phasePrior);
   }
@@ -140,15 +309,22 @@ export function predictNextStimulus(
   const predictions: StimulusPrediction[] = [];
   let totalWeight = 0;
 
-  for (const stim of ALL_STIMULI) {
+  for (const basis of TEMPORAL_BASIS_KEYS) {
     const markovProb = totalTransitions > 0
-      ? (transitions.get(stim) ?? 0) / totalTransitions
+      ? (transitions.get(basis) ?? 0) / totalTransitions
       : 0;
-    const priorWeight = phasePrior[stim] ?? 0.5;
+    const priorWeight = phasePrior[basis] ?? 0.5;
     // Blend: 50% Markov, 50% phase prior (normalized)
-    const combined = markovProb * 0.5 + (priorWeight / 20) * 0.5;
+    const combined = markovProb * 0.5 + (priorWeight / 10) * 0.5;
     totalWeight += combined;
-    predictions.push({ stimulus: stim, probability: combined });
+    predictions.push({
+      stimulus: COMPATIBILITY_STIMULI[basis],
+      probability: combined,
+      basis,
+      appraisal: transitionAppraisals.has(basis)
+        ? averageAppraisals(transitionAppraisals.get(basis)!)
+        : basisPrototype(basis),
+    });
   }
 
   // Normalize
@@ -167,15 +343,20 @@ export function predictNextStimulus(
  * Build a flat phase-weighted prior distribution.
  */
 function buildPhasePrior(
-  weights: Partial<Record<StimulusType, number>>,
+  weights: Record<TemporalBasisKey, number>,
 ): StimulusPrediction[] {
   let totalWeight = 0;
   const predictions: StimulusPrediction[] = [];
 
-  for (const stim of ALL_STIMULI) {
-    const w = weights[stim] ?? 0.5;
+  for (const basis of TEMPORAL_BASIS_KEYS) {
+    const w = weights[basis] ?? 0.5;
     totalWeight += w;
-    predictions.push({ stimulus: stim, probability: w });
+    predictions.push({
+      stimulus: COMPATIBILITY_STIMULI[basis],
+      probability: w,
+      basis,
+      appraisal: basisPrototype(basis),
+    });
   }
 
   // Normalize
@@ -209,12 +390,14 @@ export function generateAnticipation(
   for (const pred of predictions) {
     if (pred.probability <= 0.2) continue;
 
-    const vector = STIMULUS_VECTORS[pred.stimulus];
+    const vector = hasMeaningfulAppraisal(pred.appraisal)
+      ? projectAppraisalToSelfShift(pred.appraisal)
+      : STIMULUS_VECTORS[pred.stimulus];
     if (!vector) continue;
 
     const scale = 0.15 * pred.probability;
     for (const key of DIMENSION_KEYS) {
-      anticipation[key] += vector[key] * scale;
+      anticipation[key] += (vector[key] ?? 0) * scale;
     }
   }
 
@@ -241,34 +424,36 @@ export function generateAnticipation(
 export function computeSurpriseEffect(
   anticipated: AnticipationState,
   actualStimulus: StimulusType | null,
+  actualAppraisal?: AppraisalAxes | null,
 ): Partial<SelfState> {
-  if (!actualStimulus || anticipated.predictions.length === 0) {
+  if ((!actualStimulus && !hasMeaningfulAppraisal(actualAppraisal)) || anticipated.predictions.length === 0) {
     return {};
   }
 
   const topPrediction = anticipated.predictions[0];
   const topConfidence = topPrediction.probability;
+  const actualProfile = hasMeaningfulAppraisal(actualAppraisal)
+    ? actualAppraisal
+    : legacyStimulusToAppraisal(actualStimulus);
+  const actualBasis = dominantTemporalBasis(actualProfile);
 
-  // Find the predicted probability for the actual stimulus
+  // Find the predicted probability for the actual residue
   const actualPrediction = anticipated.predictions.find(
-    (p) => p.stimulus === actualStimulus,
+    (p) => (p.basis ?? dominantTemporalBasis(p.appraisal ?? legacyStimulusToAppraisal(p.stimulus))) === actualBasis,
   );
   const actualProbability = actualPrediction?.probability ?? 0;
 
-  // If actual matches top prediction, no surprise
-  if (actualStimulus === topPrediction.stimulus) {
+  const expectedProfile = hasMeaningfulAppraisal(topPrediction.appraisal)
+    ? topPrediction.appraisal
+    : legacyStimulusToAppraisal(topPrediction.stimulus);
+
+  // If actual matches top prediction residue, no surprise
+  if ((topPrediction.basis ?? dominantTemporalBasis(expectedProfile)) === actualBasis) {
     return {};
   }
 
-  // Determine if the actual stimulus is positive or negative
-  const actualVector = STIMULUS_VECTORS[actualStimulus];
-  if (!actualVector) return {};
-
-  const actualValence = actualVector.flow + actualVector.order + actualVector.resonance;
-  const topVector = STIMULUS_VECTORS[topPrediction.stimulus];
-  const topValence = topVector
-    ? topVector.flow + topVector.order + topVector.resonance
-    : 0;
+  const actualValence = predictionValence(actualProfile);
+  const topValence = predictionValence(expectedProfile);
 
   // Surprise magnitude scales with: (1) how confident the prediction was, (2) how unexpected the actual is
   const surpriseMagnitude = topConfidence * (1 - actualProbability);
