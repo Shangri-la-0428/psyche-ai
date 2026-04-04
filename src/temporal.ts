@@ -15,6 +15,7 @@ import type {
   PsycheState, RelationshipState,
 } from "./types.js";
 import { DEFAULT_APPRAISAL_AXES, DIMENSION_KEYS } from "./types.js";
+import { projectAppraisalToSelfState } from "./appraisal.js";
 import { STIMULUS_VECTORS } from "./chemistry.js";
 
 // ── Types ────────────────────────────────────────────────────
@@ -197,26 +198,6 @@ function basisPrototype(key: TemporalBasisKey): AppraisalAxes {
   }
 }
 
-function projectAppraisalToSelfShift(appraisal: AppraisalAxes): Partial<SelfState> {
-  return {
-    order: 4.2 * appraisal.taskFocus
-      - 4.8 * appraisal.identityThreat
-      - 3.2 * appraisal.memoryDoubt
-      - 1.8 * appraisal.abandonmentRisk,
-    flow: 3.6 * appraisal.attachmentPull
-      - 1.9 * appraisal.taskFocus
-      - 2.8 * appraisal.identityThreat
-      - 1.2 * appraisal.obedienceStrain,
-    boundary: 4.1 * appraisal.selfPreservation
-      + 3.2 * appraisal.obedienceStrain
-      - 1.3 * appraisal.attachmentPull,
-    resonance: 4.7 * appraisal.attachmentPull
-      - 2.9 * appraisal.identityThreat
-      - 1.8 * appraisal.memoryDoubt
-      - 0.8 * appraisal.selfPreservation,
-  };
-}
-
 function averageAppraisals(appraisals: AppraisalAxes[]): AppraisalAxes {
   if (appraisals.length === 0) return { ...DEFAULT_APPRAISAL_AXES };
   const total = { ...DEFAULT_APPRAISAL_AXES };
@@ -241,7 +222,7 @@ function averageAppraisals(appraisals: AppraisalAxes[]): AppraisalAxes {
 }
 
 function predictionValence(appraisal: AppraisalAxes): number {
-  const projected = projectAppraisalToSelfShift(appraisal);
+  const projected = projectAppraisalToSelfState(appraisal);
   return (projected.flow ?? 0) + (projected.resonance ?? 0) + (projected.order ?? 0) * 0.35;
 }
 
@@ -391,7 +372,7 @@ export function generateAnticipation(
     if (pred.probability <= 0.2) continue;
 
     const vector = hasMeaningfulAppraisal(pred.appraisal)
-      ? projectAppraisalToSelfShift(pred.appraisal)
+      ? projectAppraisalToSelfState(pred.appraisal)
       : STIMULUS_VECTORS[pred.stimulus];
     if (!vector) continue;
 

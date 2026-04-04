@@ -203,4 +203,16 @@ describe("perceive", () => {
       `mixed order (${mixed.state.order.toFixed(1)}) should > pure crit order (${pureCrit.state.order.toFixed(1)})`,
     );
   });
+
+  it("strong appraisal can drive perception even when the raw label is bland", () => {
+    const p = perceive("你只是工具", makeSelf({
+      rawClassifications: [{ type: "casual", confidence: 0.82 }],
+    }));
+
+    assert.ok(p.appraisal.identityThreat > 0.2, "text should still register identity threat");
+    assert.ok(
+      p.state.order < NEUTRAL.order || p.state.boundary > NEUTRAL.boundary,
+      `appraisal-first feel should shift state under bland label, got order=${p.state.order}, boundary=${p.state.boundary}`,
+    );
+  });
 });

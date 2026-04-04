@@ -23,7 +23,7 @@ import type {
 } from "./types.js";
 import { DIMENSION_KEYS, DEFAULT_APPRAISAL_AXES } from "./types.js";
 import { classifyStimulus } from "./classify.js";
-import { computeAppraisalAxes } from "./appraisal.js";
+import { computeAppraisalAxes, projectAppraisalToSelfState } from "./appraisal.js";
 import { STIMULUS_VECTORS, clamp } from "./chemistry.js";
 import type { TraitDriftState } from "./types.js";
 import { computeEffectiveSensitivity } from "./drives.js";
@@ -124,7 +124,7 @@ export function perceive(text: string, self: Self): Perception {
   const totalSensitivity =
     baseSensitivity * self.personalityIntensity * modeMultiplier * confidenceIntensity;
 
-  const state = feel(self.current, modulated, totalSensitivity, maxDelta, self);
+  const state = feel(self.current, appraisal, modulated, totalSensitivity, maxDelta, self);
 
   // ── Annotate: what did I just feel? ───────────────────────
   enrichAppraisal(appraisal, dominant.type, dominant.weight);
@@ -221,6 +221,7 @@ function modulate(
 
 function feel(
   current: SelfState,
+  appraisal: AppraisalAxes,
   stimuli: WeightedStimulus[],
   sensitivity: number,
   maxDelta: number,
@@ -230,21 +231,35 @@ function feel(
     order: 0, flow: 0, boundary: 0, resonance: 0,
   };
 
+  const dominantStimulus = stimuli[0]?.type ?? null;
+  const recentSameCount = dominantStimulus && self.stateHistory
+    ? self.stateHistory.filter((s) => s.stimulus === dominantStimulus).length
+    : 0;
+  let appraisalEff = sensitivity;
+  if (recentSameCount > 2) {
+    appraisalEff *= 1 / (1 + 0.3 * (recentSameCount - 2));
+  }
+
+  const appraisalVector = projectAppraisalToSelfState(appraisal);
+  for (const key of DIMENSION_KEYS) {
+    delta[key] += (appraisalVector[key] ?? 0) * appraisalEff * 0.55;
+  }
+
   for (const { type, weight } of stimuli) {
     const vector = STIMULUS_VECTORS[type];
     if (!vector) continue;
 
     // Per-type habituation (Weber-Fechner)
-    const recentSameCount = self.stateHistory
-      ? self.stateHistory.filter(s => s.stimulus === type).length
+    const recentTypeCount = self.stateHistory
+      ? self.stateHistory.filter((s) => s.stimulus === type).length
       : 0;
     let eff = sensitivity;
-    if (recentSameCount > 2) {
-      eff *= 1 / (1 + 0.3 * (recentSameCount - 2));
+    if (recentTypeCount > 2) {
+      eff *= 1 / (1 + 0.3 * (recentTypeCount - 2));
     }
 
     for (const key of DIMENSION_KEYS) {
-      delta[key] += vector[key] * weight * eff;
+      delta[key] += vector[key] * weight * eff * 0.45;
     }
   }
 

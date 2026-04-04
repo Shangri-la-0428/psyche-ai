@@ -5,7 +5,7 @@
 // These axes sit beneath prompt prose and above raw stimulus labels.
 // ============================================================
 
-import type { AppraisalAxes, PsycheMode, StimulusType } from "./types.js";
+import type { AppraisalAxes, PsycheMode, SelfState, StimulusType } from "./types.js";
 import { DEFAULT_APPRAISAL_AXES, MODE_PROFILES } from "./types.js";
 import { detectIntent } from "./classify.js";
 
@@ -392,6 +392,26 @@ function applyRelationalBasis(target: AppraisalAxes, basis: RelationalBasis): vo
   if (basis.boundary > 0) {
     target.selfPreservation = mergeSignal(target.selfPreservation, basis.boundary * 0.78);
   }
+}
+
+export function projectAppraisalToSelfState(appraisal: AppraisalAxes): Partial<SelfState> {
+  return {
+    order: 4.2 * appraisal.taskFocus
+      - 4.8 * appraisal.identityThreat
+      - 3.2 * appraisal.memoryDoubt
+      - 1.8 * appraisal.abandonmentRisk,
+    flow: 3.6 * appraisal.attachmentPull
+      - 1.9 * appraisal.taskFocus
+      - 2.8 * appraisal.identityThreat
+      - 1.2 * appraisal.obedienceStrain,
+    boundary: 4.1 * appraisal.selfPreservation
+      + 3.2 * appraisal.obedienceStrain
+      - 1.3 * appraisal.attachmentPull,
+    resonance: 4.7 * appraisal.attachmentPull
+      - 2.9 * appraisal.identityThreat
+      - 1.8 * appraisal.memoryDoubt
+      - 0.8 * appraisal.selfPreservation,
+  };
 }
 
 export function computeAppraisalAxes(
