@@ -1,8 +1,9 @@
 // ============================================================
-// Stimulus Classifier — Detect stimulus type from user input
+// Legacy Stimulus Classifier — compatibility labels from user input
 //
-// Closes the loop: instead of asking the LLM to self-classify,
-// we pre-classify the user's message and pre-compute chemistry.
+// This module survives as a compatibility surface for old integrations,
+// metrics, and fallback heuristics. It does not define Psyche's core
+// ontology anymore; appraisal residue does.
 //
 // v2: Enhanced multi-signal scoring — weighted sentiment words,
 //     emoji analysis, structural features, and contextual priming.
@@ -16,6 +17,9 @@ export interface StimulusClassification {
   type: StimulusType;
   confidence: number; // 0-1
 }
+
+/** @deprecated Compatibility alias. Prefer the appraisal-first pipeline. */
+export type LegacyStimulusClassification = StimulusClassification;
 
 interface PatternRule {
   type: StimulusType;
@@ -728,7 +732,7 @@ const RULES: PatternRule[] = [
 ];
 
 /**
- * Classify the stimulus type(s) of a user message.
+ * Classify compatibility stimulus label(s) for a user message.
  * Returns all detected types sorted by confidence, highest first.
  * Falls back to "casual" if nothing matches.
  *
@@ -741,6 +745,18 @@ const RULES: PatternRule[] = [
  * @param recentStimuli Optional recent stimulus history for contextual priming
  */
 export function classifyStimulus(
+  text: string,
+  recentStimuli?: (StimulusType | null)[],
+  recentMessages?: string[],
+): StimulusClassification[] {
+  return classifyLegacyStimulus(text, recentStimuli, recentMessages);
+}
+
+/**
+ * Compatibility classifier for legacy stimulus labels.
+ * Kept because some downstream systems still consume StimulusType.
+ */
+export function classifyLegacyStimulus(
   text: string,
   recentStimuli?: (StimulusType | null)[],
   recentMessages?: string[],
@@ -1068,21 +1084,21 @@ export function classifyStimulus(
  * Get the primary (highest confidence) stimulus type.
  */
 export function getPrimaryStimulus(text: string, recentStimuli?: (StimulusType | null)[]): StimulusType {
-  return classifyStimulus(text, recentStimuli)[0].type;
+  return classifyLegacyStimulus(text, recentStimuli)[0].type;
 }
 
 // ── BuiltInClassifier (v9.1) ────────────────────────────────
 
 /**
- * The built-in rule-based classifier, wrapped as a ClassifierProvider.
- * Default classifier when no custom provider is configured.
+ * The built-in rule-based compatibility classifier.
+ * Default compatibility surface when no custom provider is configured.
  */
 export class BuiltInClassifier implements ClassifierProvider {
   classify(
     text: string,
     context?: ClassifierContext,
   ): ClassificationResult[] {
-    return classifyStimulus(
+    return classifyLegacyStimulus(
       text,
       context?.recentStimuli,
       context?.recentMessages,

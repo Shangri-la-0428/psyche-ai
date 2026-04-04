@@ -219,6 +219,14 @@ export type StimulusType =
   | "boredom"       // 无聊——重复/无意义
   | "vulnerability"; // 示弱——对方展示脆弱面
 
+/** Canonical residue markers for appraisal-first memory, learning, and recall. */
+export type AppraisalMarker =
+  | "approach"
+  | "rupture"
+  | "uncertainty"
+  | "boundary"
+  | "task";
+
 /** Self-state impact vector for a stimulus (4D) */
 export type ImpactVector = Record<keyof SelfState, number>;
 
@@ -331,9 +339,13 @@ export interface SelfModel {
 
 // ── Learning Types (v4) ─────────────────────────────────────
 
-/** Learned adjustment to a stimulus vector for a specific context */
+/** Learned adjustment to a compatibility vector for a specific context. */
 export interface LearnedVectorAdjustment {
+  marker?: AppraisalMarker;
+  /** @deprecated Compatibility representative. Use marker as the canonical grouping key. */
   stimulus: StimulusType;
+  /** Latest observed compatibility label, if any. */
+  legacyStimulus?: StimulusType | null;
   contextHash: string;
   adjustment: Partial<ImpactVector>;
   confidence: number;       // 0-1
@@ -345,7 +357,10 @@ export interface LearnedVectorAdjustment {
 export interface PredictionRecord {
   predictedState: SelfState;
   actualState: SelfState;
+  marker?: AppraisalMarker | null;
+  /** @deprecated Compatibility alias. */
   stimulus: StimulusType | null;
+  legacyStimulus?: StimulusType | null;
   predictionError: number;  // scalar distance
   timestamp: string;
 }
@@ -361,7 +376,10 @@ export interface OutcomeSignals {
 /** Outcome evaluation for a single interaction turn */
 export interface OutcomeScore {
   turnIndex: number;
+  marker?: AppraisalMarker | null;
+  /** @deprecated Compatibility alias. */
   stimulus: StimulusType | null;
+  legacyStimulus?: StimulusType | null;
   adaptiveScore: number;    // -1 to 1
   signals: OutcomeSignals;
   timestamp: string;
@@ -1315,15 +1333,15 @@ export const DEFAULT_ENERGY_BUDGETS: EnergyBudgets = {
   decisionCapacity: 100,
 };
 
-// ── Classifier Provider (v9.1) ──────────────────────────────
+// ── Classifier Provider (compatibility surface) ─────────────
 
-/** A single classification result */
+/** A single compatibility classification result. */
 export interface ClassificationResult {
   type: StimulusType;
   confidence: number; // 0-1
 }
 
-/** Context passed to classifier providers */
+/** Context passed to compatibility classifier providers. */
 export interface ClassifierContext {
   recentStimuli?: (StimulusType | null)[];
   recentMessages?: string[];
@@ -1331,10 +1349,10 @@ export interface ClassifierContext {
 }
 
 /**
- * Pluggable classifier interface.
+ * Pluggable compatibility classifier interface.
  * Implementations can be sync or async.
- * Built-in: enhanced keyword + Chinese NLP classifier (sync, zero deps).
- * User-provided: could be LLM-based, API-based, local model, etc.
+ * Built-in: legacy stimulus compatibility classifier (sync, zero deps).
+ * User-provided: can surface compatibility labels for old integrations.
  */
 export interface ClassifierProvider {
   classify(

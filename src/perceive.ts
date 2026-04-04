@@ -22,7 +22,7 @@ import type {
   WeightedStimulus,
 } from "./types.js";
 import { DIMENSION_KEYS, DEFAULT_APPRAISAL_AXES } from "./types.js";
-import { classifyStimulus } from "./classify.js";
+import { classifyLegacyStimulus } from "./classify.js";
 import { computeAppraisalAxes, projectAppraisalToSelfState } from "./appraisal.js";
 import { STIMULUS_VECTORS, clamp } from "./chemistry.js";
 import type { TraitDriftState } from "./types.js";
@@ -101,7 +101,7 @@ export function perceive(text: string, self: Self): Perception {
 
   // ── Raw signal: what the words say ────────────────────────
   const raw = self.rawClassifications
-    ?? classifyStimulus(text, self.recentStimuli);
+    ?? classifyLegacyStimulus(text, self.recentStimuli);
 
   // ── Appraisal: what the words mean to me ──────────────────
   const appraisal = computeAppraisalAxes(text, {

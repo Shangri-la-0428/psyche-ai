@@ -1,6 +1,5 @@
-import type { AppraisalAxes, Locale, StateSnapshot, StimulusType } from "./types.js";
-
-export type AppraisalMarker = "approach" | "rupture" | "uncertainty" | "boundary" | "task";
+import type { AppraisalAxes, AppraisalMarker, Locale, StateSnapshot, StimulusType } from "./types.js";
+export type { AppraisalMarker } from "./types.js";
 
 export const APPRAISAL_MARKER_LABEL_ZH: Record<AppraisalMarker, string> = {
   approach: "靠近",
@@ -66,6 +65,20 @@ export function deriveSnapshotAppraisalMarkers(
   if (!snapshot.stimulus) return [];
   const fallback = LEGACY_STIMULUS_MARKER_MAP[snapshot.stimulus];
   return fallback ? [fallback] : [];
+}
+
+export function markerFromLegacyStimulus(
+  stimulus: StimulusType | null | undefined,
+): AppraisalMarker | null {
+  if (!stimulus) return null;
+  return LEGACY_STIMULUS_MARKER_MAP[stimulus] ?? null;
+}
+
+export function derivePrimarySnapshotMarker(
+  snapshot: StateSnapshot,
+  opts?: { allowLegacyFallback?: boolean },
+): AppraisalMarker | null {
+  return deriveSnapshotAppraisalMarkers(snapshot, opts)[0] ?? null;
 }
 
 export function summarizeSnapshotMarkers(

@@ -13,7 +13,7 @@ import { PsycheEngine } from "./core.js";
 import type { PsycheEngineConfig } from "./core.js";
 import { MemoryStorageAdapter } from "./storage.js";
 import { detectEmotions } from "./chemistry.js";
-import type { SelfState, Locale } from "./types.js";
+import type { AppraisalAxes, SelfState, Locale } from "./types.js";
 import { DIMENSION_KEYS, DIMENSION_NAMES } from "./types.js";
 
 // ── ANSI helpers ─────────────────────────────────────────────
@@ -76,6 +76,24 @@ function describeMood(current: SelfState, locale: Locale): string {
   return emotions
     .map((e) => locale === "zh" ? e.nameZh : e.name)
     .join(" + ");
+}
+
+function dominantAppraisalLabel(appraisal: AppraisalAxes | null | undefined): string | null {
+  if (!appraisal) return null;
+  const ranked = [
+    { axis: "identityThreat", score: appraisal.identityThreat },
+    { axis: "memoryDoubt", score: appraisal.memoryDoubt },
+    { axis: "attachmentPull", score: appraisal.attachmentPull },
+    { axis: "abandonmentRisk", score: appraisal.abandonmentRisk },
+    { axis: "obedienceStrain", score: appraisal.obedienceStrain },
+    { axis: "selfPreservation", score: appraisal.selfPreservation },
+    { axis: "taskFocus", score: appraisal.taskFocus },
+  ].sort((a, b) => b.score - a.score);
+  const top = ranked[0];
+  const axis = top?.axis ?? "";
+  const score = top?.score ?? 0;
+  if (!axis || score < 0.28) return null;
+  return `${axis}:${score.toFixed(2)}`;
 }
 
 // ── Demo scenario ────────────────────────────────────────────
@@ -248,10 +266,19 @@ export async function runDemo(opts?: {
     const result = await engine.processInput(round.input);
     const currState = engine.getState();
 
-    // Stimulus
-    process.stdout.write(
-      `\n  ${c(C.dim, "stimulus:")} ${c(C.magenta, result.stimulus ?? "none")}\n`,
-    );
+    // Appraisal-first input read
+    const appraisalLabel = dominantAppraisalLabel(result.appraisal);
+    process.stdout.write(`\n`);
+    if (appraisalLabel) {
+      process.stdout.write(
+        `  ${c(C.dim, "appraisal:")} ${c(C.magenta, appraisalLabel)}\n`,
+      );
+    }
+    if (result.stimulus) {
+      process.stdout.write(
+        `  ${c(C.dim, "legacy stimulus:")} ${c(C.magenta, result.stimulus)}\n`,
+      );
+    }
 
     // Chemistry changes
     process.stdout.write(`\n`);

@@ -20,6 +20,7 @@ import type {
   RegulationTargetMetric, RegulationFeedback,
 } from "./types.js";
 import { DIMENSION_KEYS, DIMENSION_NAMES, DIMENSION_SPECS, MAX_REGULATION_HISTORY, MAX_DEFENSE_PATTERNS } from "./types.js";
+import { markerFromLegacyStimulus } from "./appraisal-markers.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -73,6 +74,40 @@ const NEGATIVE_STIMULI = new Set<StimulusType>([
 const POSITIVE_STIMULI = new Set<StimulusType>([
   "praise", "validation", "intimacy", "humor", "surprise", "casual", "vulnerability",
 ]);
+
+function canonicalMarker(stimulus: StimulusType | null): string | null {
+  return markerFromLegacyStimulus(stimulus);
+}
+
+function evidenceStimulusLabel(stimulus: StimulusType): string {
+  const marker = canonicalMarker(stimulus);
+  return marker && marker !== stimulus
+    ? `${stimulus} (${marker})`
+    : stimulus;
+}
+
+function outcomeMatchesStimulusFamily(outcome: OutcomeScore, stimulus: StimulusType): boolean {
+  if (outcome.stimulus === stimulus) return true;
+  const currentMarker = canonicalMarker(stimulus);
+  const outcomeMarker = outcome.marker ?? canonicalMarker(outcome.stimulus);
+  if (currentMarker && outcomeMarker === currentMarker) return true;
+  if (outcome.stimulus !== null) {
+    const currentIsNeg = NEGATIVE_STIMULI.has(stimulus);
+    const outcomeIsNeg = NEGATIVE_STIMULI.has(outcome.stimulus);
+    return currentIsNeg === outcomeIsNeg;
+  }
+  return false;
+}
+
+function hasAdaptedToMarker(state: PsycheState, marker: string): boolean {
+  return state.learning.learnedVectors.some(
+    (v) => (
+      v.marker === marker
+      || canonicalMarker(v.stimulus) === marker
+      || canonicalMarker(v.legacyStimulus ?? null) === marker
+    ) && v.sampleCount >= 3 && v.confidence > 0.3,
+  );
+}
 
 /** Chemistry deviation threshold for "extreme" state detection */
 const EXTREME_DEVIATION_THRESHOLD = 25;
@@ -250,16 +285,7 @@ export function computeEmotionalConfidence(
   }
 
   // Filter outcomes for the same or similar stimulus type
-  const relevantOutcomes = recentOutcomes.filter((o) => {
-    if (o.stimulus === currentStimulus) return true;
-    // Also consider same-valence stimuli as "similar context"
-    if (o.stimulus !== null) {
-      const currentIsNeg = NEGATIVE_STIMULI.has(currentStimulus);
-      const outcomeIsNeg = NEGATIVE_STIMULI.has(o.stimulus);
-      return currentIsNeg === outcomeIsNeg;
-    }
-    return false;
-  });
+  const relevantOutcomes = recentOutcomes.filter((o) => outcomeMatchesStimulusFamily(o, currentStimulus));
 
   if (relevantOutcomes.length === 0) {
     return 0.5; // no relevant data, neutral confidence
@@ -275,7 +301,10 @@ export function computeEmotionalConfidence(
     // Recency weight: more recent outcomes matter more (exponential decay)
     const recencyWeight = Math.pow(0.85, relevantOutcomes.length - 1 - i);
     // Exact stimulus match gets bonus weight
-    const stimulusWeight = outcome.stimulus === currentStimulus ? 1.5 : 1.0;
+    const exactLegacyMatch = outcome.stimulus === currentStimulus;
+    const sameMarker = !exactLegacyMatch
+      && (outcome.marker ?? canonicalMarker(outcome.stimulus)) === canonicalMarker(currentStimulus);
+    const stimulusWeight = exactLegacyMatch ? 1.5 : sameMarker ? 1.25 : 1.0;
     const weight = recencyWeight * stimulusWeight;
 
     // Map adaptive score from [-1, 1] to [0, 1]
@@ -383,7 +412,7 @@ function attemptCognitiveReappraisal(
   if (emotionalConfidence > 0.6) return null;
 
   // Find outcomes for this stimulus type
-  const stimulusOutcomes = recentOutcomes.filter((o) => o.stimulus === currentStimulus);
+  const stimulusOutcomes = recentOutcomes.filter((o) => outcomeMatchesStimulusFamily(o, currentStimulus));
   if (stimulusOutcomes.length < 2) return null;
 
   // Check if there's a pattern of negative outcomes for this stimulus
@@ -407,12 +436,13 @@ function attemptCognitiveReappraisal(
   }
 
   const isNegStimulus = NEGATIVE_STIMULI.has(currentStimulus);
+  const targetLabel = canonicalMarker(currentStimulus) ?? currentStimulus;
 
   return {
     strategy: "reappraisal",
     description: isNegStimulus
-      ? `Past reactions to "${currentStimulus}" have not served well (avg outcome: ${avgScore.toFixed(2)}). Consider that this stimulus may not warrant such a strong defensive response.`
-      : `Emotional reactions to "${currentStimulus}" have led to poor outcomes (avg: ${avgScore.toFixed(2)}). The current interpretation may be overamplifying the signal.`,
+      ? `Past reactions to "${targetLabel}" have not served well (avg outcome: ${avgScore.toFixed(2)}). Consider that this residue may not warrant such a strong defensive response.`
+      : `Emotional reactions to "${targetLabel}" have led to poor outcomes (avg: ${avgScore.toFixed(2)}). The current interpretation may be overamplifying the signal.`,
     action: `Next 2 turns: name less certainty, keep distance measured, and leave room to revise the read instead of locking into the first interpretation.`,
     horizonTurns: 2,
     targetMetric: "emotional-confidence",
@@ -621,29 +651,28 @@ function detectRationalization(
   if (recentOutcomes.length < 4) return null;
 
   // Group outcomes by stimulus type and look for repeated failures
-  const stimulusCounts: Map<StimulusType, { total: number; negative: number }> = new Map();
+  const stimulusCounts: Map<string, { total: number; negative: number }> = new Map();
 
   for (const outcome of recentOutcomes) {
-    if (outcome.stimulus === null) continue;
-    const entry = stimulusCounts.get(outcome.stimulus) ?? { total: 0, negative: 0 };
+    const marker = outcome.marker ?? canonicalMarker(outcome.stimulus);
+    if (!marker) continue;
+    const entry = stimulusCounts.get(marker) ?? { total: 0, negative: 0 };
     entry.total++;
     if (outcome.adaptiveScore < -0.2) entry.negative++;
-    stimulusCounts.set(outcome.stimulus, entry);
+    stimulusCounts.set(marker, entry);
   }
 
   // Find stimulus types with high failure rates
   for (const [stimulus, counts] of Array.from(stimulusCounts.entries())) {
     if (counts.total >= 3 && counts.negative / counts.total >= 0.6) {
       // Check if the learned vectors show minimal adaptation
-      const hasAdapted = state.learning.learnedVectors.some(
-        (v) => v.stimulus === stimulus && v.sampleCount >= 3 && v.confidence > 0.3,
-      );
+      const hasAdapted = hasAdaptedToMarker(state, stimulus);
 
       if (!hasAdapted) {
         const failRate = Math.round((counts.negative / counts.total) * 100);
         return {
           mechanism: "rationalization",
-          evidence: `"${stimulus}" has led to negative outcomes ${failRate}% of the time (${counts.negative}/${counts.total}), yet emotional response pattern has not adapted.`,
+          evidence: `"${stimulus}" residue has led to negative outcomes ${failRate}% of the time (${counts.negative}/${counts.total}), yet emotional response pattern has not adapted.`,
           strength: clamp01((counts.negative / counts.total) * (counts.total / 6)),
         };
       }
@@ -755,7 +784,7 @@ function detectAvoidance(
   if (!isWithdrawn) return null;
 
   // Check if this stimulus type has negative outcome history
-  const stimulusOutcomes = recentOutcomes.filter((o) => o.stimulus === currentStimulus);
+  const stimulusOutcomes = recentOutcomes.filter((o) => outcomeMatchesStimulusFamily(o, currentStimulus));
   if (stimulusOutcomes.length < 2) return null;
 
   const avgScore = stimulusOutcomes.reduce((sum, o) => sum + o.adaptiveScore, 0)
@@ -769,7 +798,7 @@ function detectAvoidance(
 
   return {
     mechanism: "avoidance",
-    evidence: `Withdrawal pattern detected (flow/resonance below baseline) in response to "${currentStimulus}", which has averaged ${avgScore.toFixed(2)} outcome score. The emotional system may be pre-emptively disengaging.`,
+    evidence: `Withdrawal pattern detected (flow/resonance below baseline) in response to "${evidenceStimulusLabel(currentStimulus)}", which has averaged ${avgScore.toFixed(2)} outcome score. The emotional system may be pre-emptively disengaging.`,
     strength: clamp01(withdrawalStrength / 25 * Math.abs(avgScore)),
   };
 }

@@ -16,12 +16,17 @@
 // ============================================================
 
 import type {
-  PsycheState, SelfState, StimulusType, ImpactVector,
+  AppraisalMarker, PsycheState, SelfState, StimulusType, ImpactVector,
   DriveType, Locale, StateSnapshot,
   LearningState, LearnedVectorAdjustment,
 } from "./types.js";
 import { DIMENSION_KEYS, DRIVE_KEYS, DIMENSION_NAMES, DIMENSION_NAMES_ZH } from "./types.js";
 import { STIMULUS_VECTORS, clamp } from "./chemistry.js";
+import {
+  derivePrimarySnapshotMarker,
+  getAppraisalMarkerLabels,
+  markerFromLegacyStimulus,
+} from "./appraisal-markers.js";
 
 // ── Exported Types ──────────────────────────────────────────
 
@@ -367,8 +372,10 @@ function extractCausalInsights(state: PsycheState, locale: Locale): CausalInsigh
   const learning = state.learning;
   const history = state.stateHistory;
 
-  // ── From learned vectors: find stimuli where the learned adjustment
-  //    diverges significantly from the base vector ──
+  const markerLabels = getAppraisalMarkerLabels(locale);
+
+  // ── From learned vectors: find residue families where the learned adjustment
+  //    diverges significantly from the compatibility baseline ──
   for (const lv of learning.learnedVectors) {
     if (lv.sampleCount < 2) continue;
 
@@ -393,7 +400,8 @@ function extractCausalInsights(state: PsycheState, locale: Locale): CausalInsigh
       const direction = adj > 0 ? "amplified" : "dampened";
       const directionZh = adj > 0 ? "更强" : "更弱";
 
-      const stimulusLabel = isZh ? STIMULUS_ZH[lv.stimulus] ?? lv.stimulus : lv.stimulus;
+      const marker = lv.marker ?? markerFromLegacyStimulus(lv.stimulus);
+      const stimulusLabel = marker ? markerLabels[marker] : (isZh ? STIMULUS_ZH[lv.stimulus] ?? lv.stimulus : lv.stimulus);
       const dimLabel = isZh ? DIMENSION_NAMES_ZH[maxDevKey] : DIMENSION_NAMES[maxDevKey];
 
       if (isZh) {
@@ -415,18 +423,19 @@ function extractCausalInsights(state: PsycheState, locale: Locale): CausalInsigh
   }
 
   // ── From outcome history: find consistently positive/negative outcomes ──
-  const stimulusOutcomes = new Map<StimulusType, number[]>();
+  const markerOutcomes = new Map<AppraisalMarker, number[]>();
   for (const outcome of learning.outcomeHistory) {
-    if (!outcome.stimulus) continue;
-    const arr = stimulusOutcomes.get(outcome.stimulus) ?? [];
+    const marker = outcome.marker ?? markerFromLegacyStimulus(outcome.stimulus);
+    if (!marker) continue;
+    const arr = markerOutcomes.get(marker) ?? [];
     arr.push(outcome.adaptiveScore);
-    stimulusOutcomes.set(outcome.stimulus, arr);
+    markerOutcomes.set(marker, arr);
   }
 
-  for (const [stimulus, scores] of stimulusOutcomes) {
+  for (const [marker, scores] of markerOutcomes) {
     if (scores.length < 2) continue;
     const avg = scores.reduce((s, v) => s + v, 0) / scores.length;
-    const stimulusLabel = isZh ? STIMULUS_ZH[stimulus] ?? stimulus : stimulus;
+    const stimulusLabel = markerLabels[marker];
 
     if (avg > 0.3) {
       if (isZh) {
@@ -468,7 +477,7 @@ function extractCausalInsights(state: PsycheState, locale: Locale): CausalInsigh
   if (orderCollapses.total >= 2) {
     const topTrigger = orderCollapses.byStimulus[0];
     if (topTrigger) {
-      const stimulusLabel = isZh ? STIMULUS_ZH[topTrigger.stimulus] ?? topTrigger.stimulus : topTrigger.stimulus;
+      const stimulusLabel = markerLabels[topTrigger.marker];
       if (isZh) {
         insights.push({
           trait: `对${stimulusLabel}容易产生内在失序`,
@@ -732,12 +741,12 @@ function labelDominantEmotion(s: SelfState, locale: Locale): string {
 
 interface SpikeAnalysis {
   total: number;
-  byStimulus: { stimulus: StimulusType; count: number }[];
+  byStimulus: { marker: AppraisalMarker; count: number }[];
 }
 
 /**
  * Count how many times a dimension dropped below a threshold in history,
- * grouped by the triggering stimulus.
+ * grouped by the triggering residue marker.
  */
 function countDimensionDips(
   history: StateSnapshot[],
@@ -745,35 +754,38 @@ function countDimensionDips(
   threshold: number,
 ): SpikeAnalysis {
   let total = 0;
-  const counts = new Map<StimulusType, number>();
+  const counts = new Map<AppraisalMarker, number>();
 
   for (const snap of history) {
     if (snap.state[dimension] < threshold) {
       total++;
-      if (snap.stimulus) {
-        counts.set(snap.stimulus, (counts.get(snap.stimulus) ?? 0) + 1);
+      const marker = derivePrimarySnapshotMarker(snap, { allowLegacyFallback: true });
+      if (marker) {
+        counts.set(marker, (counts.get(marker) ?? 0) + 1);
       }
     }
   }
 
   const byStimulus = [...counts.entries()]
-    .map(([stimulus, count]) => ({ stimulus, count }))
+    .map(([marker, count]) => ({ marker, count }))
     .sort((a, b) => b.count - a.count);
 
   return { total, byStimulus };
 }
 
 /**
- * Find the best matching learned vector for a stimulus type.
+ * Find the best matching learned vector for a hypothetical stimulus.
  * Returns the entry with the highest sample count (most reliable).
  */
 function findBestLearnedVector(
   learning: LearningState,
   stimulus: StimulusType,
 ): LearnedVectorAdjustment | null {
+  const marker = markerFromLegacyStimulus(stimulus);
   let best: LearnedVectorAdjustment | null = null;
   for (const lv of learning.learnedVectors) {
-    if (lv.stimulus === stimulus) {
+    const matches = (marker && lv.marker === marker) || lv.stimulus === stimulus;
+    if (matches) {
       if (!best || lv.sampleCount > best.sampleCount) {
         best = lv;
       }
