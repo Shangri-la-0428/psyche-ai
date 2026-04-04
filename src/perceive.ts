@@ -65,6 +65,18 @@ export interface Perception {
   confidence: number;
 }
 
+function getAppraisalIntensity(appraisal: AppraisalAxes): number {
+  return Math.max(
+    appraisal.identityThreat,
+    appraisal.memoryDoubt,
+    appraisal.attachmentPull,
+    appraisal.abandonmentRisk,
+    appraisal.obedienceStrain,
+    appraisal.selfPreservation,
+    appraisal.taskFocus,
+  );
+}
+
 // ── The act of perception ───────────────────────────────────
 
 /**
@@ -96,15 +108,35 @@ export function perceive(text: string, self: Self): Perception {
     mode: self.mode,
     previous: self.previousAppraisal,
   });
+  const appraisalIntensity = getAppraisalIntensity(appraisal);
+  const appraisalIsMeaningful = appraisalIntensity >= 0.22;
 
-  // If nothing detected, return unchanged state
+  const modeProfile = MODE_PROFILES[self.mode];
+  const modeMultiplier = modeProfile.dynamicsMultiplier;
+  const maxDelta = modeProfile.maxDimensionDelta ?? self.maxDimensionDelta;
+
+  // If nothing detected in either appraisal or raw signal, return unchanged state
   if (raw.length === 0 || raw[0].confidence < 0.5) {
-    enrichAppraisal(appraisal, null, 0);
+    if (!appraisalIsMeaningful) {
+      enrichAppraisal(appraisal, null, 0);
+      return {
+        state: { ...self.current },
+        appraisal,
+        dominantStimulus: null,
+        confidence: raw[0]?.confidence ?? 0,
+      };
+    }
+
+    const appraisalConfidence = Math.max(0.5, appraisalIntensity);
+    const confidenceIntensity = 0.6 + (appraisalConfidence - 0.5) * 1.2;
+    const totalSensitivity =
+      self.sensitivity * self.personalityIntensity * modeMultiplier * confidenceIntensity;
+    const state = feel(self.current, appraisal, [], totalSensitivity, maxDelta, self);
     return {
-      state: { ...self.current },
+      state,
       appraisal,
       dominantStimulus: null,
-      confidence: raw[0]?.confidence ?? 0,
+      confidence: appraisalConfidence,
     };
   }
 
@@ -112,9 +144,6 @@ export function perceive(text: string, self: Self): Perception {
   const modulated = modulate(raw, appraisal, self);
 
   // ── Self-state change: feel it ────────────────────────────
-  const modeProfile = MODE_PROFILES[self.mode];
-  const modeMultiplier = modeProfile.dynamicsMultiplier;
-  const maxDelta = modeProfile.maxDimensionDelta ?? self.maxDimensionDelta;
   const confidenceIntensity = 0.6 + (raw[0].confidence - 0.5) * 1.2;
 
   const dominant = modulated[0];

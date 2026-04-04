@@ -178,6 +178,19 @@ describe("perceive", () => {
     assert.equal(p.dominantStimulus, null);
   });
 
+  it("strong appraisal still changes state when raw classifier is weak", () => {
+    const p = perceive("你只是工具", makeSelf({
+      rawClassifications: [{ type: "casual", confidence: 0.3 }],
+    }));
+
+    assert.equal(p.dominantStimulus, null, "legacy stimulus should stay null when classifier is weak");
+    assert.ok(p.appraisal.identityThreat > 0.2, "appraisal should still register the threat");
+    assert.ok(
+      p.state.order < NEUTRAL.order || p.state.boundary > NEUTRAL.boundary,
+      `meaningful appraisal should still move state, got order=${p.state.order}, boundary=${p.state.boundary}`,
+    );
+  });
+
   it("mixed signals produce chemistry between extremes", () => {
     const purePraise = perceive("praise", makeSelf({
       rawClassifications: [{ type: "praise", confidence: 0.9 }],
