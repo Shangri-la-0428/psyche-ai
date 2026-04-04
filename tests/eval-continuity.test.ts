@@ -318,9 +318,9 @@ describe("Writeback Calibration — hint presence/absence", () => {
       userText: "你好呀",
       sessionBridge: bridge,
     });
-    // Algorithm uncertain → should include stimulus writeback hint
+    // Algorithm uncertain → should include appraisal writeback hint
     assert.ok(
-      prompt.includes("算法未判") || prompt.includes("stimulus"),
+      prompt.includes("算法未判") || prompt.includes("appraisal"),
       `Should include writeback hint when algorithm uncertain, got: ${prompt.slice(0, 400)}`,
     );
   });
@@ -386,10 +386,10 @@ describe("Writeback Calibration — hint presence/absence", () => {
     const prompt = buildCompactContext(state, undefined, {
       userText: "你怎么看AI意识这个问题？",
     });
-    // New relationship without algorithm stimulus gets verbose writeback with options
+    // New relationship without algorithm stimulus gets appraisal-first writeback guidance
     assert.ok(
-      prompt.includes("praise|criticism|humor|intellectual") || prompt.includes("可选"),
-      `New relationship + uncertain algorithm should list stimulus options, got: ${prompt.slice(0, 500)}`,
+      prompt.includes("approach|rupture|uncertainty|boundary") || prompt.includes("appraisal"),
+      `New relationship + uncertain algorithm should list appraisal guidance, got: ${prompt.slice(0, 500)}`,
     );
   });
 
@@ -405,14 +405,14 @@ describe("Writeback Calibration — hint presence/absence", () => {
       userText: "你怎么看AI意识这个问题？",
       sessionBridge: bridge,
     });
-    // Established relationship gets compressed writeback without the full options list
+    // Established relationship gets compressed appraisal writeback without the full guidance block
     assert.ok(
-      prompt.includes("算法未判") || prompt.includes("stimulus"),
-      `Established relationship still gets stimulus writeback hint when algorithm uncertain`,
+      prompt.includes("算法未判") || prompt.includes("appraisal"),
+      `Established relationship still gets appraisal writeback hint when algorithm uncertain`,
     );
     assert.ok(
-      !prompt.includes("praise|criticism|humor|intellectual"),
-      `Established relationship should NOT get the verbose options list`,
+      !prompt.includes("legacy stimulus"),
+      `Established relationship should stay compressed`,
     );
   });
 });

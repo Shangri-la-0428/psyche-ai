@@ -321,6 +321,14 @@ describe("parsePsycheUpdate", () => {
     assert.deepEqual(result!.signals, ["trust_up", "boundary_set", "repair_attempt"]);
     assert.equal(result!.signalConfidence, 0.78);
   });
+
+  it("parses appraisal-first writeback labels", () => {
+    const text = `<psyche_update>\nappraisal: approach | uncertainty\n</psyche_update>`;
+    const result = parsePsycheUpdate(text);
+    assert.ok(result);
+    assert.ok((result!.llmAppraisalAxes?.attachmentPull ?? 0) > 0);
+    assert.ok((result!.llmAppraisalAxes?.abandonmentRisk ?? 0) > 0);
+  });
 });
 
 // ── mergeUpdates ────────────────────────────────────────────

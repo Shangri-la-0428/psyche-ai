@@ -32,6 +32,7 @@ import {
   detectExistentialThreat, deriveDriveSatisfaction,
   computeEffectiveBaseline, computeEffectiveSensitivity,
 } from "./drives.js";
+import { mergeAppraisalResidue } from "./appraisal.js";
 import { checkForUpdate, getPackageVersion } from "./update.js";
 import { DiagnosticCollector, generateReport, formatLogEntry, submitFeedback } from "./diagnostics.js";
 import type { DiagnosticReport, SessionMetrics } from "./diagnostics.js";
@@ -850,6 +851,20 @@ export class PsycheEngine {
       if (parseResult) {
         state = mergeUpdates(state, parseResult.state, this.cfg.maxDimensionDelta, opts?.userId);
         stateChanged = true;
+
+        if (parseResult.llmAppraisalAxes) {
+          state = {
+            ...state,
+            subjectResidue: {
+              axes: mergeAppraisalResidue(
+                state.subjectResidue?.axes,
+                parseResult.llmAppraisalAxes,
+                state.meta.mode,
+              ),
+              updatedAt: new Date().toISOString(),
+            },
+          };
+        }
 
         // LLM-assisted classification: if algorithm didn't apply a stimulus
         // but LLM classified one, retroactively apply chemistry + drives

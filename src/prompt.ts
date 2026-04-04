@@ -986,12 +986,12 @@ function buildWritebackHint(
   if (!algoStimulus) {
     if (established) {
       parts.push(isZh
-        ? `算法未判出情绪类型，请在 <psyche_update> 报告 stimulus:。`
-        : `Algorithm uncertain — report stimulus: in <psyche_update>.`);
+        ? `算法未判出主观评价，请在 <psyche_update> 报告 appraisal: approach|rupture|uncertainty|boundary。`
+        : `Algorithm uncertain — report appraisal: approach|rupture|uncertainty|boundary in <psyche_update>.`);
     } else {
       parts.push(isZh
-        ? `算法未判出情绪类型。请你判断，在 <psyche_update> 中报告 stimulus:。\n可选: praise|criticism|humor|intellectual|intimacy|conflict|neglect|surprise|casual|sarcasm|authority|validation|boredom|vulnerability`
-        : `Algorithm uncertain. Judge and report stimulus: in <psyche_update>.\nOptions: praise|criticism|humor|intellectual|intimacy|conflict|neglect|surprise|casual|sarcasm|authority|validation|boredom|vulnerability`);
+        ? `算法未判出主观评价。请你判断，在 <psyche_update> 中报告 appraisal: approach|rupture|uncertainty|boundary。若你确实需要旧分类，再附 legacy stimulus:。`
+        : `Algorithm uncertain. Judge and report appraisal: approach|rupture|uncertainty|boundary in <psyche_update>. If needed for legacy compatibility, you may additionally include legacy stimulus:.`);
     }
   }
 

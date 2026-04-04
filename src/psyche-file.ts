@@ -7,12 +7,12 @@ import { readFile, writeFile, access, rename, constants, mkdir } from "node:fs/p
 import { dirname, join } from "node:path";
 import type {
   PsycheState, MBTIType, SelfState, RelationshipState,
-  SelfModel, Locale, EmpathyEntry, StimulusType, StateSnapshot, WritebackSignalType,
+  SelfModel, Locale, EmpathyEntry, StimulusType, StateSnapshot, WritebackSignalType, AppraisalAxes,
 } from "./types.js";
 import {
   DIMENSION_KEYS, DIMENSION_NAMES, DIMENSION_NAMES_ZH, DEFAULT_RELATIONSHIP,
   DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE,
-  MAX_EMOTIONAL_HISTORY, MAX_RELATIONSHIP_MEMORY,
+  MAX_EMOTIONAL_HISTORY, MAX_RELATIONSHIP_MEMORY, DEFAULT_APPRAISAL_AXES,
 } from "./types.js";
 import { getBaseline, getDefaultSelfModel, extractMBTI, getSensitivity, getTemperament } from "./profiles.js";
 import { applyDecay, detectEmotions } from "./chemistry.js";
@@ -844,7 +844,9 @@ export async function decayAndSave(workspaceDir: string, state: PsycheState): Pr
 /** Result of parsing a <psyche_update> block */
 export interface PsycheUpdateResult {
   state: Partial<PsycheState>;
-  /** LLM-assisted stimulus classification (when algorithm was uncertain) */
+  /** Appraisal residue reported by the model when algorithmic social read stayed uncertain */
+  llmAppraisalAxes?: AppraisalAxes;
+  /** Legacy LLM-assisted stimulus classification (compatibility path) */
   llmStimulus?: StimulusType;
   /** Sparse agent-authored writeback signals */
   signals?: WritebackSignalType[];
@@ -856,6 +858,7 @@ export interface PsycheUpdateResult {
  * Parse a <psyche_update> block from LLM output.
  * v0.2: supports decimals, Chinese names, English names.
  * v2.1: supports LLM-assisted stimulus classification.
+ * v2.2: supports appraisal-first writeback via appraisal labels.
  */
 export function parsePsycheUpdate(
   text: string,
@@ -902,7 +905,39 @@ export function parsePsycheUpdate(
     };
   }
 
-  // Parse LLM-assisted stimulus classification
+  // Parse appraisal-first writeback.
+  let llmAppraisalAxes: AppraisalAxes | undefined;
+  const appraisalMatch = block.match(/(?:appraisal|主观评价)\s*[:：]\s*([^\n]+)/i);
+  if (appraisalMatch) {
+    const APPRAISAL_NOTES: Record<string, Partial<AppraisalAxes>> = {
+      approach: { attachmentPull: 0.58 },
+      rupture: { selfPreservation: 0.56, attachmentPull: 0.24 },
+      uncertainty: { abandonmentRisk: 0.5, memoryDoubt: 0.28 },
+      boundary: { selfPreservation: 0.42, obedienceStrain: 0.24 },
+      "靠近": { attachmentPull: 0.58 },
+      "失配": { selfPreservation: 0.56, attachmentPull: 0.24 },
+      "不确定": { abandonmentRisk: 0.5, memoryDoubt: 0.28 },
+      "边界": { selfPreservation: 0.42, obedienceStrain: 0.24 },
+    };
+    const parsed = { ...DEFAULT_APPRAISAL_AXES };
+    let hit = false;
+    for (const token of appraisalMatch[1]
+      .split(/[,\s|/，、]+/)
+      .map((item) => item.trim().toLowerCase())
+      .filter(Boolean)) {
+      const patch = APPRAISAL_NOTES[token];
+      if (!patch) continue;
+      hit = true;
+      for (const [axis, value] of Object.entries(patch) as Array<[keyof AppraisalAxes, number]>) {
+        parsed[axis] = Math.max(parsed[axis], value);
+      }
+    }
+    if (hit) {
+      llmAppraisalAxes = parsed;
+    }
+  }
+
+  // Parse legacy LLM-assisted stimulus classification
   let llmStimulus: StimulusType | undefined;
   const stimulusMatch = block.match(/(?:stimulus|刺激类型)\s*[:：]\s*(\w+)/i);
   if (stimulusMatch) {
@@ -955,7 +990,7 @@ export function parsePsycheUpdate(
   const trustMatch = block.match(/(?:信任度|trust)\s*[:：]\s*(\d+)/i);
   const intimacyMatch = block.match(/(?:亲密度|intimacy)\s*[:：]\s*(\d+)/i);
 
-  if (Object.keys(updates).length === 0 && !empathyLog && !trustMatch && !llmStimulus && !signals) {
+  if (Object.keys(updates).length === 0 && !empathyLog && !trustMatch && !llmStimulus && !llmAppraisalAxes && !signals) {
     logger.debug(t("log.parse_debug", "zh", { snippet: block.slice(0, 100) }));
     return null;
   }
@@ -978,6 +1013,9 @@ export function parsePsycheUpdate(
   }
 
   const result: PsycheUpdateResult = { state: stateUpdates };
+  if (llmAppraisalAxes) {
+    result.llmAppraisalAxes = llmAppraisalAxes;
+  }
   if (llmStimulus) {
     result.llmStimulus = llmStimulus;
   }

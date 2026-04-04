@@ -952,6 +952,21 @@ resonance: 75 (happy)
     assert.ok(after.resonance >= before.resonance, `expected OT not to drop after override, got ${before.resonance} -> ${after.resonance}`);
   });
 
+  it("appraisal-first writeback updates subject residue without needing legacy stimulus", async () => {
+    const s = new MemoryStorageAdapter();
+    const e = new PsycheEngine({
+      mbti: "ENFP",
+      locale: "zh",
+      compactMode: true,
+    }, s);
+    await e.initialize();
+    const before = e.getState().subjectResidue?.axes.attachmentPull ?? 0;
+    await e.processOutput("<psyche_update>\nappraisal: approach | uncertainty\n</psyche_update>");
+    const residue = e.getState().subjectResidue?.axes;
+    assert.ok((residue?.attachmentPull ?? 0) > before);
+    assert.ok((residue?.abandonmentRisk ?? 0) > 0);
+  });
+
   // ── endSession ─────────────────────────────────────────
 
   it("endSession compresses history and clears it", async () => {
