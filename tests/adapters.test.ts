@@ -1045,6 +1045,62 @@ describe("PsycheClaudeSDK (with thronglets)", () => {
     assert.equal(traces[0].agent_id, "runtime-delegate");
     assert.equal(traces[0].session_id, "runtime-session");
   });
+
+  it("preserves prior runtime ids when a later hook payload omits one field", async () => {
+    const e2 = makeEngine();
+    await e2.initialize();
+    const p2 = new PsycheClaudeSDK(e2, {
+      thronglets: true,
+      context: { userId: "_default" },
+    });
+    const hooks = p2.getHooks();
+    const callback = hooks.UserPromptSubmit![0].hooks[0];
+
+    await callback(
+      {
+        hook_event_name: "UserPromptSubmit",
+        user_message: "先建立上下文",
+        session_id: "runtime-session",
+        agent_id: "runtime-delegate",
+        cwd: "/tmp",
+      },
+      undefined,
+      { signal: AbortSignal.timeout(5000) },
+    );
+
+    await callback(
+      {
+        hook_event_name: "UserPromptSubmit",
+        user_message: "继续",
+        session_id: "runtime-session-2",
+        cwd: "/tmp",
+      },
+      undefined,
+      { signal: AbortSignal.timeout(5000) },
+    );
+
+    const signal = p2.getThrongletsSignal();
+    assert.ok(signal);
+    assert.equal(signal!.agent_id, "runtime-delegate");
+
+    (p2 as any).lastThrongletsExports = [{
+      kind: "continuity-anchor",
+      subject: "session",
+      primitive: "trace",
+      userKey: "_default",
+      strength: 0.8,
+      ttlTurns: 6,
+      key: "runtime:k2",
+      continuityMode: "warm-resume",
+      activeLoopTypes: [],
+      continuityFloor: 0.6,
+    }];
+
+    const traces = p2.getThrongletsTraces();
+    assert.equal(traces.length, 1);
+    assert.equal(traces[0].agent_id, "runtime-delegate");
+    assert.equal(traces[0].session_id, "runtime-session-2");
+  });
 });
 
 describe("stripPsycheTags utility", () => {

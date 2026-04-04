@@ -31,6 +31,49 @@ const MAX_SEMANTIC_POINT_ZH = 12;
 const MAX_SEMANTIC_POINT_EN = 24;
 const LOW_SIGNAL_SEMANTIC_CLAUSE = /^(只|就|先|再|停|好|嗯|哦|那|现在|结束工作|切到工作|不是继续工作|为什么|确认规则)/u;
 
+function mergeRelationshipMemory(
+  primary?: RelationshipState,
+  secondary?: RelationshipState,
+): string[] | undefined {
+  const merged = [...(secondary?.memory ?? []), ...(primary?.memory ?? [])];
+  if (merged.length === 0) return undefined;
+  return [...new Set(merged)].slice(-MAX_RELATIONSHIP_MEMORY);
+}
+
+function mergeRelationshipBuckets(
+  primary?: RelationshipState,
+  secondary?: RelationshipState,
+): RelationshipState {
+  const merged: RelationshipState = {
+    ...DEFAULT_RELATIONSHIP,
+    ...(secondary ?? {}),
+    ...(primary ?? {}),
+  };
+  const memory = mergeRelationshipMemory(primary, secondary);
+  if (memory) {
+    merged.memory = memory;
+  } else {
+    delete merged.memory;
+  }
+  return merged;
+}
+
+function normalizeDefaultRelationshipBuckets(state: PsycheState): PsycheState {
+  const relationships = state.relationships ?? {};
+  const legacy = relationships.default;
+  if (!legacy) return state;
+
+  const canonical = relationships[DEFAULT_RELATIONSHIP_USER_ID];
+  const { default: _legacyDefault, ...rest } = relationships;
+  return {
+    ...state,
+    relationships: {
+      ...rest,
+      [DEFAULT_RELATIONSHIP_USER_ID]: mergeRelationshipBuckets(canonical, legacy),
+    },
+  };
+}
+
 export interface SemanticTurnSummary {
   summary: string;
   points?: string[];
@@ -660,7 +703,7 @@ export async function loadState(
       state.sensitivity = 1.0;
     }
 
-    return state;
+    return normalizeDefaultRelationshipBuckets(state);
   }
 
   return initializeState(workspaceDir, undefined, logger);
@@ -705,14 +748,14 @@ export function migrateToLatest(
   // v3→v4: add learning
   // v4→v5: add metacognition
   // v5→v6: add personhood
-  return {
+  return normalizeDefaultRelationshipBuckets({
     ...state,
     version: 6,
     drives: (state as Record<string, unknown>).drives ?? { ...DEFAULT_DRIVES },
     learning: (state as Record<string, unknown>).learning ?? { ...DEFAULT_LEARNING_STATE },
     metacognition: (state as Record<string, unknown>).metacognition ?? { ...DEFAULT_METACOGNITIVE_STATE },
     personhood: (state as Record<string, unknown>).personhood ?? { ...DEFAULT_PERSONHOOD_STATE },
-  } as PsycheState;
+  } as PsycheState);
 }
 
 /**

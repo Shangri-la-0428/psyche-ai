@@ -279,7 +279,10 @@ export class PsycheClaudeSDK {
                   ? input.session_id
                   : undefined,
               };
-              self.lastRuntimeContext = runtimeContext;
+              self.lastRuntimeContext = {
+                agentId: runtimeContext.agentId ?? self.lastRuntimeContext.agentId,
+                sessionId: runtimeContext.sessionId ?? self.lastRuntimeContext.sessionId,
+              };
               const userMessage = (input as UserPromptSubmitInput).user_message ?? "";
               const result = await self.engine.processInput(userMessage, {
                 userId: self.opts.userId,

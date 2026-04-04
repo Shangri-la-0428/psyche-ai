@@ -68,6 +68,29 @@ describe("loadState", () => {
     await rm(dir, { recursive: true });
   });
 
+  it("migrates legacy default relationship bucket into _default", async () => {
+    const dir = await freshDir();
+    const original = makeMinimalState({
+      version: 10,
+      relationships: {
+        default: {
+          ...DEFAULT_RELATIONSHIP,
+          trust: 72,
+          intimacy: 48,
+          phase: "familiar",
+          memory: ["legacy-session"],
+        },
+      },
+    } as unknown as Partial<PsycheState>);
+    await writeFile(join(dir, "psyche-state.json"), JSON.stringify(original), "utf-8");
+    const loaded = await loadState(dir);
+    assert.equal(loaded.relationships._default.trust, 72);
+    assert.equal(loaded.relationships._default.intimacy, 48);
+    assert.deepEqual(loaded.relationships._default.memory, ["legacy-session"]);
+    assert.equal("default" in loaded.relationships, false);
+    await rm(dir, { recursive: true });
+  });
+
   it("migrates v1 to v2", async () => {
     const dir = await freshDir();
     const v1 = {
