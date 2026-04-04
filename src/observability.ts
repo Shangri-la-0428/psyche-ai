@@ -85,7 +85,7 @@ function pickDominantPlane(
 
 function summarizeCurrentTurn(
   appraisal: AppraisalAxes | null | undefined,
-  stimulus: StimulusType | null,
+  legacyStimulus: StimulusType | null,
   userText?: string,
 ): string {
   const topAxes = appraisal
@@ -97,7 +97,7 @@ function summarizeCurrentTurn(
   if (topAxes.length > 0) {
     return `appraisal:${topAxes.map(([axis, value]) => `${axis}=${value.toFixed(2)}`).join(",")}`;
   }
-  if (stimulus) return `legacy-stimulus:${stimulus}`;
+  if (legacyStimulus) return `legacy-stimulus:${legacyStimulus}`;
   if (userText && userText.trim().length > 0) return "appraisal:none";
   return "no-user-input";
 }
@@ -129,7 +129,7 @@ function buildStateLayers(
   state: PsycheState,
   opts: {
     appraisal: AppraisalAxes | null | undefined;
-    stimulus: StimulusType | null;
+    legacyStimulus: StimulusType | null;
     userText?: string;
     sessionBridge: SessionBridgeState | null;
     writebackFeedback: WritebackCalibrationFeedback[];
@@ -141,8 +141,8 @@ function buildStateLayers(
       layer: "current-turn",
       precedence: 1,
       scope: "turn",
-      active: Boolean(opts.stimulus) || Boolean(opts.userText?.trim()),
-      summary: summarizeCurrentTurn(opts.appraisal, opts.stimulus, opts.userText),
+      active: Boolean(opts.legacyStimulus) || Boolean(opts.userText?.trim()),
+      summary: summarizeCurrentTurn(opts.appraisal, opts.legacyStimulus, opts.userText),
     },
     {
       layer: "writeback-feedback",
@@ -450,7 +450,7 @@ export function buildTurnObservability(
     replyEnvelope: ReplyEnvelope;
     promptRenderInputs: PromptRenderInputs;
     compactMode: boolean;
-    stimulus: StimulusType | null;
+    legacyStimulus: StimulusType | null;
     userText?: string;
     sessionBridge: SessionBridgeState | null;
     writebackFeedback: WritebackCalibrationFeedback[];
@@ -460,7 +460,7 @@ export function buildTurnObservability(
 ): TurnObservability {
   const stateLayers = buildStateLayers(state, {
     appraisal: opts.replyEnvelope.subjectivityKernel.appraisal,
-    stimulus: opts.stimulus,
+    legacyStimulus: opts.legacyStimulus,
     userText: opts.userText,
     sessionBridge: opts.sessionBridge,
     writebackFeedback: opts.writebackFeedback,

@@ -699,7 +699,7 @@ export class PsycheEngine {
       userId: opts?.userId,
       localeFallback: this.cfg.locale,
       personalityIntensity: this.cfg.personalityIntensity,
-      classificationConfidence: this.lastLegacyStimulusAssessment?.confidence,
+      legacyStimulusConfidence: this.lastLegacyStimulusAssessment?.confidence,
       minutesElapsed,
       nowIso: now.toISOString(),
       writebackNote,
@@ -729,7 +729,7 @@ export class PsycheEngine {
     };
     const promptRenderInputs: PromptRenderInputs = {
       userText: text || undefined,
-      algorithmStimulus: appliedStimulus,
+      legacyStimulus: appliedStimulus,
       personalityIntensity: this.cfg.personalityIntensity,
       metacognitiveNote: reflectiveTurn.metacognitiveNote,
       decisionContext: reflectiveTurn.decisionContext,
@@ -748,7 +748,7 @@ export class PsycheEngine {
       replyEnvelope,
       promptRenderInputs,
       compactMode: this.cfg.compactMode,
-      stimulus: appliedStimulus,
+      legacyStimulus: appliedStimulus,
       userText: text || undefined,
       sessionBridge,
       writebackFeedback,

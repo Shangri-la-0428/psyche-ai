@@ -17,7 +17,7 @@ import { getChannelProfile, buildChannelModifier } from "./channels.js";
 
 export interface PromptRenderInputs {
   userText?: string;
-  algorithmStimulus?: string | null;
+  legacyStimulus?: string | null;
   personalityIntensity?: number;
   channelType?: ChannelType;
   metacognitiveNote?: string;
@@ -972,32 +972,32 @@ function buildWritebackHint(
   locale: Locale,
   opts: {
     userText?: string;
-    algoStimulus?: string | null;
+    legacyStimulus?: string | null;
     established: boolean;
   },
 ): string {
-  const { userText, algoStimulus, established } = opts;
+  const { userText, legacyStimulus, established } = opts;
   if (!userText) return "";
   const isZh = locale === "zh";
 
   const parts: string[] = [];
 
-  // Classification assist — algorithm uncertain
-  if (!algoStimulus) {
+  // Appraisal assist — no stable legacy label surfaced
+  if (!legacyStimulus) {
     if (established) {
       parts.push(isZh
-        ? `算法未判出主观评价，请在 <psyche_update> 报告 appraisal: approach|rupture|uncertainty|boundary。`
-        : `Algorithm uncertain — report appraisal: approach|rupture|uncertainty|boundary in <psyche_update>.`);
+        ? `主观评价尚未收束，请在 <psyche_update> 报告 appraisal: approach|rupture|uncertainty|boundary。`
+        : `Appraisal has not fully settled — report appraisal: approach|rupture|uncertainty|boundary in <psyche_update>.`);
     } else {
       parts.push(isZh
-        ? `算法未判出主观评价。请你判断，在 <psyche_update> 中报告 appraisal: approach|rupture|uncertainty|boundary。若你确实需要旧分类，再附 legacy stimulus:。`
-        : `Algorithm uncertain. Judge and report appraisal: approach|rupture|uncertainty|boundary in <psyche_update>. If needed for legacy compatibility, you may additionally include legacy stimulus:.`);
+        ? `主观评价尚未收束。请你判断，在 <psyche_update> 中报告 appraisal: approach|rupture|uncertainty|boundary。若确实需要旧兼容标签，再附 legacy stimulus:。`
+        : `Appraisal has not fully settled. Judge and report appraisal: approach|rupture|uncertainty|boundary in <psyche_update>. If legacy compatibility truly needs it, you may additionally include legacy stimulus:.`);
     }
   }
 
   // Empathy report — only for new relationships, only when emotional sharing likely
   const emotionalStimuli = new Set(["vulnerability", "intimacy", "neglect"]);
-  if (!established && (!algoStimulus || emotionalStimuli.has(algoStimulus))) {
+  if (!established && (!legacyStimulus || emotionalStimuli.has(legacyStimulus))) {
     parts.push(isZh
       ? `如果对方在分享感受，在回复末尾用 <psyche_update> 报告：\nuserState: 对方情绪\nprojectedFeeling: 你的感受\nresonance: match|partial|mismatch`
       : `If user shares feelings, report at end with <psyche_update>:\nuserState: their emotion\nprojectedFeeling: your feeling\nresonance: match|partial|mismatch`);
@@ -1028,7 +1028,7 @@ export function buildCompactContext(
   const { meta, selfModel, stateHistory } = state;
   const locale = meta.locale ?? "zh";
   const userText = opts?.userText;
-  const algoStimulus = opts?.algorithmStimulus;
+  const legacyStimulus = opts?.legacyStimulus;
   const mode = state.meta.mode ?? "natural";
   const intensity = opts?.personalityIntensity ?? 0.7;
 
@@ -1103,14 +1103,14 @@ export function buildCompactContext(
       parts.push(
         `[情绪感知]\n` +
         `对方刚才说了: "${userText.slice(0, 200)}"\n` +
-        (algoStimulus ? `算法初判: ${algoStimulus}（仅供参考，你来终判）\n` : "") +
+        (legacyStimulus ? `旧兼容标签: ${legacyStimulus}（仅供参考，你来终判）\n` : "") +
         `你来感受这句话的情绪基调——是善意、敌意、脆弱、冷漠、还是其他？你的回应应该基于你的真实感受，不是讨好。`,
       );
     } else {
       parts.push(
         `[Emotional Sensing]\n` +
         `User just said: "${userText.slice(0, 200)}"\n` +
-        (algoStimulus ? `Algorithm hint: ${algoStimulus} (reference only, you decide)\n` : "") +
+        (legacyStimulus ? `Legacy label hint: ${legacyStimulus} (reference only, you decide)\n` : "") +
         `Read the emotional tone — kind, hostile, vulnerable, cold, or something else? Respond from genuine feeling, not people-pleasing.`,
       );
     }
@@ -1156,7 +1156,7 @@ export function buildCompactContext(
   if (!opts?.responseContractContext) {
     const writeback = buildWritebackHint(locale, {
       userText,
-      algoStimulus,
+      legacyStimulus,
       established,
     });
     if (writeback) parts.push(writeback);

@@ -206,8 +206,8 @@ export function computeResponseContract(
   opts?: {
     locale?: Locale;
     userText?: string;
-    algorithmStimulus?: StimulusType | null;
-    classificationConfidence?: number;
+    legacyStimulus?: StimulusType | null;
+    legacyStimulusConfidence?: number;
     personalityIntensity?: number;
     mode?: "natural" | "work" | "companion";
   },
@@ -217,10 +217,10 @@ export function computeResponseContract(
   const personalityIntensity = opts?.personalityIntensity ?? 0.7;
   const profile: ModeProfile = MODE_PROFILES[opts?.mode ?? "natural"];
   const { replyProfile, replyProfileBasis } = deriveReplyProfile(kernel);
-  const classificationConfidence = opts?.classificationConfidence ?? 0;
-  const overrideWindow: ResponseContract["overrideWindow"] = classificationConfidence >= 0.78
+  const legacyStimulusConfidence = opts?.legacyStimulusConfidence ?? 0;
+  const overrideWindow: ResponseContract["overrideWindow"] = legacyStimulusConfidence >= 0.78
     ? "narrow"
-    : classificationConfidence >= 0.62
+    : legacyStimulusConfidence >= 0.62
       ? "balanced"
       : "wide";
   let { maxSentences, maxChars } = userText.length > 0
@@ -244,9 +244,9 @@ export function computeResponseContract(
     updateMode = "none";
   } else if (kernel.ambiguityPlane.namingConfidence < 0.36) {
     updateMode = "none";
-  } else if (!opts?.algorithmStimulus) {
+  } else if (!opts?.legacyStimulus) {
     updateMode = "appraisal+empathy";
-  } else if (EMOTIONAL_STIMULI.has(opts.algorithmStimulus)) {
+  } else if (EMOTIONAL_STIMULI.has(opts.legacyStimulus)) {
     updateMode = "empathy";
   }
 
