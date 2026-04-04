@@ -69,13 +69,13 @@ describe("computeResponseContract", () => {
     assert.equal(contract.authenticityMode, "strict");
   });
 
-  it("requests stimulus and empathy reporting when algorithm is uncertain", () => {
+  it("requests appraisal and empathy reporting when algorithm is uncertain", () => {
     const contract = computeResponseContract(makeKernel(), {
       locale: "zh",
       userText: "你真的让我有点失望",
       algorithmStimulus: null,
     });
-    assert.equal(contract.updateMode, "stimulus+empathy");
+    assert.equal(contract.updateMode, "appraisal+empathy");
     assert.equal(contract.overrideWindow, "wide");
   });
 
@@ -242,7 +242,7 @@ describe("buildResponseContractContext", () => {
     }), "zh");
     assert.ok(ctx.startsWith("[回应契约]"), `got: ${ctx}`);
     assert.ok(ctx.includes("不贴不舔"), `got: ${ctx}`);
-    assert.ok(ctx.includes("stimulus速记"), `got: ${ctx}`);
+    assert.ok(ctx.includes("appraisal速记"), `got: ${ctx}`);
     assert.ok(ctx.includes("因:"), `got: ${ctx}`);
     assert.ok(ctx.includes("终判窗"), `got: ${ctx}`);
     assert.ok(ctx.includes("signals可写"), `got: ${ctx}`);

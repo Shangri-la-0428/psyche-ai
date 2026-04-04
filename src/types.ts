@@ -1021,7 +1021,7 @@ export interface ResponseContract {
   replyProfile: "work" | "private";
   /** Why the current turn was classified into that conversational surface */
   replyProfileBasis: "task-focus" | "discipline" | "task-focus+discipline" | "default-private";
-  /** How much freedom the model has to override the algorithmic stimulus read */
+  /** How much freedom the model has to override the algorithmic social read */
   overrideWindow: "narrow" | "balanced" | "wide";
   /** Maximum suggested sentence count */
   maxSentences: number;
@@ -1042,7 +1042,7 @@ export interface ResponseContract {
   /** Whether to enforce anti-sycophancy/authenticity more strictly */
   authenticityMode: "strict" | "friendly";
   /** Which internal report, if any, should be requested in <psyche_update> */
-  updateMode: "none" | "stimulus" | "empathy" | "stimulus+empathy";
+  updateMode: "none" | "appraisal" | "empathy" | "appraisal+empathy";
 }
 
 export type TurnControlPlane = "task" | "subject" | "relation" | "ambiguity";
