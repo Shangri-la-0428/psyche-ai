@@ -9,7 +9,10 @@
 //   const engine = new PsycheEngine({ name: "Luna", mbti: "ENFP" }, new MemoryStorageAdapter());
 //   await engine.initialize();
 //
-//   const psyche = new PsycheClaudeSDK(engine);
+//   const psyche = new PsycheClaudeSDK(engine, {
+//     thronglets: true,
+//     context: { userId: "_default", agentId: "delegate-luna" },
+//   });
 //   let text = "";
 //   for await (const msg of query({ prompt: "Hey!", options: psyche.mergeOptions() })) {
 //     text += msg.content ?? "";
@@ -36,6 +39,7 @@ import type {
 } from "../types.js";
 import { describeEmotionalState } from "../chemistry.js";
 import { serializeThrongletsExportAsTrace } from "../thronglets-runtime.js";
+import { resolveRelationshipUserId } from "../relationship-key.js";
 
 // ── Minimal Claude Agent SDK types (inlined to avoid peer dependency) ──
 
@@ -51,11 +55,6 @@ interface HookInput {
 interface UserPromptSubmitInput extends HookInput {
   hook_event_name: "UserPromptSubmit";
   user_message: string;
-}
-
-interface StopInput extends HookInput {
-  hook_event_name: "Stop";
-  reason: string;
 }
 
 interface HookOutput {
@@ -158,16 +157,40 @@ export interface ThrongletsSignalPayload {
 }
 
 export interface PsycheClaudeSdkOptions {
-  /** User ID for multi-user relationship tracking. Default: "default" */
+  /** User ID for relationship tracking. Default: internal shared bucket (`_default`). */
   userId?: string;
   /** Enable Thronglets trace/signal export after each turn. Default: false */
   thronglets?: boolean;
-  /** Agent identity for Thronglets traces/signals (e.g. "ENFP-Luna"). Default: engine name or "psyche" */
+  /** Agent identity for Thronglets traces/signals (e.g. "ENFP-Luna"). */
   agentId?: string;
-  /** Session ID for Thronglets trace serialization */
+  /** Session ID for Thronglets trace serialization. */
   sessionId?: string;
   /** Override locale for protocol context */
   locale?: "zh" | "en";
+  /**
+   * Optional execution context bundle.
+   *
+   * Use this when the host already knows the current delegate/session identity.
+   * Top-level `userId` / `agentId` / `sessionId` still work and take precedence.
+   */
+  context?: {
+    userId?: string;
+    agentId?: string;
+    sessionId?: string;
+  };
+}
+
+interface ResolvedPsycheClaudeSdkOptions {
+  userId: string;
+  thronglets: boolean;
+  agentId?: string;
+  sessionId?: string;
+  locale: "zh" | "en";
+}
+
+interface RuntimeHookContext {
+  agentId?: string;
+  sessionId?: string;
 }
 
 // ── Main class ──────────────────────────────────────────────
@@ -180,7 +203,9 @@ export interface PsycheClaudeSdkOptions {
  *
  * @example
  * ```ts
- * const psyche = new PsycheClaudeSDK(engine);
+ * const psyche = new PsycheClaudeSDK(engine, {
+ *   context: { userId: "_default" },
+ * });
  * const options = psyche.mergeOptions({ model: "sonnet" });
  * for await (const msg of query({ prompt: "Hey!", options })) { ... }
  * await psyche.processResponse(fullText);
@@ -188,20 +213,37 @@ export interface PsycheClaudeSdkOptions {
  */
 export class PsycheClaudeSDK {
   private engine: PsycheEngine;
-  private opts: Required<PsycheClaudeSdkOptions>;
+  private opts: ResolvedPsycheClaudeSdkOptions;
   private lastInputResult: ProcessInputResult | null = null;
   private lastThrongletsExports: ThrongletsExport[] = [];
+  private lastRuntimeContext: RuntimeHookContext = {};
 
   constructor(engine: PsycheEngine, opts?: PsycheClaudeSdkOptions) {
     this.engine = engine;
     const state = engine.getState();
+    const context = opts?.context;
     this.opts = {
-      userId: opts?.userId ?? "default",
+      userId: resolveRelationshipUserId(opts?.userId ?? context?.userId),
       thronglets: opts?.thronglets ?? false,
-      agentId: opts?.agentId ?? state.meta.agentName ?? "psyche",
-      sessionId: opts?.sessionId ?? "claude-sdk",
+      agentId: opts?.agentId ?? context?.agentId,
+      sessionId: opts?.sessionId ?? context?.sessionId,
       locale: opts?.locale ?? "en",
     };
+  }
+
+  private resolveAgentId(runtime?: RuntimeHookContext): string {
+    return this.opts.agentId
+      ?? runtime?.agentId
+      ?? this.lastRuntimeContext.agentId
+      ?? this.engine.getState().meta.agentName
+      ?? "psyche";
+  }
+
+  private resolveSessionId(runtime?: RuntimeHookContext): string {
+    return this.opts.sessionId
+      ?? runtime?.sessionId
+      ?? this.lastRuntimeContext.sessionId
+      ?? "claude-sdk";
   }
 
   // ── Protocol (stable, cacheable) ──────────────────────────
@@ -229,6 +271,15 @@ export class PsycheClaudeSDK {
         {
           hooks: [
             async (input: HookInput): Promise<HookOutput> => {
+              const runtimeContext: RuntimeHookContext = {
+                agentId: typeof input.agent_id === "string" && input.agent_id.trim()
+                  ? input.agent_id
+                  : undefined,
+                sessionId: typeof input.session_id === "string" && input.session_id.trim()
+                  ? input.session_id
+                  : undefined,
+              };
+              self.lastRuntimeContext = runtimeContext;
               const userMessage = (input as UserPromptSubmitInput).user_message ?? "";
               const result = await self.engine.processInput(userMessage, {
                 userId: self.opts.userId,
@@ -281,11 +332,13 @@ export class PsycheClaudeSDK {
    */
   getThrongletsTraces(): (ThrongletsTracePayload & { agent_id: string })[] {
     if (!this.opts.thronglets) return [];
+    const agentId = this.resolveAgentId();
+    const sessionId = this.resolveSessionId();
     return this.lastThrongletsExports.map((exp) => ({
       ...serializeThrongletsExportAsTrace(exp, {
-        sessionId: this.opts.sessionId,
+        sessionId,
       }),
-      agent_id: this.opts.agentId,
+      agent_id: agentId,
     }));
   }
 
@@ -303,7 +356,7 @@ export class PsycheClaudeSDK {
     const s = state.current;
     return {
       kind: "psyche_state",
-      agent_id: this.opts.agentId,
+      agent_id: this.resolveAgentId(),
       message: `order:${s.order} flow:${s.flow} boundary:${s.boundary} resonance:${s.resonance}`,
     };
   }
@@ -330,7 +383,7 @@ export class PsycheClaudeSDK {
     const emotionDesc = describeEmotionalState(s, locale);
     const highlights = describeDimensionHighlights(s, locale);
 
-    return `[${this.opts.agentId}] ${emotionDesc}${highlights ? " — " + highlights : ""}`;
+    return `[${this.resolveAgentId()}] ${emotionDesc}${highlights ? " — " + highlights : ""}`;
   }
 
   /**

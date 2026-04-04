@@ -38,6 +38,7 @@ import { generateReport, formatReport, toGitHubIssueBody } from "./diagnostics.j
 import type { SessionMetrics } from "./diagnostics.js";
 import { getBaseline, getTemperament, getSensitivity, getDefaultSelfModel, traitsToBaseline } from "./profiles.js";
 import { buildDynamicContext, buildProtocolContext } from "./prompt.js";
+import { DEFAULT_RELATIONSHIP_USER_ID, resolveRelationshipUserId } from "./relationship-key.js";
 import { t } from "./i18n.js";
 import type { MBTIType, PsycheState, Locale, PsycheMode, PersonalityTraits } from "./types.js";
 import { DIMENSION_KEYS, DIMENSION_NAMES_ZH, DRIVE_KEYS, DRIVE_NAMES_ZH } from "./types.js";
@@ -185,7 +186,7 @@ async function cmdStatus(dir: string, json: boolean, userId?: string): Promise<v
     console.log(JSON.stringify({
       ...state,
       _derived: { emotion, expressionHint: hint },
-      _activeRelationship: { userId: userId ?? "_default", ...relationship },
+      _activeRelationship: { userId: resolveRelationshipUserId(userId), ...relationship },
     }, null, 2));
     return;
   }
@@ -208,7 +209,7 @@ async function cmdStatus(dir: string, json: boolean, userId?: string): Promise<v
   console.log(`  Mode: ${state.meta.mode ?? "natural"} — ${t(`mode.${state.meta.mode ?? "natural"}`, locale)}`);
 
   console.log(`\n  Expression: ${hint}`);
-  console.log(`  Relationship (${userId ?? "_default"}): trust ${relationship.trust}, intimacy ${relationship.intimacy} (${relationship.phase})`);
+  console.log(`  Relationship (${resolveRelationshipUserId(userId)}): trust ${relationship.trust}, intimacy ${relationship.intimacy} (${relationship.phase})`);
   console.log(`  Interactions: ${state.meta.totalInteractions}`);
   console.log(`  Agreement streak: ${state.agreementStreak}`);
   console.log(`  Last update: ${elapsed} min ago`);
@@ -310,7 +311,7 @@ async function cmdReset(dir: string, full: boolean): Promise<void> {
   state.stateHistory = [];
 
   if (full) {
-    state.relationships = { _default: { trust: 50, intimacy: 30, phase: "acquaintance" } };
+    state.relationships = { [DEFAULT_RELATIONSHIP_USER_ID]: { trust: 50, intimacy: 30, phase: "acquaintance" } };
   }
 
   await saveState(absDir, state);

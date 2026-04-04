@@ -19,6 +19,7 @@ import { applyDecay, detectEmotions } from "./chemistry.js";
 import { deriveDriveSatisfaction, computeEffectiveBaseline, updateTraitDrift } from "./drives.js";
 import { t } from "./i18n.js";
 import { computeSelfReflection } from "./self-recognition.js";
+import { DEFAULT_RELATIONSHIP_USER_ID, resolveRelationshipUserId } from "./relationship-key.js";
 
 const STATE_FILE = "psyche-state.json";
 const PSYCHE_MD = "PSYCHE.md";
@@ -303,7 +304,7 @@ export function pushSnapshot(
     const summary = compressSnapshots(overflow);
 
     if (summary) {
-      const defaultRel = { ...(state.relationships._default ?? { ...DEFAULT_RELATIONSHIP }) };
+      const defaultRel = { ...(state.relationships[DEFAULT_RELATIONSHIP_USER_ID] ?? { ...DEFAULT_RELATIONSHIP }) };
       const memory = [...(defaultRel.memory ?? [])];
       memory.push(summary);
       // Keep bounded
@@ -311,7 +312,7 @@ export function pushSnapshot(
         memory.splice(0, memory.length - MAX_RELATIONSHIP_MEMORY);
       }
       defaultRel.memory = memory;
-      updatedRelationships = { ...state.relationships, _default: defaultRel };
+      updatedRelationships = { ...state.relationships, [DEFAULT_RELATIONSHIP_USER_ID]: defaultRel };
     }
   }
 
@@ -319,10 +320,10 @@ export function pushSnapshot(
 }
 
 /**
- * Get relationship for a specific user, or _default.
+ * Get relationship for a specific user, or the default relationship key.
  */
 export function getRelationship(state: PsycheState, userId?: string): RelationshipState {
-  const key = userId ?? "_default";
+  const key = resolveRelationshipUserId(userId);
   return state.relationships[key] ?? { ...DEFAULT_RELATIONSHIP };
 }
 
@@ -450,7 +451,7 @@ export function compressSession(
   summary += ` ${tendLabel}[${tendencyLabel}]`;
 
   // ── Store in relationship memory ──
-  const relKey = userId ?? "_default";
+  const relKey = resolveRelationshipUserId(userId);
   const existing = state.relationships[relKey] ?? { ...DEFAULT_RELATIONSHIP };
   const memory = [...(existing.memory ?? [])];
   memory.push(summary);
@@ -685,7 +686,7 @@ export function migrateToLatest(
       baseline: raw.baseline as SelfState,
       current: raw.current as SelfState,
       updatedAt: (raw.updatedAt as string) ?? new Date().toISOString(),
-      relationships: { _default: oldRel ?? { ...DEFAULT_RELATIONSHIP } },
+      relationships: { [DEFAULT_RELATIONSHIP_USER_ID]: oldRel ?? { ...DEFAULT_RELATIONSHIP } },
       empathyLog: (raw.empathyLog as EmpathyEntry | null) ?? null,
       selfModel: raw.selfModel as SelfModel,
       stateHistory: [],
@@ -738,7 +739,7 @@ export async function initializeState(
     drives: { ...DEFAULT_DRIVES },
     updatedAt: now,
     relationships: {
-      _default: { ...DEFAULT_RELATIONSHIP },
+      [DEFAULT_RELATIONSHIP_USER_ID]: { ...DEFAULT_RELATIONSHIP },
     },
     empathyLog: null,
     selfModel,
@@ -929,8 +930,8 @@ export function parsePsycheUpdate(
     const rel: Partial<RelationshipState> = {};
     if (trustMatch) rel.trust = Math.max(0, Math.min(100, parseInt(trustMatch[1], 10)));
     if (intimacyMatch) rel.intimacy = Math.max(0, Math.min(100, parseInt(intimacyMatch[1], 10)));
-    // Store as relationships._default for merging
-    stateUpdates.relationships = { _default: rel as RelationshipState };
+    // Store under the default relationship key for merging.
+    stateUpdates.relationships = { [DEFAULT_RELATIONSHIP_USER_ID]: rel as RelationshipState };
   }
 
   const result: PsycheUpdateResult = { state: stateUpdates };
@@ -998,7 +999,7 @@ export function mergeUpdates(
   // Merge relationship for specific user
   if (updates.relationships) {
     merged.relationships = { ...state.relationships };
-    const updateKey = Object.keys(updates.relationships)[0] ?? "_default";
+    const updateKey = Object.keys(updates.relationships)[0] ?? DEFAULT_RELATIONSHIP_USER_ID;
     const targetKey = userId ?? updateKey;
     const existing = state.relationships[targetKey] ?? { ...DEFAULT_RELATIONSHIP };
     const incoming = updates.relationships[updateKey] ?? {};

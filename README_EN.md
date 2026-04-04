@@ -6,6 +6,8 @@ It compresses continuous appraisal, relation dynamics, adaptive reply loops, and
 
 **One sentence:** Psyche is a subjectivity kernel for agents.
 
+Standalone by default: no `Thronglets`, no `oasyce-sdk`, and no `Oasyce Chain` are required to get real subjective continuity. Those layers are added only when you want external continuity, binding, or settlement.
+
 [![npm](https://img.shields.io/npm/v/psyche-ai)](https://www.npmjs.com/package/psyche-ai)
 [![tests](https://img.shields.io/badge/tests-1433%20passing-brightgreen)]()
 [![deps](https://img.shields.io/badge/dependencies-0-blue)]()
@@ -84,6 +86,16 @@ One sentence:
 - `Thronglets` answers "who owns that change and who can verify it?"
 
 The stack-level boundary and runtime flow live in [docs/STACK_ARCHITECTURE.md](docs/STACK_ARCHITECTURE.md).
+
+## Separable Installation
+
+These layers should remain separable by default.
+
+- **Psyche alone**: full local subjectivity runtime
+- **Thronglets alone**: full delegate/session continuity and shared environment
+- **Both together**: Psyche emits sparse optional external continuity events into Thronglets
+
+Integration is additive, not a boot prerequisite.
 
 ## Concept Admission Rule
 
@@ -344,11 +356,19 @@ import { query } from "@anthropic-ai/claude-agent-sdk";
 const engine = new PsycheEngine({ name: "Luna" }, new MemoryStorageAdapter());
 await engine.initialize();
 
-const psyche = new PsycheClaudeSDK(engine);
+const psyche = new PsycheClaudeSDK(engine, {
+  thronglets: true,
+  context: {
+    userId: "_default",
+    agentId: "delegate-luna",
+  },
+});
 for await (const msg of query({ prompt: "Hey!", options: psyche.mergeOptions() })) {
   process.stdout.write(msg.content ?? "");
 }
 ```
+
+If the Claude hook runtime already provides `session_id` / `agent_id`, Psyche reuses them automatically for sparse Thronglets traces instead of inventing a second identity layer.
 
 ### MCP (Claude Desktop / Cursor / Windsurf / Claude Code)
 
