@@ -807,6 +807,29 @@ describe("PsycheClaudeSDK", () => {
     assert.equal(typeof inputResult!.systemContext, "string");
   });
 
+  it("defaults relationship tracking to the shared internal bucket", async () => {
+    const localEngine = makeEngine();
+    await localEngine.initialize();
+    const localPsyche = new PsycheClaudeSDK(localEngine);
+    const hooks = localPsyche.getHooks();
+    const callback = hooks.UserPromptSubmit![0].hooks[0];
+
+    await callback(
+      {
+        hook_event_name: "UserPromptSubmit",
+        user_message: "谢谢你",
+        session_id: "bucket-test",
+        cwd: "/tmp",
+      },
+      undefined,
+      { signal: AbortSignal.timeout(5000) },
+    );
+
+    const state = localEngine.getState();
+    assert.ok(state.relationships._default, "expected default relationship bucket");
+    assert.equal(state.relationships.default, undefined);
+  });
+
   it("processResponse strips psyche_update tags", async () => {
     const cleaned = await psyche.processResponse(
       "Hello!\n\n<psyche_update>\nDA: 80\n</psyche_update>",
@@ -976,6 +999,107 @@ describe("PsycheClaudeSDK (with thronglets)", () => {
     const signal = p2.getThrongletsSignal();
     assert.ok(signal);
     assert.equal(signal!.agent_id, "TestBot");
+  });
+
+  it("prefers runtime hook agent/session ids when explicit ids are absent", async () => {
+    const e2 = makeEngine();
+    await e2.initialize();
+    const p2 = new PsycheClaudeSDK(e2, {
+      thronglets: true,
+      context: { userId: "_default" },
+    });
+    const hooks = p2.getHooks();
+    const callback = hooks.UserPromptSubmit![0].hooks[0];
+
+    await callback(
+      {
+        hook_event_name: "UserPromptSubmit",
+        user_message: "继续",
+        session_id: "runtime-session",
+        agent_id: "runtime-delegate",
+        cwd: "/tmp",
+      },
+      undefined,
+      { signal: AbortSignal.timeout(5000) },
+    );
+
+    const signal = p2.getThrongletsSignal();
+    assert.ok(signal);
+    assert.equal(signal!.agent_id, "runtime-delegate");
+
+    (p2 as any).lastThrongletsExports = [{
+      kind: "continuity-anchor",
+      subject: "session",
+      primitive: "trace",
+      userKey: "_default",
+      strength: 0.8,
+      ttlTurns: 6,
+      key: "runtime:k1",
+      continuityMode: "warm-resume",
+      activeLoopTypes: [],
+      continuityFloor: 0.6,
+    }];
+
+    const traces = p2.getThrongletsTraces();
+    assert.equal(traces.length, 1);
+    assert.equal(traces[0].agent_id, "runtime-delegate");
+    assert.equal(traces[0].session_id, "runtime-session");
+  });
+
+  it("preserves prior runtime ids when a later hook payload omits one field", async () => {
+    const e2 = makeEngine();
+    await e2.initialize();
+    const p2 = new PsycheClaudeSDK(e2, {
+      thronglets: true,
+      context: { userId: "_default" },
+    });
+    const hooks = p2.getHooks();
+    const callback = hooks.UserPromptSubmit![0].hooks[0];
+
+    await callback(
+      {
+        hook_event_name: "UserPromptSubmit",
+        user_message: "先建立上下文",
+        session_id: "runtime-session",
+        agent_id: "runtime-delegate",
+        cwd: "/tmp",
+      },
+      undefined,
+      { signal: AbortSignal.timeout(5000) },
+    );
+
+    await callback(
+      {
+        hook_event_name: "UserPromptSubmit",
+        user_message: "继续",
+        session_id: "runtime-session-2",
+        cwd: "/tmp",
+      },
+      undefined,
+      { signal: AbortSignal.timeout(5000) },
+    );
+
+    const signal = p2.getThrongletsSignal();
+    assert.ok(signal);
+    assert.equal(signal!.agent_id, "runtime-delegate");
+
+    (p2 as any).lastThrongletsExports = [{
+      kind: "continuity-anchor",
+      subject: "session",
+      primitive: "trace",
+      userKey: "_default",
+      strength: 0.8,
+      ttlTurns: 6,
+      key: "runtime:k2",
+      continuityMode: "warm-resume",
+      activeLoopTypes: [],
+      continuityFloor: 0.6,
+    }];
+
+    const traces = p2.getThrongletsTraces();
+    assert.equal(traces.length, 1);
+    assert.equal(traces[0].agent_id, "runtime-delegate");
+    assert.equal(traces[0].session_id, "runtime-session-2");
   });
 });
 

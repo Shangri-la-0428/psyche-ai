@@ -17,6 +17,8 @@ Psyche 不是给模型贴一层“情绪 UI”。
 
 它不会额外调用模型做情绪推理。它只在本地计算自我状态（序/流/界/振四维）、关系场和调节控制，然后把结果收敛成 `SubjectivityKernel`、`ResponseContract`、`GenerationControls` 这组窄 ABI。
 
+默认就是 standalone：不需要 `Thronglets`，不需要 `oasyce-sdk`，也不需要 `Oasyce Chain`。这些只是在你要把主观连续性外化、绑定或结算时才按需接入。
+
 ## 一个项目，三个入口
 
 - **安装包**: [`psyche-ai`](https://www.npmjs.com/package/psyche-ai)
@@ -465,6 +467,14 @@ npm install psyche-ai
 ```javascript
 // Claude Agent SDK
 import { PsycheClaudeSDK } from "psyche-ai/claude-sdk";
+// 假设上面已经初始化好了 engine
+const psyche = new PsycheClaudeSDK(engine, {
+  thronglets: true,
+  context: {
+    userId: "_default",
+    agentId: "delegate-luna",
+  },
+});
 
 // Vercel AI SDK
 import { psycheMiddleware } from "psyche-ai/vercel-ai";
@@ -478,6 +488,8 @@ import { PsycheLangChain } from "psyche-ai/langchain";
 // 任何语言（HTTP API）
 // psyche serve --port 3210
 ```
+
+如果 Claude hook runtime 已经给了 `session_id` / `agent_id`，Psyche 会直接复用它们做稀疏 Thronglets 归因，不会再偷偷发明第二层本地身份。
 
 ---
 

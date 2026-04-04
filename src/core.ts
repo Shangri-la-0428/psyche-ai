@@ -47,6 +47,7 @@ import { deriveReplyEnvelope } from "./reply-envelope.js";
 import { buildExternalContinuityEnvelope } from "./external-continuity.js";
 import { deriveThrongletsExports } from "./thronglets-export.js";
 import { buildTurnObservability } from "./observability.js";
+import { DEFAULT_RELATIONSHIP_USER_ID, resolveRelationshipUserId } from "./relationship-key.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -237,7 +238,7 @@ function applyRelationshipDrift(
   const delta = RELATIONSHIP_DELTAS[stimulus];
   if (!delta) return state;
 
-  const key = userId ?? "_default";
+  const key = resolveRelationshipUserId(userId);
   const currentRel = state.relationships[key] ?? { ...DEFAULT_RELATIONSHIP };
   const trust = clamp(currentRel.trust + delta.trust);
   const intimacy = clamp(currentRel.intimacy + delta.intimacy);
@@ -368,7 +369,7 @@ export class PsycheEngine {
       }
       if (!loaded.dyadicFields) {
         loaded.dyadicFields = {
-          _default: {
+          [DEFAULT_RELATIONSHIP_USER_ID]: {
             ...DEFAULT_DYADIC_FIELD,
             openLoops: [],
             updatedAt: new Date().toISOString(),
@@ -376,7 +377,7 @@ export class PsycheEngine {
         };
       }
       if (!loaded.pendingRelationSignals) {
-        loaded.pendingRelationSignals = { _default: [] };
+        loaded.pendingRelationSignals = { [DEFAULT_RELATIONSHIP_USER_ID]: [] };
       }
       if (!loaded.pendingWritebackCalibrations) {
         loaded.pendingWritebackCalibrations = [];
@@ -535,7 +536,7 @@ export class PsycheEngine {
       }
 
       // Resolve relationship trust
-      const userId = opts?.userId ?? "__default__";
+      const userId = resolveRelationshipUserId(opts?.userId);
       const trust = state.relationships?.[userId]?.trust;
 
       // Perceive: text + self → chemistry + appraisal + annotation
@@ -1107,7 +1108,7 @@ export class PsycheEngine {
       current: { ...baseline },
       drives: { ...DEFAULT_DRIVES },
       updatedAt: now,
-      relationships: { _default: { ...DEFAULT_RELATIONSHIP } },
+      relationships: { [DEFAULT_RELATIONSHIP_USER_ID]: { ...DEFAULT_RELATIONSHIP } },
       empathyLog: null,
       selfModel,
       stateHistory: [],
@@ -1125,13 +1126,13 @@ export class PsycheEngine {
         updatedAt: now,
       },
       dyadicFields: {
-        _default: {
+        [DEFAULT_RELATIONSHIP_USER_ID]: {
           ...DEFAULT_DYADIC_FIELD,
           openLoops: [],
           updatedAt: now,
         },
       },
-      pendingRelationSignals: { _default: [] },
+      pendingRelationSignals: { [DEFAULT_RELATIONSHIP_USER_ID]: [] },
       pendingWritebackCalibrations: [],
       lastWritebackFeedback: [],
       meta: {
@@ -1169,18 +1170,18 @@ export class PsycheEngine {
         updatedAt: new Date().toISOString(),
       },
       dyadicFields: {
-        _default: {
+        [DEFAULT_RELATIONSHIP_USER_ID]: {
           ...DEFAULT_DYADIC_FIELD,
           openLoops: [],
           updatedAt: new Date().toISOString(),
         },
       },
-      pendingRelationSignals: { _default: [] },
+      pendingRelationSignals: { [DEFAULT_RELATIONSHIP_USER_ID]: [] },
       pendingWritebackCalibrations: [],
       lastWritebackFeedback: [],
       relationships: opts?.preserveRelationships !== false
         ? state.relationships
-        : { _default: { ...DEFAULT_RELATIONSHIP } },
+        : { [DEFAULT_RELATIONSHIP_USER_ID]: { ...DEFAULT_RELATIONSHIP } },
     };
 
     this.state = state;
