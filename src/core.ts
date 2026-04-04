@@ -12,7 +12,7 @@
 // Orchestrates: self-state, classify, prompt, profiles, guards, learning
 // ============================================================
 
-import type { PsycheState, StimulusType, Locale, MBTIType, SelfState, OutcomeScore, PsycheMode, PersonalityTraits, PolicyModifiers, ClassifierProvider, SubjectivityKernel, ResponseContract, GenerationControls, SessionBridgeState, ThrongletsExport, TurnObservability, WritebackCalibrationFeedback, WritebackSignalType, ExternalContinuityEnvelope } from "./types.js";
+import type { PsycheState, StimulusType, Locale, MBTIType, SelfState, OutcomeScore, PsycheMode, PersonalityTraits, PolicyModifiers, ClassifierProvider, SubjectivityKernel, ResponseContract, GenerationControls, SessionBridgeState, ThrongletsExport, TurnObservability, WritebackCalibrationFeedback, WritebackSignalType, ExternalContinuityEnvelope, AppraisalAxes } from "./types.js";
 import { DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE, DEFAULT_ENERGY_BUDGETS, DEFAULT_TRAIT_DRIFT, DEFAULT_SUBJECT_RESIDUE, DEFAULT_DYADIC_FIELD, MODE_PROFILES } from "./types.js";
 import type { StorageAdapter } from "./storage.js";
 import { MemoryStorageAdapter } from "./storage.js";
@@ -88,9 +88,15 @@ export interface ProcessInputResult {
   systemContext: string;
   /** Per-turn emotional state context */
   dynamicContext: string;
-  /** Detected stimulus type from user input, null if none */
+  /** Canonical host-facing subjective appraisal for this turn, null if no appraisal fired */
+  appraisal: AppraisalAxes | null;
+  /** Optional legacy stimulus hint preserved for compatibility only */
+  legacyStimulus: StimulusType | null;
+  /** Compatibility alias for legacy consumers: use legacyStimulus when possible */
   stimulus: StimulusType | null;
-  /** Confidence of the primary algorithmic stimulus guess, if any */
+  /** Confidence of the optional legacy stimulus hint, if any */
+  legacyStimulusConfidence?: number;
+  /** Compatibility alias for legacy consumers: use legacyStimulusConfidence when possible */
   stimulusConfidence?: number;
   /** Legacy compatibility alias: raw policy vector behind the canonical replyEnvelope. */
   policyModifiers?: PolicyModifiers;
@@ -291,8 +297,8 @@ export class PsycheEngine {
   private lastReport: DiagnosticReport | null = null;
   /** URL for auto-submitting diagnostic reports */
   private readonly feedbackUrl: string | undefined;
-  /** Most recent algorithmic stimulus read + confidence band */
-  private lastStimulusAssessment: {
+  /** Most recent compatibility stimulus hint + confidence band */
+  private lastLegacyStimulusAssessment: {
     stimulus: StimulusType | null;
     confidence: number;
     overrideWindow: ResponseContract["overrideWindow"];
@@ -573,13 +579,13 @@ export class PsycheEngine {
       if (appliedStimulus) {
         state = applyRelationshipDrift(state, appliedStimulus, opts?.userId);
       }
-      this.lastStimulusAssessment = {
+      this.lastLegacyStimulusAssessment = {
         stimulus: appliedStimulus,
         confidence: perception.confidence,
         overrideWindow: perception.confidence >= 0.78 ? "narrow" : perception.confidence >= 0.62 ? "balanced" : "wide",
       };
     } else {
-      this.lastStimulusAssessment = {
+      this.lastLegacyStimulusAssessment = {
         stimulus: null,
         confidence: 0,
         overrideWindow: "wide",
@@ -693,7 +699,7 @@ export class PsycheEngine {
       userId: opts?.userId,
       localeFallback: this.cfg.locale,
       personalityIntensity: this.cfg.personalityIntensity,
-      classificationConfidence: this.lastStimulusAssessment?.confidence,
+      classificationConfidence: this.lastLegacyStimulusAssessment?.confidence,
       minutesElapsed,
       nowIso: now.toISOString(),
       writebackNote,
@@ -755,8 +761,11 @@ export class PsycheEngine {
     return {
       systemContext: "",
       dynamicContext: buildCompactContext(state, opts?.userId, promptRenderInputs),
+      appraisal: appraisalAxes,
+      legacyStimulus: appliedStimulus,
       stimulus: appliedStimulus,
-      stimulusConfidence: this.lastStimulusAssessment?.confidence,
+      legacyStimulusConfidence: this.lastLegacyStimulusAssessment?.confidence,
+      stimulusConfidence: this.lastLegacyStimulusAssessment?.confidence,
       replyEnvelope,
       policyModifiers: derivedReplyEnvelope.policyModifiers,
       subjectivityKernel: replyEnvelope.subjectivityKernel,
@@ -869,7 +878,7 @@ export class PsycheEngine {
 
         // LLM-assisted classification: if algorithm didn't apply a stimulus
         // but LLM classified one, retroactively apply chemistry + drives
-        const overrideAllowed = this.lastStimulusAssessment?.overrideWindow !== "narrow";
+        const overrideAllowed = this.lastLegacyStimulusAssessment?.overrideWindow !== "narrow";
         if (parseResult.llmStimulus && (!this._lastAlgorithmApplied || overrideAllowed)) {
           const effectiveSensitivity = computeEffectiveSensitivity(
             (state.sensitivity ?? 1.0), state.current, state.baseline, parseResult.llmStimulus, state.traitDrift,

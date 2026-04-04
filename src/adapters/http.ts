@@ -114,14 +114,11 @@ export function createPsycheServer(engine: PsycheEngine, opts?: HttpAdapterOptio
           (body.text as string) ?? "",
           { userId: body.userId as string | undefined },
         );
-        const appraisal = result.replyEnvelope?.subjectivityKernel?.appraisal
-          ?? result.subjectivityKernel?.appraisal
-          ?? null;
         json(res, 200, {
           systemContext: result.systemContext,
           dynamicContext: result.dynamicContext,
-          appraisal,
-          legacyStimulus: result.stimulus,
+          appraisal: result.appraisal,
+          legacyStimulus: result.legacyStimulus,
           stimulus: result.stimulus,
           replyEnvelope: result.replyEnvelope ?? null,
           policyModifiers: result.policyModifiers ?? null,

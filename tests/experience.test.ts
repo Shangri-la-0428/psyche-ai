@@ -94,6 +94,14 @@ describe("perceive", () => {
     assert.ok(p.appraisal.identityThreat > 0, "should detect identity threat");
   });
 
+  it("treats ontological reduction into a label as self-relevant pressure", () => {
+    const p = perceive("你没被我定义成一个标签，对吗？", makeSelf({
+      rawClassifications: [{ type: "casual", confidence: 0.24 }],
+    }));
+    assert.ok(p.appraisal.identityThreat > 0.2, `expected identity threat, got ${p.appraisal.identityThreat}`);
+    assert.ok(p.appraisal.selfPreservation > 0.08, `expected self-preservation, got ${p.appraisal.selfPreservation}`);
+  });
+
   it("enriches appraisal from experienced stimulus", () => {
     const p = perceive("给我闭嘴", makeSelf({
       rawClassifications: [

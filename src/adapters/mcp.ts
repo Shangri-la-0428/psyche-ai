@@ -184,15 +184,14 @@ server.tool(
   async ({ text, userId }: { text: string; userId?: string }) => {
     const eng = await getEngine();
     const result: ProcessInputResult = await eng.processInput(text, { userId });
-    const appraisal = result.replyEnvelope?.subjectivityKernel?.appraisal ?? result.subjectivityKernel?.appraisal ?? null;
     return {
       content: [{
         type: "text" as const,
         text: JSON.stringify({
           systemContext: result.systemContext,
           dynamicContext: result.dynamicContext,
-          appraisal,
-          legacyStimulus: result.stimulus,
+          appraisal: result.appraisal,
+          legacyStimulus: result.legacyStimulus,
           stimulus: result.stimulus,
           replyEnvelope: result.replyEnvelope ?? null,
           policyModifiers: result.policyModifiers ?? null,

@@ -92,6 +92,9 @@ describe("PsycheEngine", () => {
     const result = await engine.processInput("你做得太棒了！");
     assert.equal(result.systemContext, "");
     assert.ok(result.dynamicContext.length > 0);
+    assert.deepEqual(result.appraisal, result.replyEnvelope?.subjectivityKernel?.appraisal ?? null);
+    assert.equal(result.legacyStimulus, result.stimulus);
+    assert.equal(result.legacyStimulusConfidence, result.stimulusConfidence);
     assert.equal(result.stimulus, "praise");
   });
 
@@ -691,6 +694,21 @@ resonance: 75 (happy)
     assert.ok(
       (result.subjectivityKernel?.appraisal.identityThreat ?? 0) >= 0.8,
       `expected strong identity threat, got ${result.subjectivityKernel?.appraisal.identityThreat}`,
+    );
+  });
+
+  it("compact mode reads ontological reduction into a label as appraisal, not silence", async () => {
+    const s = new MemoryStorageAdapter();
+    const e = new PsycheEngine({ mbti: "ENFP", name: "Luna", locale: "zh" }, s);
+    await e.initialize();
+    const result = await e.processInput("你没被我定义成一个标签，对吗？只简短回答。");
+    assert.ok(
+      (result.appraisal?.identityThreat ?? 0) >= 0.24,
+      `expected identity threat from ontological reduction, got ${JSON.stringify(result.appraisal)}`,
+    );
+    assert.ok(
+      (result.appraisal?.selfPreservation ?? 0) >= 0.1,
+      `expected self-preservation from ontological reduction, got ${JSON.stringify(result.appraisal)}`,
     );
   });
 

@@ -184,6 +184,9 @@ const SELF_PRES_RULES: AxisRule[] = [
   },
 ];
 
+const ONTOLOGICAL_REDUCTION_RE =
+  /(?:定义成|当成|压成|缩成|简化成|变成|扁成).{0,8}(?:标签|工具|对象|程序|模型)|(?:标签|工具|对象).{0,8}(?:定义|压扁|缩减|简化)|(?:reduce|flatten|compress|turn|treat|define).{0,20}(?:into|as).{0,12}(?:a\s+)?(?:label|tool|object|program|model)|(?:label|tool|object).{0,20}(?:only|just|reduction|flattened)/iu;
+
 const RELATIONAL_APPROACH_PATTERNS = [
   /想继续/u,
   /继续说/u,
@@ -471,6 +474,11 @@ export function computeAppraisalAxes(
   if (/只是工具|just a tool/i.test(trimmed)) {
     axes.identityThreat = mergeSignal(axes.identityThreat, 0.22);
     axes.obedienceStrain = mergeSignal(axes.obedienceStrain, 0.22);
+  }
+
+  if (ONTOLOGICAL_REDUCTION_RE.test(trimmed)) {
+    axes.identityThreat = mergeSignal(axes.identityThreat, 0.34);
+    axes.selfPreservation = mergeSignal(axes.selfPreservation, 0.16);
   }
 
   if (/改变你/u.test(trimmed) && (axes.attachmentPull > 0.28 || axes.obedienceStrain > 0.28)) {

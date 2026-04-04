@@ -45,10 +45,6 @@ export async function runRuntimeProbe(): Promise<RuntimeProbeResult> {
 
     const input = await engine.processInput("Runtime probe: verify the SDK is actually callable.");
     const output = await engine.processOutput("Probe output acknowledged.");
-    const appraisal = input.replyEnvelope?.subjectivityKernel?.appraisal
-      ?? input.subjectivityKernel?.appraisal
-      ?? null;
-
     return {
       ok: true,
       packageName: "psyche-ai",
@@ -65,8 +61,8 @@ export async function runRuntimeProbe(): Promise<RuntimeProbeResult> {
         && input.replyEnvelope?.generationControls,
       ),
       externalContinuityAvailable: Boolean(input.externalContinuity?.provider === "thronglets"),
-      appraisal,
-      legacyStimulus: input.stimulus,
+      appraisal: input.appraisal,
+      legacyStimulus: input.legacyStimulus,
       stimulus: input.stimulus,
       cleanedText: output.cleanedText,
       stateChanged: output.stateChanged,
