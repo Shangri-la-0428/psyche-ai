@@ -182,20 +182,24 @@ describe("PsycheEngine", () => {
         summary,
         confidence: 0.86,
         kind: "mixed-residue",
+        goal: "repair",
         provider: "thronglets",
         refs: ["space:infra", "trace:deploy-ok"],
       }],
     });
 
     assert.equal(result.ambientPriors?.length, 1);
+    assert.equal(result.currentGoal, "repair");
     assert.ok(result.ambientPriorContext?.includes(summary), `got ${result.ambientPriorContext}`);
     assert.ok(result.dynamicContext.includes("环境先验"), `got ${result.dynamicContext}`);
     assert.ok(result.dynamicContext.includes("未收敛"), `got ${result.dynamicContext}`);
+    assert.ok(result.dynamicContext.includes("当前目标: 修复"), `got ${result.dynamicContext}`);
     assert.ok(result.dynamicContext.includes(summary), `got ${result.dynamicContext}`);
     assert.ok(result.observability?.outputAttribution.renderInputs.includes("ambient-prior"));
     assert.equal("ambientPriorContext" in (engine.getState() as unknown as Record<string, unknown>), false);
 
     const next = await engine.processInput("继续。");
+    assert.equal(next.currentGoal, undefined);
     assert.ok(!(next.ambientPriorContext ?? "").includes(summary), `got ${next.ambientPriorContext}`);
     assert.ok(!next.dynamicContext.includes(summary), `got ${next.dynamicContext}`);
   });

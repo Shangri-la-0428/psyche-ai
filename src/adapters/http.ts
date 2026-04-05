@@ -120,12 +120,14 @@ export function createPsycheServer(engine: PsycheEngine, opts?: HttpAdapterOptio
           {
             userId: body.userId as string | undefined,
             ambientPriors: parseAmbientPriors(body.ambientPriors),
+            currentGoal: body.currentGoal as import("../types.js").CurrentGoal | undefined,
           },
         );
         json(res, 200, {
           systemContext: result.systemContext,
           dynamicContext: result.dynamicContext,
           ambientPriors: result.ambientPriors ?? [],
+          currentGoal: result.currentGoal ?? null,
           ambientPriorContext: result.ambientPriorContext ?? null,
           appraisal: result.appraisal,
           legacyStimulus: result.legacyStimulus,

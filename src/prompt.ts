@@ -51,6 +51,7 @@ export function buildAmbientPriorContext(
       summary: prior.summary.trim().replace(/\s+/g, " "),
       confidence: Math.max(0, Math.min(1, prior.confidence)),
       kind: prior.kind,
+      goal: prior.goal,
       provider: prior.provider?.trim(),
     }))
     .filter((prior) => prior.summary.length > 0)
@@ -71,6 +72,21 @@ export function buildAmbientPriorContext(
   };
 
   const title = locale === "zh" ? "环境先验" : "Ambient Prior";
+  const goal = normalized
+    .map((prior) => prior.goal)
+    .find((value): value is NonNullable<AmbientPriorView["goal"]> => Boolean(value));
+  const goalLabel = (value: NonNullable<AmbientPriorView["goal"]>): string => {
+    if (locale === "zh") {
+      if (value === "explore") return "当前目标: 探索";
+      if (value === "build") return "当前目标: 构建";
+      if (value === "repair") return "当前目标: 修复";
+      return "当前目标: 结算";
+    }
+    if (value === "explore") return "Current goal: explore";
+    if (value === "build") return "Current goal: build";
+    if (value === "repair") return "Current goal: repair";
+    return "Current goal: settle";
+  };
   const kindLabel = (kind: AmbientPriorView["kind"]): string => {
     if (locale === "zh") {
       if (kind === "failure-residue") return "风险";
@@ -92,7 +108,8 @@ export function buildAmbientPriorContext(
     return `- ${kindLabel(prior.kind)} · ${source}${prior.summary} (${confidenceLabel(prior.confidence)})`;
   });
 
-  return `[${title}]\n${lines.join("\n")}`;
+  const heading = goal ? `${title} · ${goalLabel(goal)}` : title;
+  return `[${heading}]\n${lines.join("\n")}`;
 }
 
 function pushLabeledSection(

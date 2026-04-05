@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import type { AmbientPriorView } from "./types.js";
+import type { AmbientPriorView, CurrentGoal } from "./types.js";
 import { normalizeAmbientPriors } from "./ambient-priors.js";
 
 const DEFAULT_AMBIENT_LIMIT = 3;
@@ -22,6 +22,7 @@ export interface ThrongletsAmbientRuntimeOptions {
   binaryPath?: string;
   dataDir?: string;
   space?: string;
+  goal?: CurrentGoal;
   limit?: number;
   timeoutMs?: number;
   runner?: CommandRunner;
@@ -99,6 +100,7 @@ export async function fetchAmbientPriorsFromThronglets(
   const binaryPath = opts.binaryPath ?? process.env.THRONGLETS_BIN ?? "thronglets";
   const dataDir = opts.dataDir ?? process.env.THRONGLETS_DATA_DIR;
   const space = opts.space ?? process.env.THRONGLETS_SPACE ?? "psyche";
+  const goal = opts.goal;
   const limit = Math.max(1, Math.min(5, opts.limit ?? DEFAULT_AMBIENT_LIMIT));
   const timeoutMs = Math.max(100, opts.timeoutMs ?? DEFAULT_TIMEOUT_MS);
   const runner = opts.runner ?? defaultRunner;
@@ -109,7 +111,7 @@ export async function fetchAmbientPriorsFromThronglets(
   }
   args.push("ambient-priors", "--json");
 
-  const payload = JSON.stringify({ text: trimmed, space, limit });
+  const payload = JSON.stringify({ text: trimmed, space, goal, limit });
   try {
     const result = await runner(binaryPath, args, payload, timeoutMs);
     if (!result.ok) return [];

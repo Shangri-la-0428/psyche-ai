@@ -38,7 +38,7 @@ import {
   type ThrongletsAmbientRuntimeOptions,
 } from "../ambient-runtime.js";
 import { MemoryStorageAdapter, FileStorageAdapter, resolveWorkspaceDir } from "../storage.js";
-import type { AmbientPriorView, MBTIType, Locale, PsycheMode } from "../types.js";
+import { CURRENT_GOALS, type AmbientPriorView, type CurrentGoal, type MBTIType, type Locale, type PsycheMode } from "../types.js";
 import { getPackageVersion } from "../update.js";
 import { runDemo } from "../demo.js";
 
@@ -72,6 +72,8 @@ const DEFAULT_MCP_AMBIENT_OPTIONS: McpAmbientRuntimeOptions = {
     space: process.env.THRONGLETS_SPACE ?? "psyche",
   },
 };
+
+const CURRENT_GOAL_SCHEMA = z.enum(CURRENT_GOALS);
 
 // ── Parse CLI args (--mbti, --name, --mode, --locale) ──────
 
@@ -132,12 +134,20 @@ async function getEngine(): Promise<PsycheEngine> {
 export async function resolveRuntimeAmbientPriors(
   text: string,
   explicit?: AmbientPriorView[],
+  currentGoal?: CurrentGoal,
   opts: McpAmbientRuntimeOptions = DEFAULT_MCP_AMBIENT_OPTIONS,
 ): Promise<AmbientPriorView[] | undefined> {
+  const throngletsOptions =
+    opts.thronglets || currentGoal
+      ? {
+          ...(opts.thronglets ?? {}),
+          goal: currentGoal ?? opts.thronglets?.goal,
+        }
+      : undefined;
   return resolveAmbientPriorsForTurn(text, {
     explicit,
     enabled: opts.mode !== "off",
-    thronglets: opts.thronglets,
+    thronglets: throngletsOptions,
     fetcher: opts.fetcher ?? fetchAmbientPriorsFromThronglets,
   });
 }
@@ -223,16 +233,19 @@ server.tool(
       summary: z.string(),
       confidence: z.number().min(0).max(1),
       kind: z.enum(["failure-residue", "mixed-residue", "success-prior"]).optional(),
+      goal: CURRENT_GOAL_SCHEMA.optional(),
       provider: z.string().optional(),
       refs: z.array(z.string()).optional(),
     })).optional().describe("Optional runtime ambient priors from the environment; consumed this turn only, not persisted as self-state"),
+    currentGoal: CURRENT_GOAL_SCHEMA.optional().describe("Optional single current runtime goal for this turn"),
   },
-  async ({ text, userId, ambientPriors }: { text: string; userId?: string; ambientPriors?: AmbientPriorView[] }) => {
+  async ({ text, userId, ambientPriors, currentGoal }: { text: string; userId?: string; ambientPriors?: AmbientPriorView[]; currentGoal?: CurrentGoal }) => {
     const eng = await getEngine();
-    const resolvedAmbientPriors = await resolveRuntimeAmbientPriors(text, ambientPriors);
+    const resolvedAmbientPriors = await resolveRuntimeAmbientPriors(text, ambientPriors, currentGoal);
     const result: ProcessInputResult = await eng.processInput(text, {
       userId,
       ambientPriors: resolvedAmbientPriors,
+      currentGoal,
     });
     return {
       content: [{
@@ -241,6 +254,7 @@ server.tool(
           systemContext: result.systemContext,
           dynamicContext: result.dynamicContext,
           ambientPriors: result.ambientPriors ?? [],
+          currentGoal: result.currentGoal ?? null,
           ambientPriorContext: result.ambientPriorContext ?? null,
           appraisal: result.appraisal,
           legacyStimulus: result.legacyStimulus,

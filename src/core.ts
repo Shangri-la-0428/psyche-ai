@@ -12,7 +12,7 @@
 // Orchestrates: self-state, appraisal, prompt, profiles, guards, learning
 // ============================================================
 
-import type { AmbientPriorView, PsycheState, StimulusType, Locale, MBTIType, SelfState, OutcomeScore, PsycheMode, PersonalityTraits, PolicyModifiers, ClassifierProvider, SubjectivityKernel, ResponseContract, GenerationControls, SessionBridgeState, ThrongletsExport, TurnObservability, WritebackCalibrationFeedback, WritebackSignalType, ExternalContinuityEnvelope, AppraisalAxes } from "./types.js";
+import type { AmbientPriorView, CurrentGoal, PsycheState, StimulusType, Locale, MBTIType, SelfState, OutcomeScore, PsycheMode, PersonalityTraits, PolicyModifiers, ClassifierProvider, SubjectivityKernel, ResponseContract, GenerationControls, SessionBridgeState, ThrongletsExport, TurnObservability, WritebackCalibrationFeedback, WritebackSignalType, ExternalContinuityEnvelope, AppraisalAxes } from "./types.js";
 import { DEFAULT_RELATIONSHIP, DEFAULT_DRIVES, DEFAULT_LEARNING_STATE, DEFAULT_METACOGNITIVE_STATE, DEFAULT_PERSONHOOD_STATE, DEFAULT_ENERGY_BUDGETS, DEFAULT_TRAIT_DRIFT, DEFAULT_SUBJECT_RESIDUE, DEFAULT_DYADIC_FIELD, MODE_PROFILES } from "./types.js";
 import type { StorageAdapter } from "./storage.js";
 import { MemoryStorageAdapter } from "./storage.js";
@@ -91,6 +91,8 @@ export interface ProcessInputResult {
   dynamicContext: string;
   /** Runtime-only environmental priors consumed this turn */
   ambientPriors?: AmbientPriorView[];
+  /** Optional current runtime goal carried through this turn only */
+  currentGoal?: CurrentGoal;
   /** Rendered environmental prior context injected into the turn, if any */
   ambientPriorContext?: string;
   /** Canonical host-facing subjective appraisal for this turn, null if no appraisal fired */
@@ -142,6 +144,7 @@ export interface ProcessInputResult {
 export interface ProcessInputOptions {
   userId?: string;
   ambientPriors?: AmbientPriorView[];
+  currentGoal?: CurrentGoal;
 }
 
 export interface ProcessOutputResult {
@@ -702,6 +705,9 @@ export class PsycheEngine {
 
     const writebackNote = formatWritebackFeedbackNote(writebackFeedback, locale);
     const ambientPriors = normalizeAmbientPriors(opts?.ambientPriors);
+    const currentGoal =
+      opts?.currentGoal
+      ?? ambientPriors.find((prior) => prior.goal)?.goal;
     const ambientPriorContext = buildAmbientPriorContext(ambientPriors, locale);
     const reflectiveTurn = runReflectiveTurnPhases({
       state,
@@ -777,6 +783,7 @@ export class PsycheEngine {
       systemContext: "",
       dynamicContext: buildCompactContext(state, opts?.userId, promptRenderInputs),
       ambientPriors,
+      currentGoal,
       ambientPriorContext: ambientPriorContext || undefined,
       appraisal: appraisalAxes,
       legacyStimulus: appliedStimulus,

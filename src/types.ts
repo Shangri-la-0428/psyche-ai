@@ -878,10 +878,14 @@ export interface SessionBridgeState {
  * It lets hosts surface sparse, task-conditioned priors without turning Psyche
  * into an operations memory store.
  */
+export const CURRENT_GOALS = ["explore", "build", "repair", "settle"] as const;
+export type CurrentGoal = (typeof CURRENT_GOALS)[number];
+
 export interface AmbientPriorView {
   summary: string;
   confidence: number; // 0-1
   kind?: "failure-residue" | "mixed-residue" | "success-prior";
+  goal?: CurrentGoal;
   provider?: string;
   refs?: string[];
 }

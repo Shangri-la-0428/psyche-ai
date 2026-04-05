@@ -1,10 +1,11 @@
-import type { AmbientPriorView } from "./types.js";
+import { CURRENT_GOALS, type AmbientPriorView } from "./types.js";
 
 const AMBIENT_PRIOR_KINDS = new Set<NonNullable<AmbientPriorView["kind"]>>([
   "failure-residue",
   "mixed-residue",
   "success-prior",
 ]);
+const AMBIENT_PRIOR_GOALS = new Set<NonNullable<AmbientPriorView["goal"]>>(CURRENT_GOALS);
 
 export function normalizeAmbientPriors(
   priors: readonly AmbientPriorView[] | unknown,
@@ -34,6 +35,12 @@ export function normalizeAmbientPriors(
       && AMBIENT_PRIOR_KINDS.has(rawKind as NonNullable<AmbientPriorView["kind"]>)
     ) {
       normalizedEntry.kind = rawKind as NonNullable<AmbientPriorView["kind"]>;
+    }
+    if (
+      typeof record.goal === "string"
+      && AMBIENT_PRIOR_GOALS.has(record.goal as NonNullable<AmbientPriorView["goal"]>)
+    ) {
+      normalizedEntry.goal = record.goal as NonNullable<AmbientPriorView["goal"]>;
     }
     if (typeof record.provider === "string") {
       const provider = record.provider.trim();

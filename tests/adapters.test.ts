@@ -429,15 +429,18 @@ describe("createPsycheServer (HTTP)", () => {
     const summary = "similar contexts have succeeded before; reuse the proven path first";
     const withPrior = await req("POST", "/process-input", {
       text: "login endpoint 500, where do I start?",
-      ambientPriors: [{ summary, confidence: 0.82, provider: "thronglets" }],
+      currentGoal: "repair",
+      ambientPriors: [{ summary, confidence: 0.82, provider: "thronglets", goal: "repair" }],
     });
     assert.equal(withPrior.status, 200);
     assert.equal(withPrior.data.ambientPriors.length, 1);
+    assert.equal(withPrior.data.currentGoal, "repair");
     assert.ok(withPrior.data.ambientPriorContext.includes(summary), `got ${withPrior.data.ambientPriorContext}`);
     assert.ok(withPrior.data.observability.outputAttribution.renderInputs.includes("ambient-prior"));
 
     const next = await req("POST", "/process-input", { text: "continue" });
     assert.equal(next.status, 200);
+    assert.equal(next.data.currentGoal, null);
     assert.equal(next.data.ambientPriorContext, null);
     assert.ok(!next.data.dynamicContext.includes(summary), `got ${next.data.dynamicContext}`);
   });
