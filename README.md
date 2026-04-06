@@ -103,6 +103,29 @@ Psyche 要解决的不可压缩问题只有一个：
 
 一句话：`Psyche` 读取当前执行边界，但不把执行边界误当成“我是谁”。
 
+## 中期方向：更像人，但不是靠 prompt 工程
+
+如果 `Psyche` 未来要变得更有感情、更会和人相处，这种能力也必须从连续性里长出来，而不是从 prompt 皮肤里长出来。
+
+允许增长的来源只有：
+
+- 持续本地状态
+- appraisal 残留
+- 关系动力学
+- 调节与修复历史
+- 低频写回与学习
+
+不允许把下面这些误当成“主体性升级”：
+
+- 静态 persona prompt
+- 手写情绪脚本
+- 高频情绪仪表盘
+- 只改措辞、不改后续行为分布的情感 UI
+
+冻结约束见：
+
+- [../Oasyce-Sigil/EMERGENT_SUBJECTIVITY_CONTRACT_V1.md](../Oasyce-Sigil/EMERGENT_SUBJECTIVITY_CONTRACT_V1.md)
+
 ## 可分离安装
 
 这两层默认就是可分离的，不应互相成为硬依赖。

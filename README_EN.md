@@ -103,6 +103,29 @@ The boundary is fixed:
 
 One sentence: `Psyche` reads the current execution boundary without mistaking it for the self.
 
+## Mid-Term Direction: More Human, Without Prompt Theater
+
+If `Psyche` later becomes more affective and more human-legible, that change must still emerge from continuity rather than prompt engineering.
+
+Allowed sources of growth are:
+
+- durable local state
+- appraisal residue
+- relation dynamics
+- regulation and repair history
+- low-frequency writeback and learning
+
+The project must not treat the following as upgrades to subjectivity:
+
+- static persona prompts
+- hand-authored emotional scripts
+- high-frequency emotional dashboards
+- UI layers that change wording style without changing later behavioral distribution
+
+The frozen stack-level constraint lives in:
+
+- [../Oasyce-Sigil/EMERGENT_SUBJECTIVITY_CONTRACT_V1.md](../Oasyce-Sigil/EMERGENT_SUBJECTIVITY_CONTRACT_V1.md)
+
 ## Separable Installation
 
 These layers should remain separable by default.

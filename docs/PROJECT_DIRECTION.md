@@ -14,6 +14,36 @@ In one sentence:
 
 **Psyche is a low-cost subjectivity substrate that lets relationships and experience keep changing an agent's later behavior.**
 
+## Mid-Term Direction: More Human, Without Prompt Theater
+
+The medium-term goal is not to make Psyche feel more emotional by writing better persona prompts.
+
+It is to make richer affect, stronger relational sensitivity, and more human-legible behavior emerge from the same local substrate:
+
+- durable subjective continuity
+- accumulated appraisal residue
+- relation dynamics
+- regulation and repair history
+- low-frequency writeback and learning
+
+This means the project should move toward:
+
+- deeper continuity, not louder personality
+- stronger relation carry, not static “modes”
+- more natural emotional emergence, not a larger feelings taxonomy
+- lower-exposure product surfaces, not a dashboard that invites constant self-inspection
+
+And it should move away from:
+
+- prompt-only “personality upgrades”
+- hardcoded emotional scripts
+- UI layers that simulate inner life without changing later behavior
+- any feature that makes Psyche look human without making it more continuous
+
+The stack-level constraint for this direction is frozen in:
+
+- [../../Oasyce-Sigil/EMERGENT_SUBJECTIVITY_CONTRACT_V1.md](../../Oasyce-Sigil/EMERGENT_SUBJECTIVITY_CONTRACT_V1.md)
+
 The cross-project stack this lives inside is now frozen as:
 
 - `Psyche = subjective continuity substrate`
