@@ -87,6 +87,22 @@ One sentence:
 
 The stack-level boundary and runtime flow live in [docs/STACK_ARCHITECTURE.md](docs/STACK_ARCHITECTURE.md).
 
+## `activePolicy` Is Runtime-Only
+
+`Psyche` now consumes `activePolicy`, `currentGoal`, and compliance-aware ambient priors from the host/runtime, but all of them remain runtime views rather than self-state.
+
+- `activePolicy`: compiled only from explicit sources like current-turn user correction, repo-local instructions, or adapter defaults
+- `currentGoal`: the current turn's bias toward `explore / build / repair / settle`
+- method compliance: a current-turn constraint on interpretation and response, not a new memory substrate
+
+The boundary is fixed:
+
+- these inputs can shape the current turn's interpretation, distance, and behavioral bias
+- they do not persist into `PsycheState`
+- `Psyche` does not become a technical-method memory layer, repo policy store, or authorization judge
+
+One sentence: `Psyche` reads the current execution boundary without mistaking it for the self.
+
 ## Separable Installation
 
 These layers should remain separable by default.

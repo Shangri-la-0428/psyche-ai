@@ -87,6 +87,22 @@ Psyche 要解决的不可压缩问题只有一个：
 - `Psyche` 回答“我因此变成了什么”
 - `Thronglets` 回答“这个变化属于谁、谁能验证、谁能继续承认它”
 
+## `activePolicy` 只属于当前轮
+
+`Psyche` 现在可以消费来自宿主和 Thronglets 的 `activePolicy` / `currentGoal` / compliance-aware ambient priors，但它们都只是 runtime view，不是自我本体。
+
+- `activePolicy`：只来自显式来源，例如当前轮用户纠正、repo 本地明确指令、adapter 默认规则
+- `currentGoal`：只描述这一轮偏向 `explore / build / repair / settle` 的哪一个
+- method compliance：只作为当前轮解释和回应约束，不写进 Psyche 自身状态
+
+边界固定为：
+
+- 这些信号会影响当前轮的解释、距离感和行为偏置
+- 它们不会写进 `PsycheState`
+- `Psyche` 不会变成技术方法记忆库、repo 规则仓库或授权判断器
+
+一句话：`Psyche` 读取当前执行边界，但不把执行边界误当成“我是谁”。
+
 ## 可分离安装
 
 这两层默认就是可分离的，不应互相成为硬依赖。
