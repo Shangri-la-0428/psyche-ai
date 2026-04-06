@@ -624,11 +624,157 @@ function parseTomlAssignmentKey(line: string): string | null {
   return match?.[1] ?? null;
 }
 
-function filterTomlAssignments(lines: string[], blockedKeys: Set<string>): string[] {
-  return lines.filter((line) => {
+type TomlEntry = { key: string | null; lines: string[] };
+
+type TomlContinuationState = {
+  bracketDepth: number;
+  braceDepth: number;
+  inMultilineBasicString: boolean;
+  inMultilineLiteralString: boolean;
+};
+
+function scanTomlContinuationState(
+  text: string,
+  state: TomlContinuationState,
+): TomlContinuationState {
+  let i = 0;
+  let inBasicString = false;
+  let inLiteralString = false;
+  let escaped = false;
+
+  while (i < text.length) {
+    const rest = text.slice(i);
+
+    if (state.inMultilineBasicString) {
+      if (rest.startsWith('"""')) {
+        state.inMultilineBasicString = false;
+        i += 3;
+        continue;
+      }
+      i += 1;
+      continue;
+    }
+
+    if (state.inMultilineLiteralString) {
+      if (rest.startsWith("'''")) {
+        state.inMultilineLiteralString = false;
+        i += 3;
+        continue;
+      }
+      i += 1;
+      continue;
+    }
+
+    const ch = text[i];
+
+    if (inBasicString) {
+      if (escaped) {
+        escaped = false;
+      } else if (ch === "\\") {
+        escaped = true;
+      } else if (ch === '"') {
+        inBasicString = false;
+      }
+      i += 1;
+      continue;
+    }
+
+    if (inLiteralString) {
+      if (ch === "'") {
+        inLiteralString = false;
+      }
+      i += 1;
+      continue;
+    }
+
+    if (ch === "#") {
+      break;
+    }
+
+    if (rest.startsWith('"""')) {
+      state.inMultilineBasicString = true;
+      i += 3;
+      continue;
+    }
+
+    if (rest.startsWith("'''")) {
+      state.inMultilineLiteralString = true;
+      i += 3;
+      continue;
+    }
+
+    if (ch === '"') {
+      inBasicString = true;
+      i += 1;
+      continue;
+    }
+
+    if (ch === "'") {
+      inLiteralString = true;
+      i += 1;
+      continue;
+    }
+
+    if (ch === "[") {
+      state.bracketDepth += 1;
+    } else if (ch === "]") {
+      state.bracketDepth = Math.max(0, state.bracketDepth - 1);
+    } else if (ch === "{") {
+      state.braceDepth += 1;
+    } else if (ch === "}") {
+      state.braceDepth = Math.max(0, state.braceDepth - 1);
+    }
+
+    i += 1;
+  }
+
+  return state;
+}
+
+function collectTomlEntries(lines: string[]): TomlEntry[] {
+  const entries: TomlEntry[] = [];
+  for (let i = 0; i < lines.length;) {
+    const line = lines[i] ?? "";
     const key = parseTomlAssignmentKey(line);
-    return !key || !blockedKeys.has(key);
-  });
+    if (!key) {
+      entries.push({ key: null, lines: [line] });
+      i += 1;
+      continue;
+    }
+
+    const value = line.split("=", 2)[1] ?? "";
+    const state: TomlContinuationState = {
+      bracketDepth: 0,
+      braceDepth: 0,
+      inMultilineBasicString: false,
+      inMultilineLiteralString: false,
+    };
+    const entryLines = [line];
+    scanTomlContinuationState(value, state);
+
+    while (
+      i + 1 < lines.length &&
+      (state.bracketDepth > 0 ||
+        state.braceDepth > 0 ||
+        state.inMultilineBasicString ||
+        state.inMultilineLiteralString)
+    ) {
+      i += 1;
+      const nextLine = lines[i] ?? "";
+      entryLines.push(nextLine);
+      scanTomlContinuationState(nextLine, state);
+    }
+
+    entries.push({ key, lines: entryLines });
+    i += 1;
+  }
+  return entries;
+}
+
+function filterTomlAssignments(lines: string[], blockedKeys: Set<string>): string[] {
+  return collectTomlEntries(lines)
+    .filter((entry) => !entry.key || !blockedKeys.has(entry.key))
+    .flatMap((entry) => entry.lines);
 }
 
 function renderCodexMcpServer(

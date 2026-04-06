@@ -354,6 +354,48 @@ describe("cli setup", () => {
     await rm(home, { recursive: true, force: true });
   });
 
+  it("replaces multiline Codex args without leaving TOML fragments behind", async () => {
+    const home = await freshDir();
+    const codexDir = join(home, ".codex");
+    await mkdir(codexDir, { recursive: true });
+    const configPath = join(codexDir, "config.toml");
+    await writeFile(
+      configPath,
+      [
+        'approval_policy = "never"',
+        "",
+        "[mcp_servers.psyche]",
+        'command = "node"',
+        "args = [",
+        '  "/tmp/old-psyche-cli.js",',
+        '  "mcp",',
+        "]",
+        'cwd = "/tmp/psyche"',
+        "",
+        "[mcp_servers.psyche.env]",
+        'KEEP_ME = "1"',
+      ].join("\n"),
+      "utf-8",
+    );
+
+    const { stdout, code } = await run(["setup", "--locale", "en"], {
+      HOME: home,
+    });
+
+    assert.equal(code, 0, stdout);
+    const config = await readFile(configPath, "utf-8");
+    assert.ok(config.includes('[mcp_servers.psyche]'));
+    assert.ok(config.includes('command = "npx"'));
+    assert.ok(config.includes("args = ["));
+    assert.ok(config.includes('"psyche-ai"'));
+    assert.ok(config.includes('cwd = "/tmp/psyche"'));
+    assert.ok(config.includes('[mcp_servers.psyche.env]'));
+    assert.ok(config.includes('KEEP_ME = "1"'));
+    assert.ok(!config.includes("/tmp/old-psyche-cli.js"));
+    assert.equal(config.match(/^\s*"mcp",\s*$/gm)?.length ?? 0, 1);
+    await rm(home, { recursive: true, force: true });
+  });
+
   it("writes JSON MCP configs without leaving temp files behind", async () => {
     const home = await freshDir();
     const cursorDir = join(home, ".cursor");

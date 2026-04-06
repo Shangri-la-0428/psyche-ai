@@ -1,5 +1,11 @@
 # 更新日志 / Changelog
 
+## v11.5.4 — Codex TOML Upsert Safety
+
+- Fix `psyche setup` for Codex when re-writing an existing `[mcp_servers.psyche]` block with multiline `args`.
+- Remove blocked TOML assignments as full entries instead of line-by-line, so old array fragments cannot corrupt `~/.codex/config.toml`.
+- Add a regression test that starts from a multiline Codex MCP block and proves the rewritten config remains parseable.
+
 ## v11.5.3 — Runtime Policy Boundary
 
 ### Changed
