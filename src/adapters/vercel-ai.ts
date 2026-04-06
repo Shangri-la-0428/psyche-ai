@@ -17,6 +17,7 @@
 // ============================================================
 
 import type { PsycheEngine } from "../core.js";
+import { composePsycheContext, safeProcessInput, safeProcessOutput } from "./fail-open.js";
 
 // ── Minimal Vercel AI SDK types ──────────────────────────────
 // Defined inline to avoid requiring @ai-sdk/provider as a dependency.
@@ -85,7 +86,7 @@ export function psycheMiddleware(engine: PsycheEngine, _opts?: PsycheMiddlewareO
   return {
     transformParams: async ({ params }: { type: string; params: CallParams }) => {
       const userText = extractLastUserText(params.prompt ?? []);
-      const result = await engine.processInput(userText);
+      const result = await safeProcessInput(engine, userText, undefined, "vercel-ai.processInput");
       const envelope = result.replyEnvelope;
       const generationControls = envelope?.generationControls ?? result.generationControls;
       const controls = {
@@ -95,21 +96,21 @@ export function psycheMiddleware(engine: PsycheEngine, _opts?: PsycheMiddlewareO
           : generationControls?.maxTokens ?? (typeof params.maxTokens === "number" ? params.maxTokens : undefined),
       };
 
-      const psycheContext = result.systemContext + "\n\n" + result.dynamicContext;
+      const psycheContext = composePsycheContext(result);
 
       return {
         ...params,
         ...(controls.maxTokens !== undefined ? { maxTokens: controls.maxTokens } : {}),
-        system: params.system
-          ? psycheContext + "\n\n" + params.system
-          : psycheContext,
+        system: psycheContext
+          ? (params.system ? psycheContext + "\n\n" + params.system : psycheContext)
+          : params.system,
       };
     },
 
     wrapGenerate: async ({ doGenerate }: { doGenerate: () => Promise<GenerateResult>; params: CallParams }) => {
       const result = await doGenerate();
       if (typeof result.text === "string") {
-        const processed = await engine.processOutput(result.text);
+        const processed = await safeProcessOutput(engine, result.text, undefined, "vercel-ai.processOutput");
         return { ...result, text: processed.cleanedText };
       }
       return result;
@@ -177,7 +178,7 @@ export function psycheMiddleware(engine: PsycheEngine, _opts?: PsycheMiddlewareO
           } else if (chunk.type === "finish") {
             // Process full text through engine before finishing
             if (fullText) {
-              await engine.processOutput(fullText);
+              await safeProcessOutput(engine, fullText, undefined, "vercel-ai.processOutput");
             }
             yield chunk;
           } else {

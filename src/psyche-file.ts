@@ -21,6 +21,7 @@ import { t } from "./i18n.js";
 import { computeSelfReflection } from "./self-recognition.js";
 import { DEFAULT_RELATIONSHIP_USER_ID, resolveRelationshipUserId } from "./relationship-key.js";
 import { describeSnapshotResidue, summarizeSnapshotMarkers } from "./appraisal-markers.js";
+import { normalizeWritebackSignals } from "./writeback-signals.js";
 
 const STATE_FILE = "psyche-state.json";
 const PSYCHE_MD = "PSYCHE.md";
@@ -854,6 +855,8 @@ export interface PsycheUpdateResult {
   llmStimulus?: StimulusType;
   /** Sparse agent-authored writeback signals */
   signals?: WritebackSignalType[];
+  /** Unsupported writeback signals that were ignored */
+  invalidSignals?: string[];
   /** Optional writeback confidence */
   signalConfidence?: number;
 }
@@ -956,28 +959,20 @@ export function parsePsycheUpdate(
     }
   }
 
-  const VALID_WRITEBACK_SIGNALS: Set<WritebackSignalType> = new Set([
-    "trust_up",
-    "trust_down",
-    "boundary_set",
-    "boundary_soften",
-    "repair_attempt",
-    "repair_landed",
-    "closeness_invite",
-    "withdrawal_mark",
-    "self_assertion",
-    "task_recenter",
-  ]);
   let signals: WritebackSignalType[] | undefined;
+  let invalidSignals: string[] | undefined;
   const signalsMatch = block.match(/signals\s*[:：]\s*([^\n]+)/i);
   if (signalsMatch) {
     const parsed = signalsMatch[1]
       .split(/[,\s|]+/)
       .map((item) => item.trim())
-      .filter(Boolean)
-      .filter((item): item is WritebackSignalType => VALID_WRITEBACK_SIGNALS.has(item as WritebackSignalType));
-    if (parsed.length > 0) {
-      signals = [...new Set(parsed)];
+      .filter(Boolean);
+    const normalized = normalizeWritebackSignals(parsed);
+    if (normalized.validSignals.length > 0) {
+      signals = normalized.validSignals;
+    }
+    if (normalized.invalidSignals.length > 0) {
+      invalidSignals = normalized.invalidSignals;
     }
   }
 
@@ -1025,6 +1020,9 @@ export function parsePsycheUpdate(
   }
   if (signals) {
     result.signals = signals;
+  }
+  if (invalidSignals) {
+    result.invalidSignals = invalidSignals;
   }
   if (signalConfidence !== undefined) {
     result.signalConfidence = signalConfidence;

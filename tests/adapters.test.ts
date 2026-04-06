@@ -8,6 +8,7 @@ import { PsycheLangChain } from "../src/adapters/langchain.js";
 import { createPsycheServer } from "../src/adapters/http.js";
 import { extractOpenClawInputText, register, sanitizeOpenClawInputText } from "../src/adapters/openclaw.js";
 import { PsycheClaudeSDK, stripPsycheTags } from "../src/adapters/claude-sdk.js";
+import { buildFailOpenProcessInputResult, composePsycheContext, safeProcessOutput } from "../src/adapters/fail-open.js";
 
 function makeEngine() {
   return new PsycheEngine(
@@ -412,6 +413,18 @@ describe("createPsycheServer (HTTP)", () => {
     assert.equal(data.cleanedText, "Normal text");
   });
 
+  it("POST /process-output surfaces structured validation issues for invalid signals without breaking", async () => {
+    const { status, data } = await req("POST", "/process-output", {
+      text: "Normal text",
+      signals: ["trust_up", "invalid_signal"],
+      signalConfidence: 0.8,
+    });
+    assert.equal(status, 200);
+    assert.equal(data.cleanedText, "Normal text");
+    assert.ok(Array.isArray(data.validationIssues));
+    assert.deepEqual(data.validationIssues[0].ignoredSignals, ["invalid_signal"]);
+  });
+
   it("returns 404 for unknown routes", async () => {
     const { status } = await req("GET", "/unknown");
     assert.equal(status, 404);
@@ -513,6 +526,137 @@ describe("createPsycheServer (HTTP)", () => {
     assert.equal(data.activePolicy[0].id, "task:current-turn-correction");
     assert.ok(data.policyContext.includes("reuse existing shared components"), `got ${data.policyContext}`);
     assert.ok(data.dynamicContext.includes("policy conflict"), `got ${data.dynamicContext}`);
+  });
+});
+
+describe("adapter fail-open helpers", () => {
+  it("builds an empty runtime-only processInput fallback without persisting state", () => {
+    const result = buildFailOpenProcessInputResult({
+      currentGoal: "build",
+      activePolicy: [{
+        id: "task:current-turn-correction",
+        strength: "hard",
+        scope: "task",
+        summary: "reuse existing shared components",
+      }],
+      ambientPriors: [{
+        summary: "policy conflict: duplicate UI edits remain unsettled under the current correction",
+        confidence: 0.81,
+        provider: "thronglets",
+      }],
+    });
+
+    assert.equal(result.systemContext, "");
+    assert.equal(result.dynamicContext, "");
+    assert.equal(result.currentGoal, "build");
+    assert.equal(result.activePolicy?.length, 1);
+    assert.equal(result.ambientPriors?.length, 1);
+    assert.equal(result.policyContext, "");
+    assert.equal(composePsycheContext(result), "");
+  });
+
+  it("safeProcessOutput strips tags and fails open when engine output processing throws", async () => {
+    const errors: string[] = [];
+    const fakeEngine = {
+      async processOutput() {
+        throw new Error("writeback unavailable");
+      },
+      recordDiagnosticError(phase: string, error: unknown) {
+        errors.push(`${phase}:${String(error)}`);
+      },
+    };
+
+    const result = await safeProcessOutput(
+      fakeEngine as unknown as PsycheEngine,
+      "Hi!\n\n<psyche_update>\nDA: 80\n</psyche_update>",
+      undefined,
+      "test.processOutput",
+    );
+
+    assert.equal(result.cleanedText, "Hi!");
+    assert.equal(result.stateChanged, false);
+    assert.equal(errors.length, 1);
+    assert.ok(errors[0].includes("test.processOutput"));
+  });
+});
+
+describe("createPsycheServer (HTTP) fail-open", () => {
+  it("keeps /process-input and /process-output available when psyche processing throws", async () => {
+    const errors: string[] = [];
+    const fakeEngine = {
+      getState() {
+        return {
+          current: { order: 50, flow: 50, boundary: 50, resonance: 50 },
+          baseline: { order: 50, flow: 50, boundary: 50, resonance: 50 },
+        };
+      },
+      getProtocol() {
+        return "protocol";
+      },
+      async processInput() {
+        throw new Error("input pipeline unavailable");
+      },
+      async processOutput() {
+        throw new Error("output pipeline unavailable");
+      },
+      recordDiagnosticError(phase: string, error: unknown) {
+        errors.push(`${phase}:${String(error)}`);
+      },
+    };
+
+    const port = 19877;
+    const server = createPsycheServer(fakeEngine as unknown as PsycheEngine, { port });
+    await new Promise<void>((resolve) => server.once("listening", resolve));
+
+    const req = (method: string, path: string, body?: object): Promise<{ status: number; data: any }> => (
+      new Promise((resolve, reject) => {
+        const r = http.request(
+          {
+            hostname: "127.0.0.1",
+            port,
+            path,
+            method,
+            headers: body ? { "Content-Type": "application/json" } : {},
+          },
+          (res) => {
+            const chunks: Buffer[] = [];
+            res.on("data", (chunk: Buffer) => chunks.push(chunk));
+            res.on("end", () => {
+              resolve({
+                status: res.statusCode ?? 0,
+                data: JSON.parse(Buffer.concat(chunks).toString()),
+              });
+            });
+          },
+        );
+        r.on("error", reject);
+        if (body) r.write(JSON.stringify(body));
+        r.end();
+      })
+    );
+
+    try {
+      const input = await req("POST", "/process-input", {
+        text: "fix the dashboard layout",
+        currentGoal: "build",
+        currentTurnCorrection: "reuse existing shared components",
+      });
+      assert.equal(input.status, 200);
+      assert.equal(input.data.systemContext, "");
+      assert.equal(input.data.dynamicContext, "");
+      assert.equal(input.data.currentGoal, "build");
+      assert.equal(input.data.activePolicy.length, 1);
+
+      const output = await req("POST", "/process-output", {
+        text: "Hi!\n\n<psyche_update>\nDA: 80\n</psyche_update>",
+      });
+      assert.equal(output.status, 200);
+      assert.equal(output.data.cleanedText, "Hi!");
+      assert.equal(output.data.stateChanged, false);
+      assert.equal(errors.length, 2);
+    } finally {
+      server.close();
+    }
   });
 });
 

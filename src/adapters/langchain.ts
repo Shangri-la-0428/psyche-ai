@@ -14,7 +14,7 @@
 // ============================================================
 
 import type { PsycheEngine } from "../core.js";
-import type { ActivePolicyRule, AmbientPriorView, CurrentGoal, WritebackSignalType } from "../types.js";
+import type { ActivePolicyRule, AmbientPriorView, CurrentGoal } from "../types.js";
 import {
   normalizeCurrentGoal,
   normalizeCurrentTurnCorrection,
@@ -24,6 +24,8 @@ import {
   resolveAmbientPriorsForTurn,
   type ThrongletsAmbientRuntimeOptions,
 } from "../ambient-runtime.js";
+import { composePsycheContext, safeProcessInput, safeProcessOutput } from "./fail-open.js";
+import { coerceWritebackSignalInput } from "../writeback-signals.js";
 
 export interface PsycheLangChainOptions {
   ambient?: boolean | ThrongletsAmbientRuntimeOptions;
@@ -60,25 +62,6 @@ export class PsycheLangChain {
     private readonly engine: PsycheEngine,
     private readonly opts: PsycheLangChainOptions = {},
   ) {}
-
-  private readonly validSignals = new Set<WritebackSignalType>([
-    "trust_up",
-    "trust_down",
-    "boundary_set",
-    "boundary_soften",
-    "repair_attempt",
-    "repair_landed",
-    "closeness_invite",
-    "withdrawal_mark",
-    "self_assertion",
-    "task_recenter",
-  ]);
-
-  private parseSignals(signals?: string[]): WritebackSignalType[] | undefined {
-    if (!signals) return undefined;
-    const parsed = signals.filter((signal): signal is WritebackSignalType => this.validSignals.has(signal as WritebackSignalType));
-    return parsed.length > 0 ? [...new Set(parsed)] : undefined;
-  }
 
   private async resolveAmbientPriors(
     userText: string,
@@ -119,14 +102,14 @@ export class PsycheLangChain {
     const currentTurnCorrection = normalizeCurrentTurnCorrection(opts?.currentTurnCorrection);
     const currentGoal = normalizeCurrentGoal(opts?.currentGoal);
     const activePolicy = resolveRuntimeActivePolicy(opts?.activePolicy, currentTurnCorrection);
-    const result = await this.engine.processInput(userText, {
+    const result = await safeProcessInput(this.engine, userText, {
       ...opts,
       currentGoal,
       activePolicy,
       currentTurnCorrection,
       ambientPriors: await this.resolveAmbientPriors(userText, currentGoal, activePolicy, currentTurnCorrection),
-    });
-    return result.systemContext + "\n\n" + result.dynamicContext;
+    }, "langchain.processInput");
+    return composePsycheContext(result);
   }
 
   /**
@@ -148,13 +131,13 @@ export class PsycheLangChain {
     const currentTurnCorrection = normalizeCurrentTurnCorrection(opts?.currentTurnCorrection);
     const currentGoal = normalizeCurrentGoal(opts?.currentGoal);
     const activePolicy = resolveRuntimeActivePolicy(opts?.activePolicy, currentTurnCorrection);
-    const result = await this.engine.processInput(userText, {
+    const result = await safeProcessInput(this.engine, userText, {
       ...opts,
       currentGoal,
       activePolicy,
       currentTurnCorrection,
       ambientPriors: await this.resolveAmbientPriors(userText, currentGoal, activePolicy, currentTurnCorrection),
-    });
+    }, "langchain.processInput");
     const generationControls = result.replyEnvelope?.generationControls ?? result.generationControls;
     const controls = {
       ...(generationControls ?? {}),
@@ -163,7 +146,7 @@ export class PsycheLangChain {
         : generationControls?.maxTokens ?? opts?.maxTokens,
     };
     return {
-      systemMessage: result.systemContext + "\n\n" + result.dynamicContext,
+      systemMessage: composePsycheContext(result),
       maxTokens: controls.maxTokens,
       requireConfirmation: controls.requireConfirmation ?? false,
     };
@@ -179,11 +162,11 @@ export class PsycheLangChain {
     text: string,
     opts?: { userId?: string; signals?: string[]; signalConfidence?: number },
   ): Promise<string> {
-    const result = await this.engine.processOutput(text, {
+    const result = await safeProcessOutput(this.engine, text, {
       userId: opts?.userId,
-      signals: this.parseSignals(opts?.signals),
+      signals: coerceWritebackSignalInput(opts?.signals),
       signalConfidence: opts?.signalConfidence,
-    });
+    }, "langchain.processOutput");
     return result.cleanedText;
   }
 }

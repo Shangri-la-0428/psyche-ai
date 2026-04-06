@@ -51,6 +51,7 @@ import { deriveThrongletsExports } from "./thronglets-export.js";
 import { buildTurnObservability } from "./observability.js";
 import { DEFAULT_RELATIONSHIP_USER_ID, resolveRelationshipUserId } from "./relationship-key.js";
 import { normalizeAmbientPriors } from "./ambient-priors.js";
+import { normalizeWritebackSignals } from "./writeback-signals.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -157,12 +158,21 @@ export interface ProcessOutputResult {
   cleanedText: string;
   /** Whether self-state was meaningfully updated (contagion or psyche_update) */
   stateChanged: boolean;
+  /** Runtime validation issues ignored to preserve the main flow */
+  validationIssues?: ProcessOutputValidationIssue[];
 }
 
 export interface ProcessOutputOptions {
   userId?: string;
-  signals?: WritebackSignalType[];
+  signals?: readonly string[];
   signalConfidence?: number;
+}
+
+export interface ProcessOutputValidationIssue {
+  code: "invalid-writeback-signals";
+  level: "warning";
+  message: string;
+  ignoredSignals: string[];
 }
 
 export interface ProcessOutcomeResult {
@@ -827,6 +837,7 @@ export class PsycheEngine {
   async processOutput(text: string, opts?: ProcessOutputOptions): Promise<ProcessOutputResult> {
     let state = this.ensureInitialized();
     let stateChanged = false;
+    const validationIssues: ProcessOutputValidationIssue[] = [];
 
     // Emotional contagion from empathy log
     if (state.empathyLog?.userState && this.cfg.emotionalContagionRate > 0) {
@@ -896,6 +907,21 @@ export class PsycheEngine {
     let combinedSignals: WritebackSignalType[] = [];
     let combinedSignalConfidence = opts?.signalConfidence;
 
+    const recordInvalidSignals = (source: "host" | "llm", invalidSignals: string[]) => {
+      if (invalidSignals.length === 0) return;
+      const issue: ProcessOutputValidationIssue = {
+        code: "invalid-writeback-signals",
+        level: "warning",
+        message: `Ignored unsupported writeback signals from ${source}`,
+        ignoredSignals: invalidSignals,
+      };
+      validationIssues.push(issue);
+      this.recordDiagnosticError(
+        "processOutput",
+        new Error(`${issue.message}: ${invalidSignals.join(", ")}`),
+      );
+    };
+
     if (text.includes("<psyche_update>")) {
       const parseResult = parsePsycheUpdate(text, NOOP_LOGGER);
       if (parseResult) {
@@ -940,11 +966,14 @@ export class PsycheEngine {
           combinedSignals.push(...parseResult.signals);
           combinedSignalConfidence = Math.max(combinedSignalConfidence ?? 0, parseResult.signalConfidence ?? 0);
         }
+        recordInvalidSignals("llm", parseResult.invalidSignals ?? []);
       }
     }
 
     if (opts?.signals && opts.signals.length > 0) {
-      combinedSignals.push(...opts.signals);
+      const normalizedSignals = normalizeWritebackSignals(opts.signals);
+      combinedSignals.push(...normalizedSignals.validSignals);
+      recordInvalidSignals("host", normalizedSignals.invalidSignals);
       combinedSignalConfidence = Math.max(combinedSignalConfidence ?? 0, opts.signalConfidence ?? 0);
     }
 
@@ -985,7 +1014,11 @@ export class PsycheEngine {
         .trim();
     }
 
-    return { cleanedText, stateChanged };
+    return {
+      cleanedText,
+      stateChanged,
+      ...(validationIssues.length > 0 ? { validationIssues } : {}),
+    };
   }
 
   /**

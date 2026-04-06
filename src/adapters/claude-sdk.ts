@@ -52,6 +52,7 @@ import {
   resolveAmbientPriorsForTurn,
   type ThrongletsAmbientRuntimeOptions,
 } from "../ambient-runtime.js";
+import { safeProcessInput, safeProcessOutput } from "./fail-open.js";
 
 // ── Minimal Claude Agent SDK types (inlined to avoid peer dependency) ──
 
@@ -341,13 +342,13 @@ export class PsycheClaudeSDK {
                 activePolicy,
                 currentTurnCorrection,
               );
-              const result = await self.engine.processInput(userMessage, {
+              const result = await safeProcessInput(self.engine, userMessage, {
                 userId: self.opts.userId,
                 ambientPriors,
                 currentGoal,
                 activePolicy,
                 currentTurnCorrection,
-              });
+              }, "claude-sdk.processInput");
               self.lastInputResult = result;
 
               // Cache Thronglets exports from this turn
@@ -355,7 +356,8 @@ export class PsycheClaudeSDK {
                 self.lastThrongletsExports = result.throngletsExports;
               }
 
-              return { systemMessage: result.dynamicContext };
+              const systemMessage = result.dynamicContext;
+              return systemMessage ? { systemMessage } : {};
             },
           ],
         },
@@ -377,11 +379,11 @@ export class PsycheClaudeSDK {
     text: string,
     opts?: { signals?: WritebackSignalType[]; signalConfidence?: number },
   ): Promise<string> {
-    const result = await this.engine.processOutput(text, {
+    const result = await safeProcessOutput(this.engine, text, {
       userId: this.opts.userId,
       signals: opts?.signals,
       signalConfidence: opts?.signalConfidence,
-    });
+    }, "claude-sdk.processOutput");
     return result.cleanedText;
   }
 

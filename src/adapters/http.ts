@@ -18,42 +18,22 @@
 
 import { createServer, type Server, type IncomingMessage, type ServerResponse } from "node:http";
 import type { PsycheEngine } from "../core.js";
+import { safeProcessInput, safeProcessOutput } from "./fail-open.js";
 import {
   normalizeCurrentGoal,
   normalizeCurrentTurnCorrection,
   resolveRuntimeActivePolicy,
   type AmbientPriorView,
-  type WritebackSignalType,
 } from "../types.js";
 import { parseAmbientPriorsInput } from "../ambient-runtime.js";
 import { computeOverlay } from "../overlay.js";
+import { coerceWritebackSignalInput } from "../writeback-signals.js";
 
 // ── Types ────────────────────────────────────────────────────
 
 export interface HttpAdapterOptions {
   port?: number;
   host?: string;
-}
-
-const VALID_WRITEBACK_SIGNALS = new Set<WritebackSignalType>([
-  "trust_up",
-  "trust_down",
-  "boundary_set",
-  "boundary_soften",
-  "repair_attempt",
-  "repair_landed",
-  "closeness_invite",
-  "withdrawal_mark",
-  "self_assertion",
-  "task_recenter",
-]);
-
-function parseSignals(value: unknown): WritebackSignalType[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  const parsed = value.filter((item): item is WritebackSignalType => (
-    typeof item === "string" && VALID_WRITEBACK_SIGNALS.has(item as WritebackSignalType)
-  ));
-  return parsed.length > 0 ? [...new Set(parsed)] : undefined;
 }
 
 function parseAmbientPriors(value: unknown): AmbientPriorView[] | undefined {
@@ -133,7 +113,8 @@ export function createPsycheServer(engine: PsycheEngine, opts?: HttpAdapterOptio
       if (req.method === "POST" && url.pathname === "/process-input") {
         const body = await readBody(req);
         const currentTurnCorrection = parseCurrentTurnCorrection(body);
-        const result = await engine.processInput(
+        const result = await safeProcessInput(
+          engine,
           (body.text as string) ?? "",
           {
             userId: body.userId as string | undefined,
@@ -142,6 +123,7 @@ export function createPsycheServer(engine: PsycheEngine, opts?: HttpAdapterOptio
             activePolicy: resolveRuntimeActivePolicy(body.activePolicy, currentTurnCorrection),
             currentTurnCorrection,
           },
+          "http.processInput",
         );
         json(res, 200, {
           systemContext: result.systemContext,
@@ -171,13 +153,15 @@ export function createPsycheServer(engine: PsycheEngine, opts?: HttpAdapterOptio
       // POST /process-output
       if (req.method === "POST" && url.pathname === "/process-output") {
         const body = await readBody(req);
-        const result = await engine.processOutput(
+        const result = await safeProcessOutput(
+          engine,
           (body.text as string) ?? "",
           {
             userId: body.userId as string | undefined,
-            signals: parseSignals(body.signals),
+            signals: coerceWritebackSignalInput(body.signals),
             signalConfidence: typeof body.signalConfidence === "number" ? body.signalConfidence : undefined,
           },
+          "http.processOutput",
         );
         json(res, 200, result);
         return;

@@ -511,6 +511,29 @@ describe("PsycheEngine", () => {
     assert.equal(result.cleanedText, "just a normal response");
   });
 
+  it("processOutput accepts signalConfidence without signals", async () => {
+    const result = await engine.processOutput("just a normal response", {
+      signalConfidence: 0.72,
+    });
+    assert.equal(result.cleanedText, "just a normal response");
+    assert.equal(result.stateChanged, false);
+    assert.equal(result.validationIssues, undefined);
+  });
+
+  it("processOutput accepts valid signals without signalConfidence", async () => {
+    const s = new MemoryStorageAdapter();
+    const e = new PsycheEngine({ mbti: "ENFP" }, s);
+    await e.initialize();
+    const before = e.getState();
+    const result = await e.processOutput("好的。", {
+      signals: ["trust_up"],
+    });
+    const after = e.getState();
+    assert.equal(result.cleanedText, "好的。");
+    assert.equal(result.validationIssues, undefined);
+    assert.ok(after.relationships._default.trust > before.relationships._default.trust);
+  });
+
   it("processOutput handles multiline psyche_update", async () => {
     const text = `I'm feeling good!
 
@@ -1019,6 +1042,22 @@ resonance: 75 (happy)
     assert.equal(result.cleanedText, "好的。");
     assert.ok(after.relationships._default.trust > before.relationships._default.trust, `${before.relationships._default.trust} -> ${after.relationships._default.trust}`);
     assert.ok((after.dyadicFields?._default.boundaryPressure ?? 0) > (before.dyadicFields?._default.boundaryPressure ?? 0));
+  });
+
+  it("processOutput ignores invalid writeback signals without breaking the turn", async () => {
+    const s = new MemoryStorageAdapter();
+    const e = new PsycheEngine({ mbti: "ENFP" }, s);
+    await e.initialize();
+    const before = e.getState();
+    const result = await e.processOutput("好的。", {
+      signals: ["trust_up", "not_a_real_signal"],
+      signalConfidence: 0.8,
+    });
+    const after = e.getState();
+    assert.equal(result.cleanedText, "好的。");
+    assert.ok(Array.isArray(result.validationIssues));
+    assert.deepEqual(result.validationIssues?.[0]?.ignoredSignals, ["not_a_real_signal"]);
+    assert.ok(after.relationships._default.trust > before.relationships._default.trust);
   });
 
   it("evaluates sparse writeback signals on the next turn", async () => {

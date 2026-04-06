@@ -51,6 +51,7 @@ import {
 } from "../types.js";
 import { getPackageVersion } from "../update.js";
 import { runDemo } from "../demo.js";
+import { safeProcessInput, safeProcessOutput } from "./fail-open.js";
 
 const PACKAGE_VERSION = await getPackageVersion();
 
@@ -292,13 +293,13 @@ server.tool(
       resolvedActivePolicy,
       currentTurnCorrection,
     );
-    const result: ProcessInputResult = await eng.processInput(text, {
+    const result: ProcessInputResult = await safeProcessInput(eng, text, {
       userId,
       ambientPriors: resolvedAmbientPriors,
       currentGoal,
       activePolicy: resolvedActivePolicy,
       currentTurnCorrection,
-    });
+    }, "mcp.processInput");
     return {
       content: [{
         type: "text" as const,
@@ -341,13 +342,19 @@ server.tool(
   },
   async ({ text, userId, signals, signalConfidence }: { text: string; userId?: string; signals?: string[]; signalConfidence?: number }) => {
     const eng = await getEngine();
-    const result = await eng.processOutput(text, { userId, signals: signals as never, signalConfidence });
+    const result = await safeProcessOutput(
+      eng,
+      text,
+      { userId, signals: signals as never, signalConfidence },
+      "mcp.processOutput",
+    );
     return {
       content: [{
         type: "text" as const,
         text: JSON.stringify({
           cleanedText: result.cleanedText,
           stateChanged: result.stateChanged,
+          validationIssues: result.validationIssues ?? [],
         }, null, 2),
       }],
     };

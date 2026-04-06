@@ -322,6 +322,14 @@ describe("parsePsycheUpdate", () => {
     assert.equal(result!.signalConfidence, 0.78);
   });
 
+  it("keeps invalid sparse writeback signals as structured parse residue", () => {
+    const text = `<psyche_update>\nsignals: trust_up, invalid_signal | repair_attempt\n</psyche_update>`;
+    const result = parsePsycheUpdate(text);
+    assert.ok(result);
+    assert.deepEqual(result!.signals, ["trust_up", "repair_attempt"]);
+    assert.deepEqual(result!.invalidSignals, ["invalid_signal"]);
+  });
+
   it("parses appraisal-first writeback labels", () => {
     const text = `<psyche_update>\nappraisal: approach | uncertainty\n</psyche_update>`;
     const result = parsePsycheUpdate(text);
