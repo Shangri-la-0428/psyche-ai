@@ -320,23 +320,25 @@ describe("buildDriveContext", () => {
     assert.ok(ctx.includes("自我保存"));
   });
 
+  // Drive context now uses awareness language, not behavioral directives.
+  // Tests verify the new phrasing: internal signals, not action scripts.
   it("generates English context for low survival", () => {
     const drives = makeDrives({ survival: 20 });
     const ctx = buildDriveContext(drives, "en");
     assert.ok(ctx.includes("Innate Drives"));
-    assert.ok(ctx.includes("self-preservation"));
+    assert.ok(ctx.includes("Self-preservation signal"));
   });
 
   it("generates context for low connection", () => {
     const drives = makeDrives({ connection: 20 });
     const ctx = buildDriveContext(drives, "zh");
-    assert.ok(ctx.includes("孤独"));
+    assert.ok(ctx.includes("连接需求"));
   });
 
   it("generates context for low curiosity", () => {
     const drives = makeDrives({ curiosity: 20 });
     const ctx = buildDriveContext(drives, "zh");
-    assert.ok(ctx.includes("闷"));
+    assert.ok(ctx.includes("好奇心"));
   });
 
   it("generates context for low esteem", () => {
@@ -348,14 +350,14 @@ describe("buildDriveContext", () => {
   it("generates context for low safety", () => {
     const drives = makeDrives({ safety: 20 });
     const ctx = buildDriveContext(drives, "zh");
-    assert.ok(ctx.includes("不安全"));
+    assert.ok(ctx.includes("安全感"));
   });
 
   it("combines multiple unsatisfied drives", () => {
     const drives = makeDrives({ connection: 10, curiosity: 10 });
     const ctx = buildDriveContext(drives, "zh");
-    assert.ok(ctx.includes("孤独"));
-    assert.ok(ctx.includes("闷"));
+    assert.ok(ctx.includes("连接需求"));
+    assert.ok(ctx.includes("好奇心"));
   });
 });
 

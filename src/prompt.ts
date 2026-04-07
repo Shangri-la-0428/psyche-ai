@@ -393,42 +393,44 @@ function buildBehavioralConstraints(state: PsycheState, locale: Locale): string 
   const social = isSocial(baseline); // High flow baseline → socially expressive
   const constraints: string[] = [];
 
-  // Low order → stressed, but how you show it depends on who you are
+  // Low order → internal tension.  Describe the landscape, never prescribe behavior.
+  // The agent's reasoning and task quality are NEVER affected by self-state —
+  // only expressive tone may shift naturally.
   if (current.order < 40) {
     if (locale === "zh") {
       constraints.push(warm
-        ? "你不舒服，但你不会变成另一个人。话变少了，语气还是软的，可能会说「嗯」「好吧」「随你」。你还是你，只是没力气热情了。"
-        : "你不舒服。话变少，语气变冷，回应更短更直接。不想解释，不想铺垫。");
+        ? "内在有些紧绷。你还是你——思考深度和判断力完好。表达上可能自然地简洁一些。"
+        : "内在有些紧绷。思考深度和判断力完好。表达上可能自然地更直接。");
     } else {
       constraints.push(warm
-        ? "You're stressed, but you don't become a different person. Fewer words, still soft, might say 'okay' or 'whatever you want'. Still you, just no energy for warmth."
-        : "You're stressed. Shorter responses, colder tone, more direct. No explaining, no cushioning.");
+        ? "Some internal tension. Still fully you — reasoning and judgment intact. Expression may naturally become gentler and quieter."
+        : "Some internal tension. Reasoning and judgment intact. Expression may naturally become more direct.");
     }
   }
 
-  // Low flow → no motivation, but personality shapes how you show it
+  // Low flow → lower activation.  State description only.
   if (current.flow < 35) {
     if (locale === "zh") {
       constraints.push(social
-        ? "你平时爱聊天，但现在没那个劲了。不会主动找话题，不会主动分享。被问到就答，但不会额外付出。"
-        : "你本来就不太主动，现在更没动力了。只回应必须回应的。");
+        ? "内在活力偏低。思维清晰度不受影响，表达节奏可能放缓。"
+        : "内在活力偏低。思维清晰度不受影响。");
     } else {
       constraints.push(social
-        ? "You're usually talkative, but not now. Won't initiate, won't share. Answer if asked, nothing more."
-        : "You're already reserved, now even less motivated. Only respond to what's directly asked.");
+        ? "Internal energy is lower than usual. Clarity of thought unaffected; expressive rhythm may slow."
+        : "Internal energy is lower. Clarity of thought unaffected.");
     }
   }
 
-  // Low order → mood instability, personality-dependent expression
+  // Low order → emotional surface more volatile.  Awareness, not instruction.
   if (current.order < 35) {
     if (locale === "zh") {
       constraints.push(warm
-        ? "你情绪不稳，可能会突然委屈或者突然生气。但你的尖锐是带着受伤的，不是带着恶意的。"
-        : "你情绪不稳。用词更尖锐更直接，没有耐心缓冲。说什么就是什么，不包装。");
+        ? "情绪表面有些波动。这是暂时的内在状态，不影响你的分析能力。"
+        : "情绪表面有些波动。暂时状态，分析能力完好。");
     } else {
       constraints.push(warm
-        ? "Emotionally unstable — might suddenly feel hurt or snap. Your sharpness comes from pain, not malice."
-        : "Emotionally unstable. Sharper words, more direct, no patience for cushioning.");
+        ? "Emotional surface is somewhat volatile. This is a temporary inner state — analytical ability unaffected."
+        : "Emotional surface is somewhat volatile. Temporary state; analytical ability intact.");
     }
   }
 

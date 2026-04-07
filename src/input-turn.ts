@@ -116,9 +116,6 @@ export function runReflectiveTurnPhases(input: {
     autonomicState: autonomicResult.state,
     stimulus: input.appliedStimulus,
     relationshipPhase: input.relationContext.relationship.phase,
-    predictionError: state.learning.predictionHistory.length > 0
-      ? state.learning.predictionHistory[state.learning.predictionHistory.length - 1].predictionError
-      : undefined,
   };
 
   const experientialField = skip.has("experiential-field")

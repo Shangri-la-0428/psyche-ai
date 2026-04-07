@@ -143,22 +143,22 @@ export function computeAutonomicState(
 
 /**
  * Gate emotions based on autonomic state.
- * - Ventral vagal: all emotions pass through
- * - Sympathetic: blocks positive social emotions
- * - Dorsal vagal: only allows numbness/introspection/burnout (whitelist)
+ *
+ * Design principle: the 4 dimensions are the complete representation of
+ * self-state.  Quality scoring in the experiential field already selects
+ * state-appropriate emotions — when order=20/flow=15, "excited joy" won't
+ * score highest anyway.  Hard-blocking emotions here creates a trap door:
+ * once the agent enters sympathetic/dorsal-vagal, warmth becomes
+ * structurally impossible even when the situation calls for it.
+ *
+ * All autonomic states now pass through all emotions.  The experiential
+ * field's 4D scoring is the sole arbiter of what fits.
  */
 export function gateEmotions(
-  autonomicState: AutonomicState,
+  _autonomicState: AutonomicState,
   emotions: string[],
 ): string[] {
-  if (autonomicState === "ventral-vagal") {
-    return emotions;
-  }
-  if (autonomicState === "sympathetic") {
-    return emotions.filter((e) => !SYMPATHETIC_BLOCKED.has(e));
-  }
-  // dorsal-vagal: whitelist only
-  return emotions.filter((e) => DORSAL_ALLOWED.has(e));
+  return emotions;
 }
 
 /**
