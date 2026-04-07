@@ -1,5 +1,11 @@
 # 更新日志 / Changelog
 
+## v11.6.1 — Slim MCP Response
+
+- **Slim process_input response** — MCP tool returns only what the LLM host needs: `directive`, `stimulus`, `maxTokens`, `requireConfirmation`. Full structured state (ReplyEnvelope, appraisal, observability) available on demand via `psyche://turn/envelope` and `psyche://turn/observability` resources.
+- **Turn-scoped MCP resources** — `turnResource` helper eliminates boilerplate across turn-scoped resource registrations. Fail-open: returns empty JSON when no turn has been processed.
+- **Restore sparse validationIssues** — `process_output` includes `validationIssues` when non-empty, so hosts can detect rejected writeback signals.
+
 ## v11.6.0 — Anti-Degradation Overhaul
 
 Architectural principle: **the 4 dimensions are the complete representation of self-state. The experiential field is a pure function of dimensions. Prediction error belongs to the learning layer, not the experience layer.**
