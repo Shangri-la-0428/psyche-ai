@@ -220,13 +220,29 @@
         display: grid;
         gap: 20px;
       }
-      .entry-grid[data-astro-cid-bync4ous],
+      .entry-grid[data-astro-cid-bync4ous] {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1px;
+        border: 1px solid var(--border);
+        background: var(--border);
+      }
       .proof-grid-lite[data-astro-cid-bync4ous] {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
         gap: 1px;
         border: 1px solid var(--border);
         background: var(--border);
+      }
+      @media (max-width: 768px) {
+        .entry-grid[data-astro-cid-bync4ous] {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      @media (max-width: 480px) {
+        .entry-grid[data-astro-cid-bync4ous] {
+          grid-template-columns: 1fr;
+        }
       }
       .entry-card[data-astro-cid-bync4ous],
       .proof-card-lite[data-astro-cid-bync4ous] {
