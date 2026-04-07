@@ -406,6 +406,7 @@ server.tool(
         text: JSON.stringify({
           cleanedText: result.cleanedText,
           stateChanged: result.stateChanged,
+          ...(result.validationIssues?.length ? { validationIssues: result.validationIssues } : {}),
         }),
       }],
     };
