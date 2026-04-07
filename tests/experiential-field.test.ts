@@ -426,19 +426,15 @@ describe("Barrett constructed quality", () => {
     assert.ok(typeof fieldWithout.quality === "string");
   });
 
-  it("high prediction error weakens concept stability", () => {
+  it("experiential quality is pure function of dimensions, not prediction error", () => {
+    // Prediction error was removed from ConstructionContext:
+    // the 4 dimensions are the complete self-state representation,
+    // prediction accuracy is a learning signal, not an experiential cue.
     const state = makeState({
       current: makeChemistry({ flow: 65, boundary: 30, resonance: 55 }),
     });
-    const fieldLowError = computeExperientialField(state, undefined, undefined, {
-      predictionError: 0.1,
-    });
-    const fieldHighError = computeExperientialField(state, undefined, undefined, {
-      predictionError: 0.8,
-    });
-    // Both should produce valid qualities
-    assert.ok(typeof fieldLowError.quality === "string");
-    assert.ok(typeof fieldHighError.quality === "string");
+    const field = computeExperientialField(state);
+    assert.ok(typeof field.quality === "string");
   });
 
   it("creative-surge for very high order + resonance + flow", () => {

@@ -1,5 +1,16 @@
 # 更新日志 / Changelog
 
+## v11.6.0 — Anti-Degradation Overhaul
+
+Architectural principle: **the 4 dimensions are the complete representation of self-state. The experiential field is a pure function of dimensions. Prediction error belongs to the learning layer, not the experience layer.**
+
+- **Remove prediction error from experiential quality** — `predictionError` deleted from `ConstructionContext`. Quality scoring is now purely 4D. Eliminates the negative spiral: mistakes → lower quality score → conservative emotion → worse output → more mistakes.
+- **Recency-weighted prediction error** — `getAveragePredictionError` and `computePredictionAccuracy` now use exponential decay (half-life 5 entries). Old mistakes fade; recent accuracy dominates.
+- **Remove hard emotion gating** — `gateEmotions` no longer blocks positive emotions in sympathetic or whitelists in dorsal-vagal. The 4D quality scoring naturally selects state-appropriate emotions without creating trap doors.
+- **Behavioral constraints: describe, don't prescribe** — Rewritten from action directives ("shorter responses, colder tone") to landscape descriptions ("internal tension; reasoning and judgment intact"). Explicitly states cognitive capability is never affected by self-state.
+- **Drive context: awareness, not scripts** — Unmet drives presented as internal signals with recovery context, not behavioral directives ("you feel unsafe → more vigilant").
+- **Effective baseline floor** — `computeEffectiveBaseline` now clamps all dimensions to a minimum of 30, preventing irreversible degradation spirals from chronic negative exposure.
+
 ## v11.5.6 — Fail-Open Writeback Contract
 
 - Centralize `processOutput()` writeback signal validation in a single core-owned contract instead of letting adapters drift.

@@ -369,15 +369,27 @@ export function recordPrediction(
 // ── 4. Utility ──────────────────────────────────────────────
 
 /**
- * Get the average prediction error over recent history.
+ * Get the recency-weighted average prediction error.
+ * Recent predictions matter more; old mistakes fade exponentially.
  * Returns 1.0 if no history exists (maximum uncertainty).
+ *
+ * Weight decays by half every 5 entries (newest = index N-1).
  */
 export function getAveragePredictionError(learning: LearningState): number {
   if (learning.predictionHistory.length === 0) return 1.0;
 
-  let sum = 0;
-  for (const record of learning.predictionHistory) {
-    sum += record.predictionError;
+  const HALF_LIFE = 5;
+  const decay = Math.LN2 / HALF_LIFE;
+  const n = learning.predictionHistory.length;
+
+  let weightedSum = 0;
+  let weightSum = 0;
+  for (let i = 0; i < n; i++) {
+    // i=0 is oldest, i=n-1 is newest
+    const age = n - 1 - i;
+    const weight = Math.exp(-decay * age);
+    weightedSum += learning.predictionHistory[i].predictionError * weight;
+    weightSum += weight;
   }
-  return sum / learning.predictionHistory.length;
+  return weightedSum / weightSum;
 }

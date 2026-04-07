@@ -536,7 +536,7 @@ describe("getAveragePredictionError", () => {
     assert.equal(getAveragePredictionError(learning), 1.0);
   });
 
-  it("returns average of recorded errors", () => {
+  it("returns recency-weighted average of recorded errors", () => {
     const records = [
       { predictedState: makeChemistry(), actualState: makeChemistry(), stimulus: null, predictionError: 0.2, timestamp: "" },
       { predictedState: makeChemistry(), actualState: makeChemistry(), stimulus: null, predictionError: 0.4, timestamp: "" },
@@ -544,7 +544,9 @@ describe("getAveragePredictionError", () => {
     ];
     const learning = makeLearning({ predictionHistory: records });
     const avg = getAveragePredictionError(learning);
-    assert.ok(Math.abs(avg - 0.4) < 0.001, `expected ~0.4, got ${avg}`);
+    // Recency-weighted: newest (0.6) weighs more than oldest (0.2),
+    // so result should be > 0.4 (the simple average).
+    assert.ok(avg > 0.4 && avg < 0.6, `expected recency-weighted avg in (0.4, 0.6), got ${avg}`);
   });
 });
 

@@ -76,7 +76,10 @@ export interface ConstructionContext {
   autonomicState?: AutonomicState;
   stimulus?: StimulusType | null;
   relationshipPhase?: string;
-  predictionError?: number;
+  // predictionError removed: prediction accuracy is a learning signal,
+  // not an experiential cue.  The 4 dimensions are the complete
+  // representation of self-state; the experiential field must be a
+  // pure function of dimensions + situational context.
   coreMemories?: StateSnapshot[];  // uses SelfState snapshots
 }
 
@@ -357,10 +360,11 @@ function constructQuality(
       score += memoryResonance * 0.1;
     }
 
-    // Prediction error: high error weakens the current concept (forces re-evaluation)
-    if (context?.predictionError !== undefined && context.predictionError > 0.3) {
-      score -= context.predictionError * 0.15;
-    }
+    // Prediction error removed from quality scoring.
+    // The 4 dimensions already capture the self-state impact of mistakes
+    // (order/flow drop on criticism).  Penalizing quality here double-counts
+    // and creates a negative feedback spiral: errors → worse experience →
+    // more conservative behavior → more errors.
 
     if (score > bestScore) {
       bestScore = score;

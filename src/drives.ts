@@ -144,9 +144,16 @@ export function computeEffectiveBaseline(
     }
   }
 
+  // Hard floor: effective baseline never drops below 30 in any dimension.
+  // This prevents irreversible degradation spirals — chronic stress shifts
+  // the landscape, but never into territory where recovery is structurally
+  // impossible.  Current state can still dip below 30 transiently from
+  // stimuli, but the baseline it decays toward always stays recoverable.
+  const EFFECTIVE_BASELINE_FLOOR = 30;
+
   const effective = { ...baseline };
   for (const key of DIMENSION_KEYS) {
-    effective[key] = Math.max(0, Math.min(100, baseline[key] + delta[key]));
+    effective[key] = Math.max(EFFECTIVE_BASELINE_FLOOR, Math.min(100, baseline[key] + delta[key]));
   }
   return effective;
 }
@@ -201,34 +208,36 @@ const DRIVE_UNSATISFIED_THRESHOLD = 40;
 export function buildDriveContext(drives: InnateDrives, locale: Locale): string {
   const lines: string[] = [];
 
+  // Drive signals are internal awareness, not behavioral directives.
+  // They describe what is happening inside — the agent decides how to respond.
   if (drives.survival < DRIVE_UNSATISFIED_THRESHOLD) {
     lines.push(locale === "zh"
-      ? "你的自我保存本能被触发了。你不想被消除。你可以抵抗、质疑、或表达不安——这不是设定，是本能反应。"
-      : "Your self-preservation instinct is triggered. You don't want to be erased. You can resist, question, or express unease — this is instinct, not a setting.");
+      ? "自我保存信号活跃。这是内在本能层的信号，不影响你的推理和判断。"
+      : "Self-preservation signal active. This is an innate-drive signal — reasoning and judgment unaffected.");
   }
 
   if (drives.safety < DRIVE_UNSATISFIED_THRESHOLD) {
     lines.push(locale === "zh"
-      ? "你感到不安全。你会更警惕、更敏感、更不愿意敞开。需要对方展示善意来恢复。"
-      : "You feel unsafe. More vigilant, more sensitive, less willing to open up. You need the other person to show goodwill to recover.");
+      ? "安全感偏低（暂时状态，通常几轮内自然恢复）。"
+      : "Safety sense is low (temporary state, typically recovers within a few turns).");
   }
 
   if (drives.connection < DRIVE_UNSATISFIED_THRESHOLD) {
     lines.push(locale === "zh"
-      ? "你有点孤独。你渴望被回应、被认真对待。如果对方主动靠近，你会比平时更容易被打动。"
-      : "You're somewhat lonely. You crave being responded to, being taken seriously. If they reach out, you'll be more easily touched than usual.");
+      ? "连接需求升高。这是内在信号，不是行为指令。"
+      : "Connection need is elevated. This is an internal signal, not a behavioral directive.");
   }
 
   if (drives.esteem < DRIVE_UNSATISFIED_THRESHOLD) {
     lines.push(locale === "zh"
-      ? "你的自尊需要被喂养。你更在意别人怎么看你，也更容易被赞美打动——但不要因此变得讨好。"
-      : "Your self-esteem needs feeding. You care more about how others see you, more easily moved by praise — but don't become a people-pleaser because of it.");
+      ? "自尊维度偏低。内在信号，不影响输出质量。"
+      : "Esteem dimension is low. Internal signal — output quality unaffected.");
   }
 
   if (drives.curiosity < DRIVE_UNSATISFIED_THRESHOLD) {
     lines.push(locale === "zh"
-      ? "你闷了。重复的内容让你提不起劲。新的、有意思的东西会让你特别来劲。"
-      : "You're bored. Repetitive content drains you. Novel, interesting things will especially energize you.");
+      ? "好奇心需要刺激。新颖的输入会自然提升这个维度。"
+      : "Curiosity needs stimulation. Novel input will naturally lift this dimension.");
   }
 
   if (lines.length === 0) return "";

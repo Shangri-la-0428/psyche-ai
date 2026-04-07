@@ -350,12 +350,21 @@ function computePredictionAccuracy(state: PsycheState): number {
   const predictions = state.learning.predictionHistory;
   if (predictions.length === 0) return 0.5; // neutral when no data
 
-  // Average prediction error (already 0-1 normalized in learning.ts)
-  let totalError = 0;
-  for (const p of predictions) {
-    totalError += p.predictionError;
+  // Recency-weighted average: recent predictions matter more.
+  // Half-life of 5 entries — old mistakes fade, recent accuracy dominates.
+  const HALF_LIFE = 5;
+  const decay = Math.LN2 / HALF_LIFE;
+  const n = predictions.length;
+
+  let weightedError = 0;
+  let weightSum = 0;
+  for (let i = 0; i < n; i++) {
+    const age = n - 1 - i;
+    const weight = Math.exp(-decay * age);
+    weightedError += predictions[i].predictionError * weight;
+    weightSum += weight;
   }
-  const avgError = totalError / predictions.length;
+  const avgError = weightedError / weightSum;
 
   // Invert: low error = high accuracy
   return 1 - avgError;

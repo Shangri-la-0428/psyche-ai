@@ -131,22 +131,13 @@ describe("gateEmotions", () => {
     }
   });
 
-  it("sympathetic: blocks 'deep contentment'", () => {
-    const result = gateEmotions("sympathetic", ["deep contentment", "anxious tension"]);
-    assert.ok(!result.includes("deep contentment"), "deep contentment should be gated");
-    assert.ok(result.includes("anxious tension"), "anxious tension should pass");
-  });
-
-  it("sympathetic: blocks 'warm intimacy'", () => {
-    const result = gateEmotions("sympathetic", ["warm intimacy", "focused alertness"]);
-    assert.ok(!result.includes("warm intimacy"), "warm intimacy should be gated");
-    assert.ok(result.includes("focused alertness"), "focused alertness should pass");
-  });
-
-  it("sympathetic: blocks 'playful mischief'", () => {
-    const result = gateEmotions("sympathetic", ["playful mischief", "righteous anger"]);
-    assert.ok(!result.includes("playful mischief"), "playful mischief should be gated");
-    assert.ok(result.includes("righteous anger"), "righteous anger should pass");
+  // Gating removed: 4D quality scoring is the sole arbiter of emotion selection.
+  // Sympathetic state no longer blocks positive emotions — the experiential field
+  // naturally selects stress-appropriate emotions via dimension scoring.
+  it("sympathetic: passes all emotions through (4D scoring is the arbiter)", () => {
+    const all = ["deep contentment", "warm intimacy", "playful mischief", "anxious tension", "focused alertness", "righteous anger"];
+    const result = gateEmotions("sympathetic", all);
+    assert.deepStrictEqual(result, all, "all emotions should pass through in any autonomic state");
   });
 
   it("sympathetic: allows 'anxious tension'", () => {
@@ -179,15 +170,11 @@ describe("gateEmotions", () => {
     assert.ok(result.includes("burnout"));
   });
 
-  it("dorsal-vagal: blocks 'excited joy'", () => {
-    const result = gateEmotions("dorsal-vagal", ["excited joy"]);
-    assert.ok(!result.includes("excited joy"), "excited joy should be gated in dorsal-vagal");
-  });
-
-  it("dorsal-vagal: blocks 'playful mischief' and 'warm intimacy'", () => {
-    const result = gateEmotions("dorsal-vagal", ["playful mischief", "warm intimacy"]);
-    assert.ok(!result.includes("playful mischief"));
-    assert.ok(!result.includes("warm intimacy"));
+  // Gating removed: dorsal-vagal no longer whitelists emotions.
+  it("dorsal-vagal: passes all emotions through (4D scoring is the arbiter)", () => {
+    const all = ["excited joy", "playful mischief", "warm intimacy", "emotional numbness", "burnout"];
+    const result = gateEmotions("dorsal-vagal", all);
+    assert.deepStrictEqual(result, all, "all emotions should pass through in any autonomic state");
   });
 
   it("empty emotion list returns empty for any state", () => {
