@@ -115,6 +115,16 @@ Psyche makes a Loop's behavior *richer* — not just "different state → differ
 
 - **The only valid model** — A different Loop might use neural state dynamics, probabilistic models, or something not yet invented. Psyche is one answer, not the answer.
 
+## Experimental Constraints (from Primordial Soup, 2026-04-09)
+
+> Seven experiments validated Sigil architecture in simulation. One constraint is Psyche-critical.
+
+**Psyche must be constitutive, not consultative.** Ablation experiment (Phase 6): removing Psyche made the population larger in steady-state but MORE homogeneous (genome entropy 15.84 vs 16.79). Under famine, 2/3 populations with Psyche survived vs 1/3 without. Psyche maintains genetic diversity by introducing state-dependent decision variation. This diversity is the source of resilience under environmental shock.
+
+Design implication: Psyche dimensions must be direct inputs to agent decision functions, not prompt labels. The `process_input`/`process_output` cycle must actually modulate behavior, not just annotate it. If Psyche state can be ignored without behavioral change, it's consultative, not constitutive — and the system loses its diversity maintenance mechanism.
+
+See `~/Desktop/primordial-soup-thesis.md` §11-12 for ablation data.
+
 ## Sigil Integration
 
 - [x] Accept Sigil ID — `sigilId` in config + `PSYCHE_SIGIL_ID` env + `--sigil-id` CLI. Stored in `state.meta.sigilId`.
