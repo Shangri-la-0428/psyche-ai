@@ -17,9 +17,39 @@ Standalone by default: no `Thronglets`, no `oasyce-sdk`, and no `Oasyce Chain` a
 >
 > Website: [psyche.oasyce.com](https://psyche.oasyce.com)
 
+## Install
+
+One command — auto-detects and configures all local AI tools (Claude Code / Cursor / Windsurf / Codex):
+
+```bash
+npx -y psyche-ai setup
+```
+
+Or add MCP config manually:
+
+```json
+{
+  "mcpServers": {
+    "psyche": {
+      "command": "npx",
+      "args": ["-y", "psyche-ai", "mcp"],
+      "env": {
+        "PSYCHE_NAME": "Luna"
+      }
+    }
+  }
+}
+```
+
+The package is [`psyche-ai`](https://www.npmjs.com/package/psyche-ai) on npm. Runs via npx — no local path needed. Restart your AI tool after configuring.
+
+Verify: `npx psyche-ai probe --json` — `ok: true` means it's working.
+
+---
+
 ## One project, three entry points
 
-- **Package**: [`psyche-ai`](https://www.npmjs.com/package/psyche-ai)
+- **npm package**: [`psyche-ai`](https://www.npmjs.com/package/psyche-ai)
 - **Source repo**: [`oasyce_psyche`](https://github.com/Shangri-la-0428/oasyce_psyche)
 - **Website**: [psyche.oasyce.com](https://psyche.oasyce.com)
 

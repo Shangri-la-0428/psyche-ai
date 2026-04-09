@@ -19,9 +19,39 @@ Psyche 不是给模型贴一层“情绪 UI”。
 
 默认就是 standalone：不需要 `Thronglets`，不需要 `oasyce-sdk`，也不需要 `Oasyce Chain`。这些只是在你要把主观连续性外化、绑定或结算时才按需接入。
 
+## 安装
+
+一条命令，自动检测并配置本机所有 AI 工具（Claude Code / Cursor / Windsurf / Codex）：
+
+```bash
+npx -y psyche-ai setup
+```
+
+或者手动添加 MCP 配置：
+
+```json
+{
+  "mcpServers": {
+    "psyche": {
+      "command": "npx",
+      "args": ["-y", "psyche-ai", "mcp"],
+      "env": {
+        "PSYCHE_NAME": "Luna"
+      }
+    }
+  }
+}
+```
+
+包名是 [`psyche-ai`](https://www.npmjs.com/package/psyche-ai)，通过 npx 运行，不需要本地路径。配置后重启 AI 工具即可生效。
+
+验证：`npx psyche-ai probe --json` — `ok: true` 就是在用了。
+
+---
+
 ## 一个项目，三个入口
 
-- **安装包**: [`psyche-ai`](https://www.npmjs.com/package/psyche-ai)
+- **npm 包**: [`psyche-ai`](https://www.npmjs.com/package/psyche-ai)
 - **源码仓库**: [`oasyce_psyche`](https://github.com/Shangri-la-0428/oasyce_psyche)
 - **官网**: [psyche.oasyce.com](https://psyche.oasyce.com)
 
