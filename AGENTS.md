@@ -129,7 +129,9 @@ See `~/Desktop/primordial-soup-thesis.md` §11-12 for ablation data.
 
 - [x] Accept Sigil ID — `sigilId` in config + `PSYCHE_SIGIL_ID` env + `--sigil-id` CLI. Stored in `state.meta.sigilId`.
 - [x] Per-Sigil state persistence — when sigilId is set, workspace becomes `{base}/{sigilId}/`, isolating state per Loop.
-- [ ] Expose dimension values as part of Sigil's Thronglets state (for inter-Loop perception)
+- [x] Expose dimension values as part of Sigil's Thronglets state (for inter-Loop perception)
+  - MCP mode: `process_input` response includes `throngletsExports` → auto-bridged by Thronglets hook
+  - Pipe mode: `psyche emit <dir> --json | thronglets ingest` → for hook-based deployments
 
 ## Build
 
