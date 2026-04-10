@@ -1,5 +1,13 @@
 # 更新日志 / Changelog
 
+## v11.8.0 — φ Closure + Constitutive Bridge
+
+- **LoopOutcome feedback** — substrate-independent outcome signal (`aligned`/`diverged`/`partial`) processed into 4D chemistry. Any substrate can report whether its action matched the Loop's intention; core updates order, boundary, and flow accordingly.
+- **Drives constitutive enforcement** — survival below 20 forces `requireConfirmation`; safety below 30 caps `maxTokens` at 256. These are hard constraints, not prompt suggestions.
+- **Self-awareness on persistent divergence** — when >60% of recent Loop outcomes diverge, a brief introspection note appears in the prompt.
+- **Constitutive Psyche→Thronglets bridge** — Psyche now auto-emits throngletsExports directly via subprocess, mirroring the ambient-priors read path. Any agent using Psyche gets Thronglets visibility without platform-specific hooks. Fail-open, fire-and-forget, 400ms timeout.
+- **LLM adapter alignment inference** — MCP `process_output` compares output length against the last response contract to infer alignment, passing the result as a LoopOutcome to the core.
+
 ## v11.7.0 — Proprioception
 
 - **Self-trajectory awareness (proprioception)** — the system can now perceive its own state trajectory and respond to it.
