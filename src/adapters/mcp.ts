@@ -130,6 +130,10 @@ async function getEngine(): Promise<PsycheEngine> {
     persist: cliArgs.persist ?? PERSIST,
     compactMode: true,
     diagnostics: true,
+    throngletsBridge: {
+      dataDir: process.env.THRONGLETS_DATA_DIR,
+      space: process.env.THRONGLETS_SPACE ?? "psyche",
+    },
   };
 
   const persist = cfg.persist !== false;

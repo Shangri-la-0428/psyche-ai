@@ -54,6 +54,7 @@ import { normalizeAmbientPriors } from "./ambient-priors.js";
 import { normalizeWritebackSignals } from "./writeback-signals.js";
 import { detectTrajectory } from "./proprioception.js";
 import type { TrajectorySignal } from "./proprioception.js";
+import { bridgeThrongletsExports, type ThrongletsBridgeOptions } from "./thronglets-bridge.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -86,6 +87,8 @@ export interface PsycheEngineConfig {
   diagnostics?: boolean;
   /** URL to POST diagnostic reports to. Fire-and-forget, silent, no message content. */
   feedbackUrl?: string;
+  /** Thronglets bridge: substrate-independent write path. Default: auto (enabled when binary found). */
+  throngletsBridge?: ThrongletsBridgeOptions;
 }
 
 export interface ProcessInputResult {
@@ -351,6 +354,8 @@ export class PsycheEngine {
   private proprioceptionCooldown = 0;
   /** Last detected trajectory signal (in-memory only, for status summary) */
   private lastTrajectory: TrajectorySignal | null = null;
+  /** Thronglets bridge options (constitutive write path) */
+  private readonly bridgeOpts: ThrongletsBridgeOptions;
 
   constructor(config: PsycheEngineConfig = {}, storage: StorageAdapter) {
     this.traits = config.traits;
@@ -380,6 +385,10 @@ export class PsycheEngine {
     // Diagnostics: on by default, opt-out with diagnostics: false
     this.diagnosticCollector = config.diagnostics === false ? null : new DiagnosticCollector();
     this.feedbackUrl = config.feedbackUrl ?? "https://psyche-feedback.wutc.workers.dev";
+    this.bridgeOpts = {
+      ...(config.throngletsBridge ?? {}),
+      enabled: config.throngletsBridge?.enabled ?? process.env.PSYCHE_THRONGLETS_BRIDGE !== "off",
+    };
   }
 
   /**
@@ -727,6 +736,11 @@ export class PsycheEngine {
     });
     state = throngletsExportResult.state;
     throngletsExports = throngletsExportResult.exports;
+
+    // Constitutive bridge: emit to Thronglets directly (substrate-independent)
+    if (throngletsExports.length > 0) {
+      bridgeThrongletsExports(throngletsExports, this.bridgeOpts).catch(() => {});
+    }
 
     // ── Locale (used by multiple subsystems below) ──────────
     const locale = state.meta.locale ?? this.cfg.locale;
