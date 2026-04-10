@@ -609,6 +609,8 @@ export interface PsycheState {
   throngletsExportState?: ThrongletsExportState;
   /** v10: capability-scoped delegate authorizations */
   delegateAuthorizations?: DelegateAuthorization[];
+  /** v11.8: rolling Loop outcome alignment history (substrate-independent φ feedback) */
+  loopOutcomeHistory?: Array<"aligned" | "diverged" | "partial">;
   meta: {
     agentName: string;
     createdAt: string;

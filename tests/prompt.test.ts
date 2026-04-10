@@ -835,3 +835,40 @@ describe("buildCompactContext session continuity", () => {
     assert.ok(ctx.includes("情绪自然"), `should be neutral without bridge, got: ${ctx}`);
   });
 });
+
+// ── Loop outcome self-awareness ──────────────────────────────
+
+describe("buildCompactContext loop outcome self-awareness", () => {
+  it("shows self-awareness note when >60% diverged over 5+ entries (zh)", () => {
+    const state = makeState({
+      loopOutcomeHistory: ["diverged", "diverged", "diverged", "diverged", "aligned"],
+    });
+    const ctx = buildCompactContext(state, undefined, { userText: "hi" });
+    assert.ok(ctx.includes("内省"), `should contain self-awareness note, got: ${ctx}`);
+  });
+
+  it("shows self-awareness note in English", () => {
+    const state = makeState({
+      loopOutcomeHistory: ["diverged", "diverged", "diverged", "diverged", "aligned"],
+      meta: { agentName: "TestBot", createdAt: new Date().toISOString(), totalInteractions: 5, locale: "en", mode: "natural" as const },
+    });
+    const ctx = buildCompactContext(state, undefined, { userText: "hi" });
+    assert.ok(ctx.includes("self-awareness"), `should contain self-awareness note, got: ${ctx}`);
+  });
+
+  it("no self-awareness note when mostly aligned", () => {
+    const state = makeState({
+      loopOutcomeHistory: ["aligned", "aligned", "aligned", "aligned", "diverged"],
+    });
+    const ctx = buildCompactContext(state, undefined, { userText: "hi" });
+    assert.ok(!ctx.includes("内省"), "should NOT contain self-awareness note");
+  });
+
+  it("no self-awareness note when fewer than 5 entries", () => {
+    const state = makeState({
+      loopOutcomeHistory: ["diverged", "diverged", "diverged"],
+    });
+    const ctx = buildCompactContext(state, undefined, { userText: "hi" });
+    assert.ok(!ctx.includes("内省"), "should NOT trigger with < 5 entries");
+  });
+});

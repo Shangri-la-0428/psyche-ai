@@ -63,6 +63,23 @@ describe("cli probe", () => {
     assert.equal(parsed.compatLabel, parsed.legacyStimulus);
     assert.equal(parsed.legacyStimulus, parsed.stimulus);
     assert.ok(typeof parsed.loadPath === "string" && parsed.loadPath.length > 0);
+    assert.ok(parsed.overlay && typeof parsed.overlay.agency === "number");
+    assert.ok(parsed.trajectory && Array.isArray(parsed.trajectory.dimensions));
+    assert.ok(parsed.degradation && typeof parsed.degradation.subjectiveStatus === "string");
+    assert.ok(parsed.boundaryStress && typeof parsed.boundaryStress.peakDyadicBoundaryPressure === "number");
+    assert.deepEqual(parsed.fixture.frozenIdentityPrimitives, [
+      "principal",
+      "account",
+      "delegate",
+      "session",
+    ]);
+    assert.deepEqual(parsed.fixture.frozenSignalKinds, [
+      "recommend",
+      "avoid",
+      "watch",
+      "info",
+    ]);
+    assert.equal(parsed.fixture.externalContinuity.version, 1);
   });
 });
 

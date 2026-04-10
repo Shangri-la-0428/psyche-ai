@@ -114,6 +114,7 @@ export function deriveReplyEnvelope(
   const generationControls = deriveGenerationControls({
     responseContract,
     policyModifiers,
+    drives: state.drives,
   });
 
   const envelope: ReplyEnvelope = { subjectivityKernel, responseContract, generationControls };

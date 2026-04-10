@@ -31,7 +31,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { PsycheEngine } from "../core.js";
-import type { PsycheEngineConfig, ProcessInputResult } from "../core.js";
+import type { PsycheEngineConfig, ProcessInputResult, LoopOutcome } from "../core.js";
 import {
   fetchAmbientPriorsFromThronglets,
   resolveAmbientPriorsForTurn,
@@ -130,6 +130,10 @@ async function getEngine(): Promise<PsycheEngine> {
     persist: cliArgs.persist ?? PERSIST,
     compactMode: true,
     diagnostics: true,
+    throngletsBridge: {
+      dataDir: process.env.THRONGLETS_DATA_DIR,
+      space: process.env.THRONGLETS_SPACE ?? "psyche",
+    },
   };
 
   const persist = cfg.persist !== false;
@@ -394,10 +398,19 @@ server.tool(
   },
   async ({ text, userId, signals, signalConfidence }: { text: string; userId?: string; signals?: string[]; signalConfidence?: number }) => {
     const eng = await getEngine();
+
+    // LLM-specific alignment inference (adapter layer — the ONLY text-specific code).
+    // Compare output length against last contract's maxChars to detect divergence.
+    let outcome: LoopOutcome | undefined;
+    if (lastTurnResult?.responseContract) {
+      const maxLen = (lastTurnResult.responseContract.maxChars ?? 500) * 2;
+      outcome = { alignment: text.length > maxLen ? "diverged" : "aligned" };
+    }
+
     const result = await safeProcessOutput(
       eng,
       text,
-      { userId, signals: signals as never, signalConfidence },
+      { userId, signals: signals as never, signalConfidence, outcome },
       "mcp.processOutput",
     );
     return {

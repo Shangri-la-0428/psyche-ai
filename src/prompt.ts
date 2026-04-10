@@ -1276,7 +1276,18 @@ export function buildCompactContext(
     parts.push(activePolicyContext);
   }
 
-  // ── 9. Overlay + channel + writeback ──
+  // ── 9. Loop outcome self-awareness ──
+  const loopHistory = state.loopOutcomeHistory ?? [];
+  if (loopHistory.length >= 5) {
+    const divergedCount = loopHistory.filter(h => h === "diverged").length;
+    if (divergedCount / loopHistory.length > 0.6) {
+      parts.push(locale === "zh"
+        ? "[内省: 近期行动与内在意图持续偏离，调整策略]"
+        : "[self-awareness: recent actions persistently diverge from internal intention — adapting]");
+    }
+  }
+
+  // ── 10. Overlay + channel + writeback ──
   appendCompactOverlaySections(parts, locale, opts);
 
   if (opts?.channelType) {

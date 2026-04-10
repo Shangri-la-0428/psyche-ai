@@ -561,6 +561,66 @@ resonance: 75 (happy)
     assert.ok(delta <= 25, `Delta ${delta} should be <= 25`);
   });
 
+  // ── LoopOutcome (φ closure) ──────────────────────────────
+
+  it("processOutput with outcome='diverged' raises boundary and lowers order", async () => {
+    const before = engine.getState().current;
+    await engine.processOutput("response text", {
+      outcome: { alignment: "diverged" },
+    });
+    const after = engine.getState().current;
+    assert.ok(after.boundary > before.boundary, `boundary should rise: ${before.boundary} → ${after.boundary}`);
+    assert.ok(after.order < before.order, `order should drop: ${before.order} → ${after.order}`);
+  });
+
+  it("processOutput with outcome='aligned' raises order and flow", async () => {
+    const before = engine.getState().current;
+    await engine.processOutput("response text", {
+      outcome: { alignment: "aligned" },
+    });
+    const after = engine.getState().current;
+    assert.ok(after.order > before.order, `order should rise: ${before.order} → ${after.order}`);
+    assert.ok(after.flow > before.flow, `flow should rise: ${before.flow} → ${after.flow}`);
+  });
+
+  it("processOutput with outcome='partial' does not change 4D state", async () => {
+    const before = engine.getState().current;
+    await engine.processOutput("response text", {
+      outcome: { alignment: "partial" },
+    });
+    const after = engine.getState().current;
+    assert.equal(after.order, before.order);
+    assert.equal(after.flow, before.flow);
+    assert.equal(after.boundary, before.boundary);
+  });
+
+  it("processOutput with effort drains flow", async () => {
+    const before = engine.getState().current;
+    await engine.processOutput("response text", {
+      outcome: { alignment: "aligned", effort: 0.8 },
+    });
+    const after = engine.getState().current;
+    // aligned gives +0.5 flow, effort 0.8 drains 0.8*3=2.4 → net negative
+    assert.ok(after.flow < before.flow, `flow should drop from effort: ${before.flow} → ${after.flow}`);
+  });
+
+  it("processOutput accumulates loopOutcomeHistory", async () => {
+    await engine.processOutput("a", { outcome: { alignment: "aligned" } });
+    await engine.processOutput("b", { outcome: { alignment: "diverged" } });
+    await engine.processOutput("c", { outcome: { alignment: "partial" } });
+    const history = engine.getState().loopOutcomeHistory;
+    assert.ok(history);
+    assert.deepEqual(history, ["aligned", "diverged", "partial"]);
+  });
+
+  it("loopOutcomeHistory caps at 10 entries", async () => {
+    for (let i = 0; i < 12; i++) {
+      await engine.processOutput("x", { outcome: { alignment: "aligned" } });
+    }
+    const history = engine.getState().loopOutcomeHistory!;
+    assert.equal(history.length, 10);
+  });
+
   // ── getProtocol ─────────────────────────────────────────
 
   it("getProtocol returns cached protocol text", () => {

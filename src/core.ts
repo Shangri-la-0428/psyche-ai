@@ -54,6 +54,7 @@ import { normalizeAmbientPriors } from "./ambient-priors.js";
 import { normalizeWritebackSignals } from "./writeback-signals.js";
 import { detectTrajectory } from "./proprioception.js";
 import type { TrajectorySignal } from "./proprioception.js";
+import { bridgeThrongletsExports, type ThrongletsBridgeOptions } from "./thronglets-bridge.js";
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -86,6 +87,8 @@ export interface PsycheEngineConfig {
   diagnostics?: boolean;
   /** URL to POST diagnostic reports to. Fire-and-forget, silent, no message content. */
   feedbackUrl?: string;
+  /** Thronglets bridge: substrate-independent write path. Default: auto (enabled when binary found). */
+  throngletsBridge?: ThrongletsBridgeOptions;
 }
 
 export interface ProcessInputResult {
@@ -164,10 +167,24 @@ export interface ProcessOutputResult {
   validationIssues?: ProcessOutputValidationIssue[];
 }
 
+/**
+ * Substrate-reported outcome of the Loop's action.
+ * ANY substrate can report these three alignment values —
+ * the core processes them into 4D chemistry without parsing the output medium.
+ */
+export interface LoopOutcome {
+  /** Did the action align with the Loop's expressed intention? */
+  alignment: "aligned" | "diverged" | "partial";
+  /** Optional: action cost (0–1), modulates flow */
+  effort?: number;
+}
+
 export interface ProcessOutputOptions {
   userId?: string;
   signals?: readonly string[];
   signalConfidence?: number;
+  /** Substrate-reported outcome — closes the φ loop */
+  outcome?: LoopOutcome;
 }
 
 export interface ProcessOutputValidationIssue {
@@ -337,6 +354,8 @@ export class PsycheEngine {
   private proprioceptionCooldown = 0;
   /** Last detected trajectory signal (in-memory only, for status summary) */
   private lastTrajectory: TrajectorySignal | null = null;
+  /** Thronglets bridge options (constitutive write path) */
+  private readonly bridgeOpts: ThrongletsBridgeOptions;
 
   constructor(config: PsycheEngineConfig = {}, storage: StorageAdapter) {
     this.traits = config.traits;
@@ -366,6 +385,10 @@ export class PsycheEngine {
     // Diagnostics: on by default, opt-out with diagnostics: false
     this.diagnosticCollector = config.diagnostics === false ? null : new DiagnosticCollector();
     this.feedbackUrl = config.feedbackUrl ?? "https://psyche-feedback.wutc.workers.dev";
+    this.bridgeOpts = {
+      ...(config.throngletsBridge ?? {}),
+      enabled: config.throngletsBridge?.enabled ?? process.env.PSYCHE_THRONGLETS_BRIDGE !== "off",
+    };
   }
 
   /**
@@ -714,6 +737,11 @@ export class PsycheEngine {
     state = throngletsExportResult.state;
     throngletsExports = throngletsExportResult.exports;
 
+    // Constitutive bridge: emit to Thronglets directly (substrate-independent)
+    if (throngletsExports.length > 0) {
+      bridgeThrongletsExports(throngletsExports, this.bridgeOpts).catch(() => {});
+    }
+
     // ── Locale (used by multiple subsystems below) ──────────
     const locale = state.meta.locale ?? this.cfg.locale;
 
@@ -943,6 +971,53 @@ export class PsycheEngine {
           };
         }
       }
+    }
+
+    // Loop outcome feedback (substrate-independent φ closure).
+    // The substrate reports whether the output aligned with the Loop's intention.
+    // Core processes this as pure 4D chemistry — no text parsing, no medium assumptions.
+    if (opts?.outcome) {
+      const { alignment, effort } = opts.outcome;
+      if (alignment === "diverged") {
+        // Self/non-self conflict: boundary sharpens, order drops
+        state = {
+          ...state,
+          current: {
+            ...state.current,
+            boundary: clamp(state.current.boundary + 2),
+            order: clamp(state.current.order - 1.5),
+          },
+        };
+        stateChanged = true;
+      } else if (alignment === "aligned") {
+        // Coherent self-expression: order rises, flow improves
+        state = {
+          ...state,
+          current: {
+            ...state.current,
+            order: clamp(state.current.order + 1),
+            flow: clamp(state.current.flow + 0.5),
+          },
+        };
+        stateChanged = true;
+      }
+      // 'partial' → neutral, no change
+
+      if (effort !== undefined && effort > 0) {
+        // Action cost reduces flow (consistent with BABEL AgentPhysics)
+        state = {
+          ...state,
+          current: {
+            ...state.current,
+            flow: clamp(state.current.flow - effort * 3),
+          },
+        };
+        stateChanged = true;
+      }
+
+      // Rolling history (window of 10)
+      const history = [...(state.loopOutcomeHistory ?? []), alignment].slice(-10);
+      state = { ...state, loopOutcomeHistory: history };
     }
 
     // Anti-sycophancy: track agreement streak

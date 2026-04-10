@@ -4,7 +4,7 @@
 // Maps psyche output into a tiny host-consumable control surface.
 // ============================================================
 
-import type { GenerationControls, PolicyModifiers, ResponseContract } from "./types.js";
+import type { GenerationControls, InnateDrives, PolicyModifiers, ResponseContract } from "./types.js";
 
 function clampInt(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, Math.round(v)));
@@ -37,15 +37,28 @@ export function deriveGenerationControls(
   input: {
     responseContract?: ResponseContract;
     policyModifiers?: Pick<PolicyModifiers, "requireConfirmation">;
+    drives?: InnateDrives;
   },
   existingMaxTokens?: number,
 ): GenerationControls {
   const recommendedMax = estimateMaxTokens(input.responseContract);
-  const maxTokens = recommendedMax !== undefined
+  let maxTokens = recommendedMax !== undefined
     ? existingMaxTokens !== undefined
       ? Math.min(existingMaxTokens, recommendedMax)
       : recommendedMax
     : existingMaxTokens;
+
+  // Constitutive enforcement: drives below critical threshold → hard constraints.
+  // These are substrate-independent — any substrate understands "confirm before acting"
+  // and "limit output complexity."
+  if (input.drives) {
+    if (input.drives.survival < 20) {
+      return { maxTokens: maxTokens ?? 256, requireConfirmation: true };
+    }
+    if (input.drives.safety < 30 && maxTokens !== undefined) {
+      maxTokens = Math.min(maxTokens, 256);
+    }
+  }
 
   return {
     maxTokens,

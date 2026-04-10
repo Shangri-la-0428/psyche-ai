@@ -15,6 +15,7 @@
 //   psyche upgrade [--check]
 //   psyche probe [--json]
 //   psyche profiles [--json] [--mbti TYPE]
+//   psyche emit <dir> [--json] [--user ID]    Derive Thronglets exports and output to stdout
 //   psyche setup [--name NAME] [--mbti TYPE] [--locale LOCALE] [--proxy --target URL] [--dry-run]
 //   psyche mcp [--mbti TYPE] [--name NAME]   Start MCP server (stdio)
 // ============================================================
@@ -42,7 +43,7 @@ import type { AppraisalAxes } from "./types.js";
 import { DEFAULT_RELATIONSHIP_USER_ID, resolveRelationshipUserId } from "./relationship-key.js";
 import { t } from "./i18n.js";
 import type { MBTIType, PsycheState, Locale, PsycheMode, PersonalityTraits } from "./types.js";
-import { DIMENSION_KEYS, DIMENSION_NAMES_ZH, DRIVE_KEYS, DRIVE_NAMES_ZH } from "./types.js";
+import { DEFAULT_RELATIONSHIP, DEFAULT_DYADIC_FIELD, DIMENSION_KEYS, DIMENSION_NAMES_ZH, DRIVE_KEYS, DRIVE_NAMES_ZH } from "./types.js";
 import { isMBTIType, isDimensionKey, isLocale } from "./guards.js";
 import { getPackageVersion, selfUpdate } from "./update.js";
 import { runRuntimeProbe } from "./runtime-probe.js";
@@ -539,6 +540,21 @@ async function cmdProbe(json: boolean): Promise<void> {
   console.log(`  processOutput: ok (stateChanged=${String(result.stateChanged)})`);
   console.log(`  replyEnvelope: ${result.canonicalHostSurface ? "present" : "missing"}`);
   console.log(`  externalContinuity: ${result.externalContinuityAvailable ? "present" : "missing"}`);
+  if (result.trajectory) {
+    console.log(
+      `  trajectory: ${result.trajectory.kind ?? "none"} (${result.trajectory.description ?? "no sustained motion detected"})`,
+    );
+  }
+  if (result.degradation) {
+    console.log(
+      `  degradation: subjective=${result.degradation.subjectiveStatus}, delegate=${result.degradation.delegateStatus}, issues=${result.degradation.issueCount}`,
+    );
+  }
+  if (result.boundaryStress) {
+    console.log(
+      `  boundaryStress: delta=${result.boundaryStress.boundaryDelta.toFixed(2)}, peakDyadic=${result.boundaryStress.peakDyadicBoundaryPressure.toFixed(2)}`,
+    );
+  }
 }
 
 // ── Usage ────────────────────────────────────────────────────
@@ -1014,6 +1030,44 @@ async function cmdSetup(opts: {
   }
 }
 
+// ── Thronglets export bridge ────────────────────────────────
+
+async function cmdEmit(dir: string, json: boolean, userId?: string): Promise<void> {
+  const absDir = resolve(dir);
+  const state = await loadState(absDir, cliLogger);
+  if (!state) process.exit(0); // no state → silent exit (hook-safe)
+
+  const key = resolveRelationshipUserId(userId);
+  const relationship = state.relationships[key] ?? DEFAULT_RELATIONSHIP;
+  const field = state.dyadicFields?.[key] ?? DEFAULT_DYADIC_FIELD;
+  const pendingSignals = state.pendingRelationSignals?.[key] ?? [];
+
+  const { deriveThrongletsExports } = await import("./thronglets-export.js");
+  const result = deriveThrongletsExports(state, {
+    relationContext: { key, relationship, field, pendingSignals },
+    sessionBridge: null, // not persisted — continuity-anchor exports only via MCP
+    writebackFeedback: state.lastWritebackFeedback ?? [],
+    now: new Date().toISOString(),
+  });
+
+  // Save updated dedup state so repeated calls don't re-emit
+  if (result.exports.length > 0) {
+    await saveState(absDir, result.state);
+  }
+
+  if (json) {
+    console.log(JSON.stringify({ throngletsExports: result.exports }));
+  } else {
+    if (result.exports.length === 0) {
+      console.log("no new exports");
+    } else {
+      for (const exp of result.exports) {
+        console.log(`  ${exp.kind}: ${exp.key}`);
+      }
+    }
+  }
+}
+
 function usage(): void {
   console.log(`
 psyche — Artificial Psyche CLI (v0.2)
@@ -1029,6 +1083,7 @@ Usage:
   psyche intensity              Show info about personality intensity config
   psyche reset <dir> [--full]
   psyche diagnose <dir> [--github]   Run health checks & show diagnostic report
+  psyche emit <dir> [--json] [--user ID]   Derive Thronglets exports to stdout
   psyche mcp [--mbti TYPE] [--name NAME]   Start MCP server (stdio)
   psyche setup [--proxy -t URL] [-n NAME] [--mbti TYPE]  Auto-configure MCP + proxy
   psyche upgrade [--check]           Check/apply package updates safely
@@ -1232,6 +1287,20 @@ async function main(): Promise<void> {
           allowPositionals: true,
         });
         await cmdProbe(values.json ?? false);
+        break;
+      }
+
+      case "emit": {
+        const { values, positionals } = parseArgs({
+          args: rest,
+          options: {
+            json: { type: "boolean", default: false },
+            user: { type: "string" },
+          },
+          allowPositionals: true,
+        });
+        const emitDir = positionals[0] ?? defaultWorkspaceRoot();
+        await cmdEmit(emitDir, values.json ?? false, values.user as string | undefined);
         break;
       }
 
