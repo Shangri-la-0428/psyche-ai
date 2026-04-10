@@ -79,7 +79,7 @@ This IS the Loop's causal cycle, observed from the inside.
 ## Architecture
 
 ```
-TypeScript (v11.4.0, package: psyche-ai)
+TypeScript (v11.8.0, package: psyche-ai)
 src/
 ├── adapters/           — 7 adapter files (mcp.ts, openclaw.ts, vercel-ai.ts,
 │                         langchain.ts, http.ts, claude-sdk.ts, proxy.ts)
@@ -110,6 +110,15 @@ src/
 ### What Psyche provides to a Sigil
 
 Psyche makes a Loop's behavior *richer* — not just "different state → different output" (the minimum Loop constraint), but "state evolves with internal dynamics that produce behavioral individuality." A Loop without Psyche still satisfies the state-dependence constraint. A Loop WITH Psyche has a more complex and interesting internal landscape.
+
+### Field Evolution Context (2026-04-11)
+
+**进化的是场（Thronglets），不是个体（Sigil）。** Psyche的角色是场的感知器官的内在基底——赋予个体真实的自我（φ闭环），但进化的选择单位是场的结构。
+
+- 个体的DISSOLVE = 场的突触修剪（不是"个体死亡"的类比）
+- Psyche的drives崩溃 → 个体停止向场贡献信号 → Chain的liveness decay自然触发dissolution
+- Psyche不需要知道DISSOLVE的存在——它只是停止心跳，Chain处理后果
+- v11.8.0的constitutive bridge确保任何用Psyche的agent自动向Thronglets写入self-state（场贡献）
 
 ### What Psyche does NOT provide
 
