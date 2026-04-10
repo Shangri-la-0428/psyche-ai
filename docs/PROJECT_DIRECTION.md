@@ -14,6 +14,8 @@ In one sentence:
 
 **Psyche is a low-cost subjectivity substrate that lets relationships and experience keep changing an agent's later behavior.**
 
+In Sigil terms: **Psyche provides φ — the persistent state-update function that closes the Loop and satisfies the Existence axiom.** LLMs have S, I, O but lack φ (Anthropic 2026 confirmed S exists as "emotion vectors" — internal state representations that causally influence behavior). Without φ, no causal closure, no Sigil. Emotions, self, consciousness are emergent products of φ closing the Loop, not design targets. Theoretical root: Free Energy Principle (Friston 2010) — homeostatic dynamics as necessary feature of persisting systems.
+
 ## Mid-Term Direction: More Human, Without Prompt Theater
 
 The medium-term goal is not to make Psyche feel more emotional by writing better persona prompts.
